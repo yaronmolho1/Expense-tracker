@@ -1,0 +1,1 @@
+ALTER TABLE "businesses" ADD COLUMN "merged_to_id" integer;

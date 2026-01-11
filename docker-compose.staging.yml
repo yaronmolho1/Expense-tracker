@@ -1,0 +1,75 @@
+# Docker Compose for Staging Environment
+# 
+# Usage: docker compose -f docker-compose.staging.yml up -d
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: expense-tracker-staging-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-expenseuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-expensepass}
+      POSTGRES_DB: ${POSTGRES_DB:-expensedb_staging}
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    volumes:
+      - staging-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-expenseuser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expense-tracker-staging
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: expense-tracker-staging-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: staging
+      DATABASE_URL: postgresql://${POSTGRES_USER:-expenseuser}:${POSTGRES_PASSWORD:-expensepass}@db:5432/${POSTGRES_DB:-expensedb_staging}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      AUTH_USERNAME: ${AUTH_USERNAME}
+      AUTH_PASSWORD_HASH_BASE64: ${AUTH_PASSWORD_HASH_BASE64}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    ports:
+      - "3001:3000"  # Staging on port 3001
+    restart: unless-stopped
+    networks:
+      - expense-tracker-staging
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: expense-tracker-staging-worker
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: staging
+      DATABASE_URL: postgresql://${POSTGRES_USER:-expenseuser}:${POSTGRES_PASSWORD:-expensepass}@db:5432/${POSTGRES_DB:-expensedb_staging}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    restart: unless-stopped
+    networks:
+      - expense-tracker-staging
+
+volumes:
+  staging-db-data:
+    driver: local
+
+networks:
+  expense-tracker-staging:
+    driver: bridge

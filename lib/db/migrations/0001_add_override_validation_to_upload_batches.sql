@@ -1,0 +1,1 @@
+ALTER TABLE "upload_batches" ADD COLUMN "override_validation" boolean DEFAULT false NOT NULL;
