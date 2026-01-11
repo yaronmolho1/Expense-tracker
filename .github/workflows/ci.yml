@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: expenseuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: expensedb_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U expenseuser"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install wait-on globally
+        run: npm install -g wait-on
+      
+      - name: TypeScript type check
+        run: npm run type-check
+      
+      - name: Run unit tests
+        run: npm run test:unit
+        env:
+          JWT_SECRET: test-secret-key-for-ci
+          AUTH_USERNAME: testuser
+          AUTH_PASSWORD_HASH_BASE64: JDJiJDEyJHRlc3Q=
+      
+      - name: Setup integration test database
+        run: |
+          # Create integration database
+          PGPASSWORD=testpass psql -h localhost -U expenseuser -d expensedb_test -c "DROP DATABASE IF EXISTS expense_tracker_integration;"
+          PGPASSWORD=testpass psql -h localhost -U expenseuser -d expensedb_test -c "CREATE DATABASE expense_tracker_integration;"
+        env:
+          PGUSER: expenseuser
+          PGPASSWORD: testpass
+      
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          DATABASE_URL: postgresql://expenseuser:testpass@localhost:5432/expense_tracker_integration
+          PGUSER: expenseuser
+          PGPASSWORD: testpass
+          JWT_SECRET: test-secret-key-for-ci
+          AUTH_USERNAME: testuser
+          AUTH_PASSWORD_HASH_BASE64: JDJiJDEyJHRlc3Q=
+      
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+      
+      - name: Setup E2E test database
+        run: |
+          # Create E2E database
+          PGPASSWORD=testpass psql -h localhost -U expenseuser -d expensedb_test -c "DROP DATABASE IF EXISTS expense_tracker_test;"
+          PGPASSWORD=testpass psql -h localhost -U expenseuser -d expensedb_test -c "CREATE DATABASE expense_tracker_test;"
+        env:
+          PGUSER: expenseuser
+          PGPASSWORD: testpass
+      
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://expenseuser:testpass@localhost:5432/expense_tracker_test
+          TEST_DATABASE_URL: postgresql://expenseuser:testpass@localhost:5432/expense_tracker_test
+          PGUSER: expenseuser
+          PGPASSWORD: testpass
+          JWT_SECRET: test-secret-key-for-ci
+          AUTH_USERNAME: gili
+          AUTH_PASSWORD_HASH_BASE64: ${{ secrets.AUTH_PASSWORD_HASH_BASE64 }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+      
+      - name: Upload test coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run linter
+        run: npm run lint || true
+
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+          JWT_SECRET: build-time-secret
+          AUTH_USERNAME: dummy
+          AUTH_PASSWORD_HASH_BASE64: ZHVtbXk=
+          ANTHROPIC_API_KEY: sk-ant-dummy

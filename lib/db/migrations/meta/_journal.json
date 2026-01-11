@@ -1,0 +1,76 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1766930109423,
+      "tag": "0000_plain_logan",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1767281373018,
+      "tag": "0001_add_override_validation_to_upload_batches",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767281564433,
+      "tag": "0002_remove_override_validation_from_upload_batches",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1767282042342,
+      "tag": "0003_add_validation_warning_to_uploaded_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1767297720352,
+      "tag": "0004_ancient_zuras",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1767534724231,
+      "tag": "0005_salty_titanium_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1767555702188,
+      "tag": "0006_living_zombie",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1767588979093,
+      "tag": "0007_wandering_absorbing_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1767803136116,
+      "tag": "0008_worried_blonde_phantom",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1768048932229,
+      "tag": "0009_faithful_cable",
+      "breakpoints": true
+    }
+  ]
+}

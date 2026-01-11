@@ -1,0 +1,1 @@
+ALTER TABLE "transactions" ALTER COLUMN "installment_group_id" SET DATA TYPE varchar(64);

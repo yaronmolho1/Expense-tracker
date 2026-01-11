@@ -1,0 +1,1 @@
+ALTER TABLE "upload_batches" DROP COLUMN "override_validation";

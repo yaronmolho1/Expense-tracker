@@ -1,0 +1,192 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { transactions, businesses, categories } from '@/lib/db/schema';
+import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
+import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
+  try {
+    const now = new Date();
+    const currentMonthStart = startOfMonth(now);
+    const currentMonthEnd = endOfMonth(now);
+    const lastMonthStart = startOfMonth(subMonths(now, 1));
+    const lastMonthEnd = endOfMonth(subMonths(now, 1));
+    const sixMonthsAgo = subMonths(currentMonthStart, 6);
+
+    // KPI 1: This Month Spending (completed transactions only)
+    const thisMonthResult = await db
+      .select({
+        total: sql<string>`COALESCE(SUM(${transactions.chargedAmountIls}), 0)`,
+      })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.status, 'completed'),
+          gte(
+            sql`COALESCE(${transactions.actualChargeDate}, ${transactions.bankChargeDate}, ${transactions.dealDate})`,
+            currentMonthStart.toISOString().split('T')[0]
+          ),
+          lte(
+            sql`COALESCE(${transactions.actualChargeDate}, ${transactions.bankChargeDate}, ${transactions.dealDate})`,
+            currentMonthEnd.toISOString().split('T')[0]
+          )
+        )
+      );
+
+    const thisMonthSpending = parseFloat(thisMonthResult[0]?.total || '0');
+
+    // KPI 2: Last Month Spending
+    const lastMonthResult = await db
+      .select({
+        total: sql<string>`COALESCE(SUM(${transactions.chargedAmountIls}), 0)`,
+      })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.status, 'completed'),
+          gte(
+            sql`COALESCE(${transactions.actualChargeDate}, ${transactions.bankChargeDate}, ${transactions.dealDate})`,
+            lastMonthStart.toISOString().split('T')[0]
+          ),
+          lte(
+            sql`COALESCE(${transactions.actualChargeDate}, ${transactions.bankChargeDate}, ${transactions.dealDate})`,
+            lastMonthEnd.toISOString().split('T')[0]
+          )
+        )
+      );
+
+    const lastMonthSpending = parseFloat(lastMonthResult[0]?.total || '0');
+
+    // KPI 3: 6-Month Average
+    const sixMonthResult = await db
+      .select({
+        total: sql<string>`COALESCE(SUM(${transactions.chargedAmountIls}), 0)`,
+      })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.status, 'completed'),
+          gte(
+            sql`COALESCE(${transactions.actualChargeDate}, ${transactions.bankChargeDate}, ${transactions.dealDate})`,
+            sixMonthsAgo.toISOString().split('T')[0]
+          ),
+          lte(
+            sql`COALESCE(${transactions.actualChargeDate}, ${transactions.bankChargeDate}, ${transactions.dealDate})`,
+            currentMonthEnd.toISOString().split('T')[0]
+          )
+        )
+      );
+
+    const sixMonthTotal = parseFloat(sixMonthResult[0]?.total || '0');
+    const sixMonthAverage = sixMonthTotal / 6;
+
+    // Monthly Trend Data (last 6 months)
+    const monthlyTrend = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthStart = startOfMonth(subMonths(now, i));
+      const monthEnd = endOfMonth(subMonths(now, i));
+
+      const monthResult = await db
+        .select({
+          total: sql<string>`COALESCE(SUM(${transactions.chargedAmountIls}), 0)`,
+        })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.status, 'completed'),
+            gte(
+              sql`COALESCE(${transactions.actualChargeDate}, ${transactions.bankChargeDate}, ${transactions.dealDate})`,
+              monthStart.toISOString().split('T')[0]
+            ),
+            lte(
+              sql`COALESCE(${transactions.actualChargeDate}, ${transactions.bankChargeDate}, ${transactions.dealDate})`,
+              monthEnd.toISOString().split('T')[0]
+            )
+          )
+        );
+
+      monthlyTrend.push({
+        month: format(monthStart, 'MMM yyyy'),
+        spending: parseFloat(monthResult[0]?.total || '0'),
+      });
+    }
+
+    // Category Breakdown (This Month, Parent Categories Only)
+    const categoryBreakdown = await db.execute(sql`
+      SELECT
+        c.id,
+        c.name,
+        COALESCE(SUM(t.charged_amount_ils), 0) as total
+      FROM categories c
+      LEFT JOIN businesses b ON (b.primary_category_id = c.id)
+      LEFT JOIN transactions t ON (
+        t.business_id = b.id
+        AND t.status = 'completed'
+        AND COALESCE(t.actual_charge_date, t.bank_charge_date, t.deal_date) >= ${currentMonthStart.toISOString().split('T')[0]}
+        AND COALESCE(t.actual_charge_date, t.bank_charge_date, t.deal_date) <= ${currentMonthEnd.toISOString().split('T')[0]}
+      )
+      WHERE c.level = 0
+      GROUP BY c.id, c.name
+      ORDER BY total DESC
+    `);
+
+    const categoryData = (categoryBreakdown as any[]).map((row: any) => ({
+      category: row.name,
+      spending: parseFloat(row.total || '0'),
+    }));
+
+    // Recent Transactions (Last 10 completed) - using raw SQL
+    const recentTransactionsRaw = await db.execute(sql`
+      SELECT
+        t.id,
+        b.display_name as business_name,
+        t.charged_amount_ils as amount,
+        COALESCE(t.actual_charge_date, t.bank_charge_date, t.deal_date) as date,
+        COALESCE(child_cat.name, parent_cat.name, 'Uncategorized') as category_name
+      FROM transactions t
+      INNER JOIN businesses b ON t.business_id = b.id
+      LEFT JOIN categories parent_cat ON b.primary_category_id = parent_cat.id
+      LEFT JOIN categories child_cat ON b.child_category_id = child_cat.id
+      WHERE t.status = 'completed'
+      ORDER BY COALESCE(t.actual_charge_date, t.bank_charge_date, t.deal_date) DESC
+      LIMIT 10
+    `);
+
+    const recentTransactions = (recentTransactionsRaw as any[]).map((row: any) => ({
+      id: row.id,
+      businessName: row.business_name,
+      amount: parseFloat(row.amount),
+      date: row.date,
+      category: row.category_name,
+    }));
+
+    return NextResponse.json({
+      kpis: {
+        thisMonth: thisMonthSpending,
+        lastMonth: lastMonthSpending,
+        sixMonthAverage: sixMonthAverage,
+        changeFromLastMonth:
+          lastMonthSpending > 0
+            ? ((thisMonthSpending - lastMonthSpending) / lastMonthSpending) * 100
+            : 0,
+      },
+      monthlyTrend,
+      categoryBreakdown: categoryData,
+      recentTransactions,
+    });
+  } catch (error) {
+    console.error('Dashboard API Error:', error);
+    // Log full error details
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      error: error
+    });
+    return NextResponse.json(
+      { error: 'Failed to fetch dashboard data', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}

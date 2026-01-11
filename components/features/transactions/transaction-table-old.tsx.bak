@@ -1,0 +1,183 @@
+'use client';
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { type Transaction } from '@/hooks/use-transactions';
+
+interface TransactionTableProps {
+  transactions: Transaction[];
+  isLoading: boolean;
+  total: number;
+  page: number;
+  perPage: number;
+  onPageChange: (page: number) => void;
+}
+
+export function TransactionTable({
+  transactions,
+  isLoading,
+  total,
+  page,
+  perPage,
+  onPageChange,
+}: TransactionTableProps) {
+  const totalPages = Math.ceil(total / perPage);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('he-IL', {
+      style: 'currency',
+      currency: 'ILS',
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, 'default' | 'secondary' | 'outline'> = {
+      completed: 'default',
+      projected: 'secondary',
+      cancelled: 'outline',
+    };
+
+    return (
+      <Badge variant={variants[status] || 'default'}>
+        {status}
+      </Badge>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-muted-foreground">Loading transactions...</div>
+      </div>
+    );
+  }
+
+  if (transactions.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-muted-foreground">No transactions found</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Business</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Card</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {transactions.map((transaction) => (
+              <TableRow key={transaction.id}>
+                <TableCell>
+                  {formatDate(transaction.bank_charge_date || transaction.deal_date)}
+                </TableCell>
+                <TableCell className="font-medium">
+                  {transaction.business_name}
+                  {transaction.is_refund && (
+                    <Badge variant="outline" className="ml-2">
+                      Refund
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">
+                    {transaction.category.primary && (
+                      <div className="font-medium">
+                        {transaction.category.primary}
+                      </div>
+                    )}
+                    {transaction.category.child && (
+                      <div className="text-muted-foreground">
+                        {transaction.category.child}
+                      </div>
+                    )}
+                    {!transaction.category.primary && (
+                      <span className="text-muted-foreground">Uncategorized</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">
+                    {transaction.card.nickname || `•••• ${transaction.card.last_4}`}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {formatCurrency(transaction.charged_amount_ils)}
+                  {transaction.original_currency !== 'ILS' && (
+                    <div className="text-xs text-muted-foreground">
+                      {transaction.original_amount} {transaction.original_currency}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {transaction.installment_info ? (
+                    <Badge variant="secondary">
+                      {transaction.installment_info.index}/{transaction.installment_info.total}
+                    </Badge>
+                  ) : transaction.transaction_type === 'subscription' ? (
+                    <Badge variant="secondary">Subscription</Badge>
+                  ) : (
+                    <span className="text-muted-foreground">One-time</span>
+                  )}
+                </TableCell>
+                <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between px-2 py-4">
+        <div className="text-sm text-muted-foreground">
+          Showing {(page - 1) * perPage + 1} to{' '}
+          {Math.min(page * perPage, total)} of {total} transactions
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(page - 1)}
+            disabled={page === 1}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(page + 1)}
+            disabled={page >= totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
