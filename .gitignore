@@ -48,3 +48,11 @@ uploads/
 
 # Parser development archives (analysis, specs, old tests)
 card-parser-files-archives/
+
+
+roadmap.md
+session_log.md
+TESTING_IMPLEMENTATION_COMPLETE.md
+testing.md
+testing_quickstart.md
+

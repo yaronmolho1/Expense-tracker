@@ -74,6 +74,9 @@ export function sanitizeDisplayName(input: string): string {
   // Remove control characters and other dangerous characters
   sanitized = sanitized.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
   
+  // Collapse multiple spaces to single space
+  sanitized = sanitized.replace(/\s+/g, ' ');
+  
   // Trim whitespace
   sanitized = sanitized.trim();
   
@@ -97,14 +100,87 @@ export function sanitizeSearchQuery(input: string): string {
   // Strip HTML
   let sanitized = stripHtmlTags(input);
   
+  // Remove SQL injection patterns (sanitizeSqlInput logic)
+  sanitized = sanitized
+    .replace(/['";]/g, '') // Remove quotes and semicolons
+    .replace(/--/g, '')    // Remove SQL comments
+    .replace(/\/\*/g, '')  // Remove block comment start
+    .replace(/\*\//g, ''); // Remove block comment end
+  
+  // Remove common SQL keywords in suspicious patterns (case-insensitive)
+  const sqlKeywords = [
+    'DROP TABLE', 'DROP DATABASE', 'DELETE FROM', 'TRUNCATE',
+    'INSERT INTO', 'UPDATE', 'ALTER TABLE', 'CREATE TABLE',
+    'EXEC', 'EXECUTE', 'UNION SELECT', 'SELECT'
+  ];
+  
+  for (const keyword of sqlKeywords) {
+    // Escape special regex characters and replace spaces with \s+
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+    const regex = new RegExp(escaped, 'gi');
+    sanitized = sanitized.replace(regex, '');
+  }
+  
   // Remove special regex characters that could cause issues
   // Keep: letters, numbers, spaces, hyphens, apostrophes
   sanitized = sanitized.replace(/[^\w\s\-'א-ת]/g, '');
+  
+  // Collapse multiple spaces
+  sanitized = sanitized.replace(/\s+/g, ' ');
   
   // Trim and limit length
   sanitized = sanitized.trim();
   if (sanitized.length > 100) {
     sanitized = sanitized.substring(0, 100);
+  }
+  
+  return sanitized;
+}
+
+/**
+ * Sanitize HTML input - removes dangerous tags and attributes
+ */
+export function sanitizeHtml(input: string | null | undefined): string {
+  if (!input || typeof input !== 'string') {
+    return '';
+  }
+  
+  // Remove script tags
+  let sanitized = input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  
+  // Remove style tags
+  sanitized = sanitized.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+  
+  // Remove iframe tags
+  sanitized = sanitized.replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '');
+  
+  // Remove event handlers (onclick, onerror, etc.)
+  sanitized = sanitized.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
+  sanitized = sanitized.replace(/\s*on\w+\s*=\s*[^\s>]*/gi, '');
+  
+  // Strip remaining HTML tags
+  sanitized = stripHtmlTags(sanitized);
+  
+  return sanitized;
+}
+
+/**
+ * Sanitize general input - removes HTML and trims
+ */
+export function sanitizeInput(input: string | null | undefined): string {
+  if (!input || typeof input !== 'string') {
+    return '';
+  }
+  
+  // Strip HTML tags
+  let sanitized = stripHtmlTags(input);
+  
+  // Trim whitespace
+  sanitized = sanitized.trim();
+  
+  // Limit length (if needed)
+  if (sanitized.length > 1000) {
+    sanitized = sanitized.substring(0, 1000);
   }
   
   return sanitized;

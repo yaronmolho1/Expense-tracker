@@ -12,6 +12,8 @@ beforeAll(async () => {
   process.env.JWT_SECRET = 'test-secret-key-for-testing-only';
   process.env.AUTH_USERNAME = 'testuser';
   process.env.AUTH_PASSWORD_HASH_BASE64 = Buffer.from('$2b$12$test').toString('base64');
+  // Set a dummy DATABASE_URL for tests that don't actually connect
+  process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/testdb';
 });
 
 afterAll(async () => {

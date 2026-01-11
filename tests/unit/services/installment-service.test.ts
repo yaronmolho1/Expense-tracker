@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { 
   generateInstallmentGroupId,
   generateInstallmentTransactionHash 
-} from '@/lib/services/installment-service';
+} from '@/lib/utils/hash';
 
 /**
  * Unit Tests: Installment Service
@@ -14,17 +14,17 @@ describe('Installment Service', () => {
   describe('generateInstallmentGroupId', () => {
     it('should generate consistent group ID for same parameters', () => {
       const id1 = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 3600,
-        totalCount: 12,
-        firstPaymentDate: '2024-01-15',
+        businessNormalizedName: 'test business',
+        totalPaymentSum: 3600,
+        installmentTotal: 12,
+        dealDate: '2024-01-15',
       });
       
       const id2 = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 3600,
-        totalCount: 12,
-        firstPaymentDate: '2024-01-15',
+        businessNormalizedName: 'test business',
+        totalPaymentSum: 3600,
+        installmentTotal: 12,
+        dealDate: '2024-01-15',
       });
       
       expect(id1).toBe(id2);
@@ -33,17 +33,17 @@ describe('Installment Service', () => {
 
     it('should generate different ID for different business', () => {
       const id1 = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 3600,
-        totalCount: 12,
-        firstPaymentDate: '2024-01-15',
+        businessNormalizedName: 'business a',
+        totalPaymentSum: 3600,
+        installmentTotal: 12,
+        dealDate: '2024-01-15',
       });
       
       const id2 = generateInstallmentGroupId({
-        businessId: 2,
-        totalAmount: 3600,
-        totalCount: 12,
-        firstPaymentDate: '2024-01-15',
+        businessNormalizedName: 'business b',
+        totalPaymentSum: 3600,
+        installmentTotal: 12,
+        dealDate: '2024-01-15',
       });
       
       expect(id1).not.toBe(id2);
@@ -51,17 +51,17 @@ describe('Installment Service', () => {
 
     it('should generate different ID for different total amount', () => {
       const id1 = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 3600,
-        totalCount: 12,
-        firstPaymentDate: '2024-01-15',
+        businessNormalizedName: 'test business',
+        totalPaymentSum: 3600,
+        installmentTotal: 12,
+        dealDate: '2024-01-15',
       });
       
       const id2 = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 3700,
-        totalCount: 12,
-        firstPaymentDate: '2024-01-15',
+        businessNormalizedName: 'test business',
+        totalPaymentSum: 3700,
+        installmentTotal: 12,
+        dealDate: '2024-01-15',
       });
       
       expect(id1).not.toBe(id2);
@@ -69,36 +69,36 @@ describe('Installment Service', () => {
 
     it('should generate different ID for different installment count', () => {
       const id1 = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 3600,
-        totalCount: 12,
-        firstPaymentDate: '2024-01-15',
+        businessNormalizedName: 'test business',
+        totalPaymentSum: 3600,
+        installmentTotal: 12,
+        dealDate: '2024-01-15',
       });
       
       const id2 = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 3600,
-        totalCount: 24,
-        firstPaymentDate: '2024-01-15',
+        businessNormalizedName: 'test business',
+        totalPaymentSum: 3600,
+        installmentTotal: 24,
+        dealDate: '2024-01-15',
       });
       
       expect(id1).not.toBe(id2);
     });
 
-    it('should generate same ID regardless of purchase date', () => {
-      // Group ID is based on first payment, not purchase
+    it('should generate same ID for same parameters', () => {
+      // Group ID is based on business, total, count, and date
       const id1 = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 3600,
-        totalCount: 12,
-        firstPaymentDate: '2024-01-15',
+        businessNormalizedName: 'test business',
+        totalPaymentSum: 3600,
+        installmentTotal: 12,
+        dealDate: '2024-01-15',
       });
       
       const id2 = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 3600,
-        totalCount: 12,
-        firstPaymentDate: '2024-01-15',
+        businessNormalizedName: 'test business',
+        totalPaymentSum: 3600,
+        installmentTotal: 12,
+        dealDate: '2024-01-15',
       });
       
       expect(id1).toBe(id2);
@@ -109,9 +109,18 @@ describe('Installment Service', () => {
     const groupId = 'test-group-id-12345';
     
     it('should generate unique hash for each installment index', () => {
-      const hash1 = generateInstallmentTransactionHash(groupId, 1, 12);
-      const hash2 = generateInstallmentTransactionHash(groupId, 2, 12);
-      const hash3 = generateInstallmentTransactionHash(groupId, 12, 12);
+      const hash1 = generateInstallmentTransactionHash({
+        installmentGroupId: groupId,
+        installmentIndex: 1,
+      });
+      const hash2 = generateInstallmentTransactionHash({
+        installmentGroupId: groupId,
+        installmentIndex: 2,
+      });
+      const hash3 = generateInstallmentTransactionHash({
+        installmentGroupId: groupId,
+        installmentIndex: 12,
+      });
       
       expect(hash1).not.toBe(hash2);
       expect(hash2).not.toBe(hash3);
@@ -121,35 +130,54 @@ describe('Installment Service', () => {
     });
 
     it('should generate consistent hash for same parameters', () => {
-      const hash1 = generateInstallmentTransactionHash(groupId, 5, 12);
-      const hash2 = generateInstallmentTransactionHash(groupId, 5, 12);
+      const hash1 = generateInstallmentTransactionHash({
+        installmentGroupId: groupId,
+        installmentIndex: 5,
+      });
+      const hash2 = generateInstallmentTransactionHash({
+        installmentGroupId: groupId,
+        installmentIndex: 5,
+      });
       
       expect(hash1).toBe(hash2);
     });
 
-    it('should generate different hash for different total count', () => {
-      // Different total count means different installment plan
-      const hash1 = generateInstallmentTransactionHash(groupId, 1, 12);
-      const hash2 = generateInstallmentTransactionHash(groupId, 1, 24);
+    it('should generate different hash for different group ID', () => {
+      const hash1 = generateInstallmentTransactionHash({
+        installmentGroupId: 'group-1',
+        installmentIndex: 1,
+      });
+      const hash2 = generateInstallmentTransactionHash({
+        installmentGroupId: 'group-2',
+        installmentIndex: 1,
+      });
       
       expect(hash1).not.toBe(hash2);
     });
 
     it('should handle first installment (index 1)', () => {
-      const hash = generateInstallmentTransactionHash(groupId, 1, 36);
+      const hash = generateInstallmentTransactionHash({
+        installmentGroupId: groupId,
+        installmentIndex: 1,
+      });
       
       expect(hash).toMatch(/^[a-f0-9]{64}$/);
     });
 
     it('should handle last installment', () => {
-      const totalCount = 36;
-      const hash = generateInstallmentTransactionHash(groupId, totalCount, totalCount);
+      const hash = generateInstallmentTransactionHash({
+        installmentGroupId: groupId,
+        installmentIndex: 36,
+      });
       
       expect(hash).toMatch(/^[a-f0-9]{64}$/);
     });
 
     it('should handle mid-installment', () => {
-      const hash = generateInstallmentTransactionHash(groupId, 18, 36);
+      const hash = generateInstallmentTransactionHash({
+        installmentGroupId: groupId,
+        installmentIndex: 18,
+      });
       
       expect(hash).toMatch(/^[a-f0-9]{64}$/);
     });
@@ -158,15 +186,18 @@ describe('Installment Service', () => {
   describe('Installment Logic Scenarios', () => {
     it('should support 36-installment purchase', () => {
       const groupId = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 10800, // 300 per month x 36
-        totalCount: 36,
-        firstPaymentDate: '2024-01-01',
+        businessNormalizedName: 'test business',
+        totalPaymentSum: 10800, // 300 per month x 36
+        installmentTotal: 36,
+        dealDate: '2024-01-01',
       });
       
       // Generate hashes for all 36 installments
       const hashes = Array.from({ length: 36 }, (_, i) =>
-        generateInstallmentTransactionHash(groupId, i + 1, 36)
+        generateInstallmentTransactionHash({
+          installmentGroupId: groupId,
+          installmentIndex: i + 1,
+        })
       );
       
       // All should be unique
@@ -177,16 +208,25 @@ describe('Installment Service', () => {
     it('should support starting mid-installment (backfill)', () => {
       // User starts tracking at payment 4/12
       const groupId = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 1200,
-        totalCount: 12,
-        firstPaymentDate: '2023-10-01', // Calculated back date
+        businessNormalizedName: 'test business',
+        totalPaymentSum: 1200,
+        installmentTotal: 12,
+        dealDate: '2023-10-01', // Calculated back date
       });
       
       // Can generate hashes for all payments including past ones
-      const hash1 = generateInstallmentTransactionHash(groupId, 1, 12);
-      const hash4 = generateInstallmentTransactionHash(groupId, 4, 12);
-      const hash12 = generateInstallmentTransactionHash(groupId, 12, 12);
+      const hash1 = generateInstallmentTransactionHash({
+        installmentGroupId: groupId,
+        installmentIndex: 1,
+      });
+      const hash4 = generateInstallmentTransactionHash({
+        installmentGroupId: groupId,
+        installmentIndex: 4,
+      });
+      const hash12 = generateInstallmentTransactionHash({
+        installmentGroupId: groupId,
+        installmentIndex: 12,
+      });
       
       expect(hash1).toBeTruthy();
       expect(hash4).toBeTruthy();
@@ -199,14 +239,20 @@ describe('Installment Service', () => {
     it('should prevent duplicate payments', () => {
       // Same payment uploaded twice should have same hash
       const groupId = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 1200,
-        totalCount: 12,
-        firstPaymentDate: '2024-01-01',
+        businessNormalizedName: 'test business',
+        totalPaymentSum: 1200,
+        installmentTotal: 12,
+        dealDate: '2024-01-01',
       });
       
-      const hash1a = generateInstallmentTransactionHash(groupId, 5, 12);
-      const hash1b = generateInstallmentTransactionHash(groupId, 5, 12);
+      const hash1a = generateInstallmentTransactionHash({
+        installmentGroupId: groupId,
+        installmentIndex: 5,
+      });
+      const hash1b = generateInstallmentTransactionHash({
+        installmentGroupId: groupId,
+        installmentIndex: 5,
+      });
       
       // Should be identical - will be caught as duplicate
       expect(hash1a).toBe(hash1b);
@@ -215,24 +261,30 @@ describe('Installment Service', () => {
     it('should handle different installment plans for same business', () => {
       // Two different purchases from same business
       const group1 = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 1200,
-        totalCount: 12,
-        firstPaymentDate: '2024-01-01',
+        businessNormalizedName: 'test business',
+        totalPaymentSum: 1200,
+        installmentTotal: 12,
+        dealDate: '2024-01-01',
       });
       
       const group2 = generateInstallmentGroupId({
-        businessId: 1,
-        totalAmount: 2400,
-        totalCount: 24,
-        firstPaymentDate: '2024-02-01',
+        businessNormalizedName: 'test business',
+        totalPaymentSum: 2400,
+        installmentTotal: 24,
+        dealDate: '2024-02-01',
       });
       
       expect(group1).not.toBe(group2);
       
-      // Even same installment index should have different hash
-      const hash1 = generateInstallmentTransactionHash(group1, 1, 12);
-      const hash2 = generateInstallmentTransactionHash(group2, 1, 24);
+      // Even same installment index should have different hash (different group)
+      const hash1 = generateInstallmentTransactionHash({
+        installmentGroupId: group1,
+        installmentIndex: 1,
+      });
+      const hash2 = generateInstallmentTransactionHash({
+        installmentGroupId: group2,
+        installmentIndex: 1,
+      });
       
       expect(hash1).not.toBe(hash2);
     });

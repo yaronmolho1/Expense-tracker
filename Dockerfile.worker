@@ -1,0 +1,46 @@
+# Production Worker Dockerfile for Expense Tracker
+# Runs background job processing worker
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev for TypeScript compilation)
+RUN npm ci
+
+# Copy application code
+COPY . ./
+
+# Build TypeScript (if needed) - worker runs tsx directly
+# No build step needed as we'll use tsx to run TypeScript directly
+
+# Stage 2: Runner
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+# Set production environment
+ENV NODE_ENV=production
+
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 worker
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (tsx is in devDependencies but needed for runtime)
+RUN npm ci
+
+# Copy application code (needed for worker script and lib files)
+COPY --from=builder --chown=worker:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=worker:nodejs /app/lib ./lib
+COPY --from=builder --chown=worker:nodejs /app/tsconfig.json ./tsconfig.json
+COPY --from=builder --chown=worker:nodejs /app/node_modules ./node_modules
+
+# Switch to non-root user
+USER worker
+
+# Start the worker
+CMD ["tsx", "scripts/worker.ts"]

@@ -11,18 +11,20 @@ describe('Transaction Hash Utility', () => {
   describe('generateTransactionHash', () => {
     it('should generate consistent hash for same inputs', () => {
       const hash1 = generateTransactionHash({
-        businessName: 'Test Business',
-        amount: 100.50,
-        date: '2024-01-15',
+        normalizedBusinessName: 'test business',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 100.50,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
       const hash2 = generateTransactionHash({
-        businessName: 'Test Business',
-        amount: 100.50,
-        date: '2024-01-15',
+        normalizedBusinessName: 'test business',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 100.50,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
@@ -32,18 +34,20 @@ describe('Transaction Hash Utility', () => {
 
     it('should generate different hash for different business', () => {
       const hash1 = generateTransactionHash({
-        businessName: 'Business A',
-        amount: 100,
-        date: '2024-01-15',
+        normalizedBusinessName: 'business a',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 100,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
       const hash2 = generateTransactionHash({
-        businessName: 'Business B',
-        amount: 100,
-        date: '2024-01-15',
+        normalizedBusinessName: 'business b',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 100,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
@@ -52,18 +56,20 @@ describe('Transaction Hash Utility', () => {
 
     it('should generate different hash for different amount', () => {
       const hash1 = generateTransactionHash({
-        businessName: 'Test Business',
-        amount: 100,
-        date: '2024-01-15',
+        normalizedBusinessName: 'test business',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 100,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
       const hash2 = generateTransactionHash({
-        businessName: 'Test Business',
-        amount: 100.01,
-        date: '2024-01-15',
+        normalizedBusinessName: 'test business',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 100.01,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
@@ -72,18 +78,20 @@ describe('Transaction Hash Utility', () => {
 
     it('should generate different hash for different date', () => {
       const hash1 = generateTransactionHash({
-        businessName: 'Test Business',
-        amount: 100,
-        date: '2024-01-15',
+        normalizedBusinessName: 'test business',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 100,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
       const hash2 = generateTransactionHash({
-        businessName: 'Test Business',
-        amount: 100,
-        date: '2024-01-16',
+        normalizedBusinessName: 'test business',
+        dealDate: '2024-01-16',
+        chargedAmountIls: 100,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
@@ -92,18 +100,20 @@ describe('Transaction Hash Utility', () => {
 
     it('should generate different hash for refund vs purchase', () => {
       const purchase = generateTransactionHash({
-        businessName: 'Test Business',
-        amount: 100,
-        date: '2024-01-15',
+        normalizedBusinessName: 'test business',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 100,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
       const refund = generateTransactionHash({
-        businessName: 'Test Business',
-        amount: 100,
-        date: '2024-01-15',
+        normalizedBusinessName: 'test business',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 100,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: true,
       });
       
@@ -112,18 +122,20 @@ describe('Transaction Hash Utility', () => {
 
     it('should be case-insensitive for business name', () => {
       const hash1 = generateTransactionHash({
-        businessName: 'TEST BUSINESS',
-        amount: 100,
-        date: '2024-01-15',
+        normalizedBusinessName: 'test business',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 100,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
       const hash2 = generateTransactionHash({
-        businessName: 'test business',
-        amount: 100,
-        date: '2024-01-15',
+        normalizedBusinessName: 'test business',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 100,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
@@ -132,18 +144,20 @@ describe('Transaction Hash Utility', () => {
 
     it('should handle decimal amounts correctly', () => {
       const hash1 = generateTransactionHash({
-        businessName: 'Test',
-        amount: 99.99,
-        date: '2024-01-15',
+        normalizedBusinessName: 'test',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 99.99,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
       const hash2 = generateTransactionHash({
-        businessName: 'Test',
-        amount: 99.9900, // Extra zeros
-        date: '2024-01-15',
+        normalizedBusinessName: 'test',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 99.9900, // Extra zeros
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
@@ -152,10 +166,11 @@ describe('Transaction Hash Utility', () => {
 
     it('should handle special characters in business name', () => {
       const hash = generateTransactionHash({
-        businessName: 'Test & Co. (Ltd)',
-        amount: 100,
-        date: '2024-01-15',
+        normalizedBusinessName: 'test & co. (ltd)',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 100,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
@@ -164,10 +179,11 @@ describe('Transaction Hash Utility', () => {
 
     it('should handle Hebrew characters', () => {
       const hash = generateTransactionHash({
-        businessName: 'בית קפה',
-        amount: 50,
-        date: '2024-01-15',
+        normalizedBusinessName: 'בית קפה',
+        dealDate: '2024-01-15',
+        chargedAmountIls: 50,
         cardLast4: '1234',
+        paymentType: 'regular',
         isRefund: false,
       });
       
