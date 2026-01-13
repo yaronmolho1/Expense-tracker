@@ -12,6 +12,9 @@ import fs from 'fs';
 const INTEGRATION_DB_NAME = 'expense_tracker_integration';
 const MAIN_DB_URL = process.env.DATABASE_URL || 'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker';
 
+// Detect if running in CI environment
+const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+
 // Parse main DB URL to get connection params
 function parseDbUrl(url: string) {
   const match = url.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
@@ -22,19 +25,31 @@ function parseDbUrl(url: string) {
 }
 
 /**
- * Execute SQL via docker compose exec (bypasses host authentication)
+ * Execute SQL directly via psql (works in CI and local)
  */
-function execDockerSql(database: string, sql: string): string {
-  const user = parseDbUrl(MAIN_DB_URL).user;
+function execSql(database: string, sql: string): string {
+  const { user, password, host, port } = parseDbUrl(MAIN_DB_URL);
+  
   try {
-    return execSync(
-      `docker compose exec -T postgres psql -U ${user} -d ${database} -tAc "${sql}"`,
-      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
-    ).trim();
+    if (IS_CI) {
+      // CI: Direct psql connection
+      return execSync(
+        `psql -h ${host} -U ${user} -d ${database} -tAc "${sql}"`,
+        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PGPASSWORD: password } }
+      ).trim();
+    } else {
+      // Local: Use docker compose
+      return execSync(
+        `docker compose exec -T postgres psql -U ${user} -d ${database} -tAc "${sql}"`,
+        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+      ).trim();
+    }
   } catch (error: any) {
     return '';
   }
 }
+
+
 
 /**
  * Get connection URL for integration test database
@@ -51,7 +66,7 @@ export async function createIntegrationDatabase(): Promise<void> {
   console.log(`Creating integration test database: ${INTEGRATION_DB_NAME}...`);
   
   // Check if database exists
-  const checkResult = execDockerSql('postgres', `SELECT 1 FROM pg_database WHERE datname='${INTEGRATION_DB_NAME}'`);
+  const checkResult = execSql('postgres', `SELECT 1 FROM pg_database WHERE datname='${INTEGRATION_DB_NAME}'`);
   
   if (checkResult === '1') {
     console.log('Integration test database already exists');
@@ -59,7 +74,7 @@ export async function createIntegrationDatabase(): Promise<void> {
   }
   
   // Create database
-  execDockerSql('postgres', `CREATE DATABASE ${INTEGRATION_DB_NAME}`);
+  execSql('postgres', `CREATE DATABASE ${INTEGRATION_DB_NAME}`);
   console.log(`Created integration test database: ${INTEGRATION_DB_NAME}`);
 }
 
@@ -69,12 +84,20 @@ export async function createIntegrationDatabase(): Promise<void> {
 export async function dropAllTables(): Promise<void> {
   console.log('Dropping all tables in integration test database...');
   
-  const user = parseDbUrl(MAIN_DB_URL).user;
+  const { user, password } = parseDbUrl(MAIN_DB_URL);
+  
   try {
-    execSync(
-      `docker compose exec -T postgres psql -U ${user} -d ${INTEGRATION_DB_NAME} -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"`,
-      { encoding: 'utf-8', stdio: 'ignore' }
-    );
+    if (IS_CI) {
+      execSync(
+        `psql -h localhost -U ${user} -d ${INTEGRATION_DB_NAME} -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"`,
+        { encoding: 'utf-8', stdio: 'ignore', env: { ...process.env, PGPASSWORD: password } }
+      );
+    } else {
+      execSync(
+        `docker compose exec -T postgres psql -U ${user} -d ${INTEGRATION_DB_NAME} -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"`,
+        { encoding: 'utf-8', stdio: 'ignore' }
+      );
+    }
   } catch (error) {
     // Schema might not exist yet, that's okay
   }
@@ -91,17 +114,24 @@ export async function runMigrations(): Promise<void> {
     .filter(f => f.endsWith('.sql'))
     .sort();
   
-  const user = parseDbUrl(MAIN_DB_URL).user;
+  const { user, password } = parseDbUrl(MAIN_DB_URL);
   
   for (const file of migrationFiles) {
     const filePath = path.join(migrationsDir, file);
     console.log(`  Running migration: ${file}`);
     
     try {
-      execSync(
-        `docker compose exec -T postgres psql -U ${user} -d ${INTEGRATION_DB_NAME} < "${filePath}"`,
-        { encoding: 'utf-8', stdio: 'ignore' }
-      );
+      if (IS_CI) {
+        execSync(
+          `psql -h localhost -U ${user} -d ${INTEGRATION_DB_NAME} < "${filePath}"`,
+          { encoding: 'utf-8', stdio: 'ignore', env: { ...process.env, PGPASSWORD: password } }
+        );
+      } else {
+        execSync(
+          `docker compose exec -T postgres psql -U ${user} -d ${INTEGRATION_DB_NAME} < "${filePath}"`,
+          { encoding: 'utf-8', stdio: 'ignore' }
+        );
+      }
     } catch (error: any) {
       console.error(`Failed to run migration ${file}:`, error.message);
       throw error;
@@ -117,16 +147,23 @@ export async function runMigrations(): Promise<void> {
 export async function seedIntegrationDatabase(): Promise<void> {
   console.log('Seeding integration test database...');
   
-  const user = parseDbUrl(MAIN_DB_URL).user;
+  const { user, password } = parseDbUrl(MAIN_DB_URL);
   
   // Seed categories (hierarchical structure: level 0 = parent, level 1 = child)
   const categorySql = `INSERT INTO categories (name, parent_id, level, display_order) VALUES ('Test Parent Category', NULL, 0, 0), ('Test Child Category', 1, 1, 0) ON CONFLICT DO NOTHING;`;
   
   try {
-    execSync(
-      `docker compose exec -T postgres psql -U ${user} -d ${INTEGRATION_DB_NAME} -c "${categorySql}"`,
-      { encoding: 'utf-8', stdio: 'ignore' }
-    );
+    if (IS_CI) {
+      execSync(
+        `psql -h localhost -U ${user} -d ${INTEGRATION_DB_NAME} -c "${categorySql}"`,
+        { encoding: 'utf-8', stdio: 'ignore', env: { ...process.env, PGPASSWORD: password } }
+      );
+    } else {
+      execSync(
+        `docker compose exec -T postgres psql -U ${user} -d ${INTEGRATION_DB_NAME} -c "${categorySql}"`,
+        { encoding: 'utf-8', stdio: 'ignore' }
+      );
+    }
   } catch (error) {
     // Seed errors are non-fatal in integration tests
     console.warn('Warning: Could not seed categories (may already exist)');
