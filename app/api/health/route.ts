@@ -99,7 +99,7 @@ export async function GET() {
   };
   
   // Return appropriate status code
-  const statusCode = overallStatus === 'ok' ? 200 : overallStatus === 'degraded' ? 200 : 503;
+  const statusCode = overallStatus === 'down' ? 503 : 200;
   
   return NextResponse.json(healthCheck, { status: statusCode });
 }

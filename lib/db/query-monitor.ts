@@ -32,29 +32,29 @@ export async function monitorQuery<T>(
     
     // Log slow queries
     if (duration > VERY_SLOW_QUERY_THRESHOLD_MS) {
-      logger.warn('Very slow query detected', {
+      logger.warn({
         query: queryName,
         duration: `${duration}ms`,
         threshold: `${VERY_SLOW_QUERY_THRESHOLD_MS}ms`,
         params: params ? sanitizeParams(params) : undefined,
-      });
+      }, 'Very slow query detected');
     } else if (duration > SLOW_QUERY_THRESHOLD_MS) {
-      logger.info('Slow query detected', {
+      logger.info({
         query: queryName,
         duration: `${duration}ms`,
         threshold: `${SLOW_QUERY_THRESHOLD_MS}ms`,
-      });
+      }, 'Slow query detected');
     }
     
     return result;
   } catch (error) {
     const duration = Date.now() - start;
     
-    logger.error('Query failed', {
+    logger.error({
       query: queryName,
       duration: `${duration}ms`,
       error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    }, 'Query failed');
     
     throw error;
   }

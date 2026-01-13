@@ -248,7 +248,7 @@ export async function POST(request: NextRequest) {
       const detectionResult = await detectCard({
         filename: originalName,
         filePath,
-        userSelectedCardId: mapping?.card_id,
+        userSelectedCardId: mapping?.card_id ?? undefined,
       });
 
       // Check if user approval needed (unless overridden)

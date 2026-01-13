@@ -40,7 +40,7 @@ async function killServerOnPort(port: number): Promise<void> {
       console.log(`Checking for processes on port ${port}...`);
       try {
         const netstatOutput = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf-8' });
-        const lines = netstatOutput.split('\n').filter(line => line.includes('LISTENING'));
+        const lines = netstatOutput.split('\n').filter((line: string) => line.includes('LISTENING'));
         
         for (const line of lines) {
           const parts = line.trim().split(/\s+/);
@@ -61,7 +61,7 @@ async function killServerOnPort(port: number): Promise<void> {
     else {
       try {
         const lsofOutput = execSync(`lsof -ti:${port}`, { encoding: 'utf-8' });
-        const pids = lsofOutput.trim().split('\n').filter(pid => pid);
+        const pids = lsofOutput.trim().split('\n').filter((pid: string) => pid);
         
         for (const pid of pids) {
           console.log(`Killing process ${pid} on port ${port}...`);
