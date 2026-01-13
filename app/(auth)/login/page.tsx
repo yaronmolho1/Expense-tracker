@@ -49,8 +49,9 @@ function LoginForm() {
       // Cookie is set by server via Set-Cookie header
       console.log('✅ Login successful');
       
-      // Redirect using router (cookie already set by server)
-      router.push(from);
+      // Use full page reload to ensure cookie is included in request
+      // (Set-Cookie header needs full navigation to be properly sent)
+      window.location.href = from;
     } catch (err) {
       console.error('❌ Login error:', err);
       setError('Network error - please try again');
