@@ -130,7 +130,5 @@ export function seedTestDatabase(): void {
   seedTestBatch();
   
   console.log('\n✓ Test database seeding complete\n');
-  console.log('Note: Auth credentials configured via environment variables:');
-  console.log('  - Username: gili');
-  console.log('  - Password: y1a3r5o7n\n');
+  console.log('Note: Auth credentials configured via environment variables\n');
 }
