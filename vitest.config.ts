@@ -21,8 +21,9 @@ export default defineConfig({
       ? './tests/setup/setup-integration.ts' 
       : undefined,
     env: {
-      // Use separate integration test database
-      DATABASE_URL: 'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker_integration',
+      // DATABASE_URL should be provided by environment or CI
+      // Fallback only for local development
+      DATABASE_URL: process.env.DATABASE_URL || 'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker_integration',
       TEST_API_URL: 'http://127.0.0.1:3000',
     },
     coverage: {
