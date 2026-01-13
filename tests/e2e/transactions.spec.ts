@@ -38,9 +38,12 @@ test.describe('Transactions', () => {
     await page.goto('/transactions');
     
     // Should have table or list structure
-    // Either has rows or shows empty state
-    const hasContent = await page.locator('table, [role="table"], text=No transactions, text=empty').count();
-    expect(hasContent).toBeGreaterThan(0);
+    // Look for table element or table role
+    const hasTable = await page.locator('table, [role="table"]').count();
+    const hasEmptyState = await page.getByText(/no transactions|empty/i).count();
+    
+    // Should have either table or empty state
+    expect(hasTable + hasEmptyState).toBeGreaterThan(0);
   });
 
   test('should allow sorting transactions', async ({ page }) => {
