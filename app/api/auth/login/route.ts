@@ -99,9 +99,13 @@ export async function POST(request: NextRequest) {
     });
 
     // Set auth cookie so proxy can validate subsequent requests
+    // Use secure flag only if request is over HTTPS (not just production)
+    const isHttps = request.headers.get('x-forwarded-proto') === 'https' || 
+                    request.url.startsWith('https://');
+    
     response.cookies.set('auth_token', token, {
       httpOnly: false, // Allow client-side access for API calls
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps, // Only secure if actually using HTTPS
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/',

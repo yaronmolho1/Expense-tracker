@@ -49,9 +49,19 @@ function LoginForm() {
       // Cookie is set by server via Set-Cookie header
       console.log('✅ Login successful');
       
-      // Use full page reload to ensure cookie is included in request
-      // (Set-Cookie header needs full navigation to be properly sent)
-      window.location.href = from;
+      try {
+        console.log('🔄 Redirecting to:', from);
+        console.log('📝 Token:', data.token ? 'exists' : 'missing');
+        console.log('🌐 About to navigate...');
+        
+        // Use full page reload to ensure cookie is included in request
+        // (Set-Cookie header needs full navigation to be properly sent)
+        window.location.href = from;
+      } catch (redirectError) {
+        console.error('❌ Redirect error:', redirectError);
+        setError('Redirect failed - please refresh the page');
+        setIsLoading(false);
+      }
     } catch (err) {
       console.error('❌ Login error:', err);
       setError('Network error - please try again');
