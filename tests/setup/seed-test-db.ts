@@ -12,9 +12,15 @@ import { execSync } from 'child_process';
 const TEST_DB_NAME = 'expense_tracker_test';
 const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 
-// Get DB credentials from environment
-const DB_USER = process.env.POSTGRES_USER || 'expenseuser';
-const DB_PASSWORD = process.env.POSTGRES_PASSWORD || 'expensepass';
+// Parse DB credentials from DATABASE_URL or TEST_DATABASE_URL
+function parseDbUrl(url: string) {
+  const match = url.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
+  if (!match) return { user: 'expenseuser', password: 'expensepass' };
+  return { user: match[1], password: match[2] };
+}
+
+const dbUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || 'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker_test';
+const { user: DB_USER, password: DB_PASSWORD } = parseDbUrl(dbUrl);
 
 /**
  * Execute SQL (works in both CI and local Docker)
