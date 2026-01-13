@@ -62,3 +62,6 @@ ENV PORT=3000
 
 # Start the application
 CMD ["node", "server.js"]
+
+# Production stage alias (for orchestration compose files)
+FROM runner AS production

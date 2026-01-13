@@ -43,20 +43,19 @@ function LoginForm() {
         return;
       }
 
-      // Store token in both localStorage AND cookie for middleware
+      // Store token in localStorage
       localStorage.setItem('auth_token', data.token);
       
-      // Set cookie so middleware can read it on page navigation
+      // Set cookie so proxy can read it on page navigation
       document.cookie = `auth_token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
 
-      console.log('✅ Login successful, token stored in localStorage and cookie');
+      console.log('✅ Login successful, token stored');
       console.log('🔄 Redirecting to:', from);
 
-      // Small delay to ensure storage is written
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Force a hard redirect to bypass any caching issues
-      window.location.href = from;
+      // Use router for client-side navigation (preserves cookie context)
+      // Small delay to ensure cookie is written
+      await new Promise(resolve => setTimeout(resolve, 150));
+      router.push(from);
     } catch (err) {
       console.error('❌ Login error:', err);
       setError('Network error - please try again');
