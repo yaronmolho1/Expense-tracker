@@ -76,6 +76,7 @@ export const subscriptions = pgTable('subscriptions', {
   id: serial('id').primaryKey(),
   businessId: integer('business_id').references(() => businesses.id).notNull(),
   cardId: integer('card_id').references(() => cards.id).notNull(),
+  // change to last
   amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
   frequency: subscriptionFrequencyEnum('frequency').notNull(),
   startDate: date('start_date').notNull(),

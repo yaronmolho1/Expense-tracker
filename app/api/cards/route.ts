@@ -53,13 +53,19 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const owner = searchParams.get('owner');
 
+    console.log('[CARDS API] GET request received, owner:', owner);
+
     if (!owner) {
+      console.log('[CARDS API] ERROR: No owner parameter');
       return NextResponse.json({ error: 'Owner parameter required' }, { status: 400 });
     }
 
+    console.log('[CARDS API] Fetching cards from database...');
     const allCards = await db.select().from(cards)
       .where(eq(cards.owner, owner))
       .orderBy(desc(cards.createdAt));
+    
+    console.log('[CARDS API] Found', allCards.length, 'cards');
 
     return NextResponse.json({
       cards: allCards.map((card) => ({
@@ -77,8 +83,12 @@ export async function GET(request: Request) {
       })),
     });
   } catch (error) {
+    console.error('[CARDS API] ERROR:', error);
     logger.error(error, 'Failed to fetch cards');
-    return NextResponse.json({ error: 'Failed to fetch cards' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to fetch cards',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 

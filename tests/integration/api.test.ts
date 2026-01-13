@@ -59,7 +59,6 @@ describe('API Endpoints', () => {
         },
         body: JSON.stringify({}),
       });
-      
       expect(response.status).toBe(400);
       const data = await response.json();
       expect(data.error || data.errors).toBeTruthy();
@@ -90,6 +89,12 @@ describe('API Endpoints', () => {
           'Authorization': `Bearer ${authToken}`,
         },
       });
+      
+      // Log error for debugging
+      if (response.status !== 200) {
+        const error = await response.text();
+        console.error('Dashboard error:', response.status, error);
+      }
       
       expect(response.status).toBe(200);
       const data = await response.json();

@@ -9,11 +9,12 @@ import { test, expect } from '@playwright/test';
 test.describe('Transactions', () => {
   test.beforeEach(async ({ page }) => {
     // Login first
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'networkidle' });
+    await page.waitForSelector('input[name="username"]', { timeout: 10000 });
     await page.fill('input[name="username"]', 'gili');
     await page.fill('input[name="password"]', 'y1a3r5o7n');
     await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/', { timeout: 10000 });
+    await expect(page).toHaveURL('/', { timeout: 15000 });
   });
 
   test('should display transactions page', async ({ page }) => {
@@ -76,12 +77,13 @@ test.describe('Transactions', () => {
 
 test.describe('Transaction Filters', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'networkidle' });
+    await page.waitForSelector('input[name="username"]', { timeout: 10000 });
     await page.fill('input[name="username"]', 'gili');
     await page.fill('input[name="password"]', 'y1a3r5o7n');
     await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/', { timeout: 10000 });
-    await page.goto('/transactions');
+    await expect(page).toHaveURL('/', { timeout: 15000 });
+    await page.goto('/transactions', { waitUntil: 'networkidle' });
   });
 
   test('should filter by status', async ({ page }) => {

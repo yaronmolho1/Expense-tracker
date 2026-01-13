@@ -70,10 +70,13 @@ export function UploadProgress({ batchId, onReset }: UploadProgressProps) {
 
   const isComplete = status.status === 'completed';
   const isFailed = status.status === 'failed';
+  
+  // Check if there's a warning message (duplicates, etc.)
+  const hasWarnings = isComplete && status.error_message !== null;
 
   // Check if processing completed but no transactions were created
   const hasNoTransactions = isComplete && (status.summary.total_transactions === 0 || status.summary.total_transactions === null);
-  const showAsWarning = hasNoTransactions;
+  const showAsWarning = hasNoTransactions || hasWarnings;
 
   return (
     <div className="space-y-6">
@@ -131,8 +134,23 @@ export function UploadProgress({ batchId, onReset }: UploadProgressProps) {
         </div>
       )}
 
+      {/* Warning message for duplicates or issues */}
+      {hasWarnings && status.error_message && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-amber-900">Processing Notice</h3>
+              <p className="text-sm text-amber-800 mt-1">
+                {status.error_message}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Warning for no transactions */}
-      {showAsWarning && (
+      {showAsWarning && !status.error_message && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />

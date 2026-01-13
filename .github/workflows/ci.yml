@@ -41,6 +41,9 @@ jobs:
           cd expense-tracker
           npm ci
       
+      - name: Install wait-on globally
+        run: npm install -g wait-on
+      
       - name: TypeScript type check
         run: |
           cd expense-tracker
@@ -55,12 +58,19 @@ jobs:
           AUTH_USERNAME: testuser
           AUTH_PASSWORD_HASH_BASE64: JDJiJDEyJHRlc3Q=
       
+      - name: Setup integration test database
+        run: |
+          cd expense-tracker
+          # Create integration database
+          PGPASSWORD=testpass psql -h localhost -U expenseuser -d expensedb_test -c "DROP DATABASE IF EXISTS expense_tracker_integration;"
+          PGPASSWORD=testpass psql -h localhost -U expenseuser -d expensedb_test -c "CREATE DATABASE expense_tracker_integration;"
+      
       - name: Run integration tests
         run: |
           cd expense-tracker
           npm run test:integration
         env:
-          DATABASE_URL: postgresql://expenseuser:testpass@localhost:5432/expensedb_test
+          DATABASE_URL: postgresql://expenseuser:testpass@localhost:5432/expense_tracker_integration
           JWT_SECRET: test-secret-key-for-ci
           AUTH_USERNAME: testuser
           AUTH_PASSWORD_HASH_BASE64: JDJiJDEyJHRlc3Q=
@@ -70,12 +80,19 @@ jobs:
           cd expense-tracker
           npx playwright install chromium --with-deps
       
+      - name: Setup E2E test database
+        run: |
+          cd expense-tracker
+          # Create E2E database
+          PGPASSWORD=testpass psql -h localhost -U expenseuser -d expensedb_test -c "DROP DATABASE IF EXISTS expense_tracker_test;"
+          PGPASSWORD=testpass psql -h localhost -U expenseuser -d expensedb_test -c "CREATE DATABASE expense_tracker_test;"
+      
       - name: Run E2E tests
         run: |
           cd expense-tracker
           npm run test:e2e
         env:
-          DATABASE_URL: postgresql://expenseuser:testpass@localhost:5432/expensedb_test
+          DATABASE_URL: postgresql://expenseuser:testpass@localhost:5432/expense_tracker_test
           JWT_SECRET: test-secret-key-for-ci
           AUTH_USERNAME: gili
           AUTH_PASSWORD_HASH_BASE64: ${{ secrets.AUTH_PASSWORD_HASH_BASE64 }}

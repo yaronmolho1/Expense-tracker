@@ -57,9 +57,11 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
     });
     const cardsMap = new Map(cardsData.map(c => [c.id, c]));
 
-    let totalTransactions = 0;
+    let totalTransactions = 0; // Total transactions created/updated in database
+    let parsedTransactionCount = 0; // Total transactions found in files (including duplicates)
     let newTransactions = 0;
     let updatedTransactions = 0;
+    let duplicateTransactions = 0;
     let totalAmountIls = 0; // Sum of amounts from actual file transactions only
 
     // Process each file
@@ -110,6 +112,8 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
 
         // Process each transaction
         for (const parsedTx of parseResult.transactions) {
+          parsedTransactionCount++; // Count every transaction from file
+          
           // Get or create business
           const business = await getOrCreateBusiness(parsedTx.businessName);
 
@@ -263,6 +267,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                   hashPrefix: expectedHash.slice(0, 8),
                   businessName: parsedTx.businessName,
                 }, 'Duplicate installment detected');
+                duplicateTransactions++;
 
               } else {
                 // No match found - should not happen if group exists
@@ -293,6 +298,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
             if (existingTx) {
               // Duplicate - skip
               logger.debug({ hashPrefix: txHash.slice(0, 8) }, 'Skipping duplicate transaction');
+              duplicateTransactions++;
               continue;
             }
 
@@ -349,6 +355,19 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
       }
     }
 
+    // Determine error message based on results
+    // Status stays 'completed' - we use error_message field to show warnings
+    let errorMessage: string | null = null;
+
+    // If ALL transactions were duplicates
+    if (parsedTransactionCount > 0 && newTransactions === 0 && updatedTransactions === 0 && duplicateTransactions === parsedTransactionCount) {
+      errorMessage = `All ${duplicateTransactions} transaction${duplicateTransactions !== 1 ? 's' : ''} already exist in the system`;
+    }
+    // If SOME transactions were duplicates
+    else if (duplicateTransactions > 0) {
+      errorMessage = `${duplicateTransactions} duplicate transaction${duplicateTransactions !== 1 ? 's' : ''} found and skipped. ${newTransactions + updatedTransactions} transaction${newTransactions + updatedTransactions !== 1 ? 's were' : ' was'} processed.`;
+    }
+
     // Update batch with final status
     await db.update(uploadBatches)
       .set({
@@ -357,15 +376,19 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
         newTransactions,
         updatedTransactions,
         totalAmountIls: totalAmountIls.toFixed(2),
+        errorMessage,
         processingCompletedAt: new Date(),
       })
       .where(eq(uploadBatches.id, batchId));
 
     logger.info({
       batchId,
+      parsedTransactionCount,
       newTransactions,
       updatedTransactions,
+      duplicateTransactions,
       totalTransactions,
+      hasWarning: errorMessage !== null,
     }, 'Batch processing complete');
 
     // Trigger LLM categorization job for any new businesses

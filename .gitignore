@@ -12,6 +12,20 @@
 
 # testing
 /coverage
+coverage/
+.nyc_output/
+
+# vitest cache and results
+.vitest/
+vitest.config.ts.timestamp-*
+
+# playwright cache and results
+/test-results/
+/playwright-report/
+/playwright/.cache/
+.playwright/
+playwright-report/
+test-results/
 
 # next.js
 /.next/
@@ -49,10 +63,4 @@ uploads/
 # Parser development archives (analysis, specs, old tests)
 card-parser-files-archives/
 
-
-roadmap.md
-session_log.md
-TESTING_IMPLEMENTATION_COMPLETE.md
-testing.md
-testing_quickstart.md
-
+/docs/

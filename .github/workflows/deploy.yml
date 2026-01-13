@@ -1,15 +1,26 @@
 name: Deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main, master]
   workflow_dispatch:  # Allow manual triggers
 
 jobs:
-  # Deploy to staging automatically
+  # Check if CI tests passed
+  check-tests:
+    name: Verify Tests Passed
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - run: echo "Tests passed, proceeding with deployment"
+  
+  # Deploy to staging only if tests pass
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
+    needs: check-tests
     environment: staging
     
     steps:

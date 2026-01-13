@@ -12,7 +12,19 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    setupFiles: ['./tests/setup.ts'],
+    // Use different setup file based on test type
+    setupFiles: process.env.npm_lifecycle_event?.includes('integration')
+      ? ['./tests/setup-integration.ts']
+      : ['./tests/setup.ts'],
+    // Only run global setup for integration tests
+    globalSetup: process.env.npm_lifecycle_event?.includes('integration') 
+      ? './tests/setup/setup-integration.ts' 
+      : undefined,
+    env: {
+      // Use separate integration test database
+      DATABASE_URL: 'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker_integration',
+      TEST_API_URL: 'http://127.0.0.1:3000',
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

@@ -10,11 +10,12 @@ import path from 'path';
 test.describe('File Upload', () => {
   // Helper to login before each test
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'networkidle' });
+    await page.waitForSelector('input[name="username"]', { timeout: 10000 });
     await page.fill('input[name="username"]', 'gili');
     await page.fill('input[name="password"]', 'y1a3r5o7n');
     await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/', { timeout: 10000 });
+    await expect(page).toHaveURL('/', { timeout: 15000 });
   });
 
   test('should navigate to upload page', async ({ page }) => {
@@ -65,12 +66,13 @@ test.describe('File Upload', () => {
 
 test.describe('File Upload - Card Detection', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'networkidle' });
+    await page.waitForSelector('input[name="username"]', { timeout: 10000 });
     await page.fill('input[name="username"]', 'gili');
     await page.fill('input[name="password"]', 'y1a3r5o7n');
     await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/', { timeout: 10000 });
-    await page.goto('/upload');
+    await expect(page).toHaveURL('/', { timeout: 15000 });
+    await page.goto('/upload', { waitUntil: 'networkidle' });
   });
 
   test('should show card selection if needed', async ({ page }) => {

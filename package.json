@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -11,13 +11,14 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "test": "vitest",
+    "db:test:create": "powershell -ExecutionPolicy Bypass -File scripts/create-test-db.ps1",
+    "db:integration:create": "powershell -ExecutionPolicy Bypass -File scripts/create-integration-db.ps1",
+    "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:coverage": "vitest run --coverage",
-    "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

@@ -128,14 +128,6 @@ function LoginForm() {
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
-
-          <div className="mt-6 text-center text-sm text-gray-600">
-            <p>Default credentials for development:</p>
-            <p className="font-mono text-xs mt-1">
-              Username: admin<br />
-              Password: (set via AUTH_PASSWORD_HASH env variable)
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

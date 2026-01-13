@@ -17,7 +17,7 @@ const ALLOWED_EXTENSIONS = ['.xlsx', '.xls', '.csv'];
 // Zod schema for card mappings
 const cardMappingSchema = z.object({
   filename: z.string().min(1, 'Filename is required'),
-  card_id: z.number().int().positive('Card ID must be a positive integer'),
+  card_id: z.number().int().positive('Card ID must be a positive integer').nullable(),
 });
 
 // Zod schema for upload request validation
@@ -112,10 +112,14 @@ function validateFiles(files: File[]): { valid: boolean; error?: string } {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[UPLOAD API] POST request received');
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
     const cardMappingsRaw = formData.get('card_mappings') as string | null;
     const overrideValidationRaw = formData.get('override_validation') as string | null;
+    
+    console.log('[UPLOAD API] Files count:', files.length);
+    console.log('[UPLOAD API] Card mappings:', cardMappingsRaw);
 
     // Validate files first (before any database operations)
     const fileValidation = validateFiles(files);
@@ -154,6 +158,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!validated.success) {
+      console.error('[UPLOAD API] Validation failed:', JSON.stringify(validated.error.issues, null, 2));
       return NextResponse.json(
         {
           error: 'Validation failed',
@@ -165,6 +170,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    
+    console.log('[UPLOAD API] Validation passed');
 
     const { card_mappings: cardMappings, override_validation: overrideValidation } = validated.data;
 
@@ -349,12 +356,15 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    console.error('[UPLOAD API] ERROR:', error);
     logger.error(error, 'Upload error');
     const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+    const errorStack = error instanceof Error ? error.stack : undefined;
     return NextResponse.json(
       {
         error: 'Upload failed',
         details: errorMessage,
+        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined,
       },
       { status: 500 }
     );
