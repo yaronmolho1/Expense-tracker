@@ -74,8 +74,8 @@ export default defineConfig({
     // Playwright will wait until /login returns a 200 status
     // This ensures the Next.js server is ready (even if DB isn't connected yet)
     env: {
+      ...process.env,
       // Database connection - USE TEST DATABASE
-      // Check DATABASE_URL first (set in CI), then TEST_DATABASE_URL, then fallback
       DATABASE_URL: process.env.DATABASE_URL || process.env.TEST_DATABASE_URL || 'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker_test',
       // JWT secret for authentication
       JWT_SECRET: process.env.JWT_SECRET || 'test-secret-key-for-e2e-testing-only-change-in-production',
@@ -86,8 +86,6 @@ export default defineConfig({
       // Optional: Anthropic API key
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
       NODE_ENV: 'test',
-      // Note: HOSTNAME removed - conflicts with npm run dev -H 0.0.0.0
-      // The -H flag already binds to all interfaces, which includes 127.0.0.1
       PORT: '3000',
     },
   },
