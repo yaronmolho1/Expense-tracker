@@ -90,7 +90,8 @@ export async function startServer(): Promise<void> {
   serverProcess = spawn('npm', ['run', 'dev'], {
     env: {
       ...process.env,
-      DATABASE_URL: 'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker_integration',
+      // Use DATABASE_URL from environment (CI) or fallback to local dev
+      DATABASE_URL: process.env.DATABASE_URL || 'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker_integration',
       NODE_ENV: 'test',
       PORT: SERVER_PORT.toString(),
     },
