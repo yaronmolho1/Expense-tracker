@@ -97,6 +97,7 @@ function LoginForm() {
               <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
+                name="username"
                 type="text"
                 placeholder="Enter your username"
                 value={username}
@@ -111,6 +112,7 @@ function LoginForm() {
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
                 placeholder="Enter your password"
                 value={password}
