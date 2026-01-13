@@ -43,18 +43,13 @@ function LoginForm() {
         return;
       }
 
-      // Store token in localStorage
+      // Store token in localStorage for API calls
       localStorage.setItem('auth_token', data.token);
       
-      // Set cookie so proxy can read it on page navigation
-      document.cookie = `auth_token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-
-      console.log('✅ Login successful, token stored');
-      console.log('🔄 Redirecting to:', from);
-
-      // Use router for client-side navigation (preserves cookie context)
-      // Small delay to ensure cookie is written
-      await new Promise(resolve => setTimeout(resolve, 150));
+      // Cookie is set by server via Set-Cookie header
+      console.log('✅ Login successful');
+      
+      // Redirect using router (cookie already set by server)
       router.push(from);
     } catch (err) {
       console.error('❌ Login error:', err);
