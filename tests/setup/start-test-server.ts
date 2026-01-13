@@ -112,24 +112,45 @@ export async function stopServer(): Promise<void> {
   if (serverProcess) {
     console.log('\n=== Stopping Test Server ===\n');
     
-    // Kill the process
-    if (process.platform === 'win32') {
-      // Windows: kill process tree
+    try {
+      // Kill the process gracefully first
+      if (process.platform === 'win32') {
+        // Windows: kill process tree
+        try {
+          execSync(`taskkill /F /T /PID ${serverProcess.pid}`, { stdio: 'ignore', timeout: 5000 });
+        } catch (err) {
+          console.warn('Failed to kill Windows process:', err);
+        }
+      } else {
+        // Unix: try SIGTERM first, then SIGKILL if needed
+        try {
+          if (serverProcess.pid) {
+            serverProcess.kill('SIGTERM');
+            // Wait a bit for graceful shutdown
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Force kill if still running
+            if (!serverProcess.killed) {
+              serverProcess.kill('SIGKILL');
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to kill Unix process:', err);
+        }
+      }
+      
+      serverProcess = null;
+      
+      // Clean up port
       try {
-        execSync(`taskkill /F /T /PID ${serverProcess.pid}`, { stdio: 'ignore' });
-      } catch {}
-    } else {
-      // Unix: kill process group
-      try {
-        process.kill(-serverProcess.pid!);
-      } catch {}
+        killPortProcess(SERVER_PORT);
+      } catch (err) {
+        console.warn('Failed to clean up port:', err);
+      }
+      
+      console.log('✓ Server stopped');
+    } catch (error) {
+      console.error('Error stopping server:', error);
+      // Don't throw - we want teardown to continue
     }
-    
-    serverProcess = null;
-    
-    // Clean up port
-    killPortProcess(SERVER_PORT);
-    
-    console.log('✓ Server stopped');
   }
 }
