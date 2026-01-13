@@ -10,16 +10,30 @@
 import { execSync } from 'child_process';
 
 const TEST_DB_NAME = 'expense_tracker_test';
+const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+
+// Get DB credentials from environment
+const DB_USER = process.env.POSTGRES_USER || 'expenseuser';
+const DB_PASSWORD = process.env.POSTGRES_PASSWORD || 'expensepass';
 
 /**
- * Execute SQL via docker compose exec
+ * Execute SQL (works in both CI and local Docker)
  */
 function execSql(sql: string): void {
   try {
-    execSync(
-      `docker compose exec -T postgres psql -U expenseuser -d ${TEST_DB_NAME} -c "${sql.replace(/"/g, '\\"')}"`,
-      { encoding: 'utf-8', stdio: 'pipe' }
-    );
+    if (IS_CI) {
+      // CI: Direct psql connection
+      execSync(
+        `psql -h localhost -U ${DB_USER} -d ${TEST_DB_NAME} -c "${sql.replace(/"/g, '\\"')}"`,
+        { encoding: 'utf-8', stdio: 'pipe', env: { ...process.env, PGPASSWORD: DB_PASSWORD } }
+      );
+    } else {
+      // Local: Use docker compose
+      execSync(
+        `docker compose exec -T postgres psql -U ${DB_USER} -d ${TEST_DB_NAME} -c "${sql.replace(/"/g, '\\"')}"`,
+        { encoding: 'utf-8', stdio: 'pipe' }
+      );
+    }
   } catch (error: any) {
     // Ignore some common errors
     if (!error.message?.includes('already exists') && !error.message?.includes('duplicate key')) {
