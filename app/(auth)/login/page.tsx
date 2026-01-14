@@ -43,20 +43,25 @@ function LoginForm() {
         return;
       }
 
-      // Store token in both localStorage AND cookie for middleware
+      // Store token in localStorage for API calls
       localStorage.setItem('auth_token', data.token);
       
-      // Set cookie so middleware can read it on page navigation
-      document.cookie = `auth_token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-
-      console.log('✅ Login successful, token stored in localStorage and cookie');
-      console.log('🔄 Redirecting to:', from);
-
-      // Small delay to ensure storage is written
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Force a hard redirect to bypass any caching issues
-      window.location.href = from;
+      // Cookie is set by server via Set-Cookie header
+      console.log('✅ Login successful');
+      
+      try {
+        console.log('🔄 Redirecting to:', from);
+        console.log('📝 Token:', data.token ? 'exists' : 'missing');
+        console.log('🌐 About to navigate...');
+        
+        // Use full page reload to ensure cookie is included in request
+        // (Set-Cookie header needs full navigation to be properly sent)
+        window.location.href = from;
+      } catch (redirectError) {
+        console.error('❌ Redirect error:', redirectError);
+        setError('Redirect failed - please refresh the page');
+        setIsLoading(false);
+      }
     } catch (err) {
       console.error('❌ Login error:', err);
       setError('Network error - please try again');
@@ -97,6 +102,7 @@ function LoginForm() {
               <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
+                name="username"
                 type="text"
                 placeholder="Enter your username"
                 value={username}
@@ -111,6 +117,7 @@ function LoginForm() {
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
                 placeholder="Enter your password"
                 value={password}

@@ -18,6 +18,9 @@ import { execSync } from 'child_process';
 const TEST_DB_NAME = 'expense_tracker_test';
 const MAIN_DB_URL = process.env.DATABASE_URL || 'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker';
 
+// Detect if running in CI environment
+const IS_CI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+
 // Parse main DB URL to get connection params
 function parseDbUrl(url: string) {
   const match = url.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
@@ -28,17 +31,26 @@ function parseDbUrl(url: string) {
 }
 
 /**
- * Execute SQL via docker compose exec (bypasses host authentication)
+ * Execute SQL (works in both CI and local Docker)
  */
-function execDockerSql(database: string, sql: string): string {
-  const user = parseDbUrl(MAIN_DB_URL).user;
+function execSqlQuery(database: string, sql: string): string {
+  const { user, password } = parseDbUrl(MAIN_DB_URL);
+  
   try {
-    return execSync(
-      `docker compose exec -T postgres psql -U ${user} -d ${database} -tAc "${sql}"`,
-      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
-    ).trim();
+    if (IS_CI) {
+      // CI: Direct psql connection
+      return execSync(
+        `psql -h localhost -U ${user} -d ${database} -tAc "${sql}"`,
+        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PGPASSWORD: password } }
+      ).trim();
+    } else {
+      // Local: Use docker compose
+      return execSync(
+        `docker compose exec -T postgres psql -U ${user} -d ${database} -tAc "${sql}"`,
+        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+      ).trim();
+    }
   } catch (error: any) {
-    // If command fails, return empty string
     return '';
   }
 }
@@ -55,14 +67,14 @@ export function getTestDbUrl(): string {
  * Create test database if it doesn't exist
  */
 export async function createTestDatabase(): Promise<void> {
-  // Check if test database exists using Docker exec
-  const result = execDockerSql('postgres', `SELECT 1 FROM pg_database WHERE datname='${TEST_DB_NAME}'`);
+  // Check if test database exists
+  const result = execSqlQuery('postgres', `SELECT 1 FROM pg_database WHERE datname='${TEST_DB_NAME}'`);
   
   if (result === '1') {
     console.log(`✓ Test database already exists: ${TEST_DB_NAME}`);
   } else {
     console.log(`Creating test database: ${TEST_DB_NAME}...`);
-    execDockerSql('postgres', `CREATE DATABASE ${TEST_DB_NAME}`);
+    execSqlQuery('postgres', `CREATE DATABASE ${TEST_DB_NAME}`);
     console.log('✓ Test database created');
   }
 }
@@ -73,10 +85,10 @@ export async function createTestDatabase(): Promise<void> {
 export async function dropAllTables(): Promise<void> {
   console.log('Dropping all tables in test database...');
   
-  // Drop all tables (cascade to handle foreign keys) using Docker exec
-  execDockerSql(TEST_DB_NAME, 'DROP SCHEMA IF EXISTS public CASCADE');
-  execDockerSql(TEST_DB_NAME, 'CREATE SCHEMA public');
-  execDockerSql(TEST_DB_NAME, 'GRANT ALL ON SCHEMA public TO PUBLIC');
+  // Drop all tables (cascade to handle foreign keys)
+  execSqlQuery(TEST_DB_NAME, 'DROP SCHEMA IF EXISTS public CASCADE');
+  execSqlQuery(TEST_DB_NAME, 'CREATE SCHEMA public');
+  execSqlQuery(TEST_DB_NAME, 'GRANT ALL ON SCHEMA public TO PUBLIC');
   
   console.log('✓ All tables dropped');
 }
@@ -87,33 +99,32 @@ export async function dropAllTables(): Promise<void> {
 export async function runMigrations(): Promise<void> {
   console.log('Running migrations on test database...');
   
-  // Apply all migrations via Docker exec with stdin
-  const migrationFiles = [
-    '0000_plain_logan.sql',
-    '0001_add_override_validation_to_upload_batches.sql',
-    '0002_remove_override_validation_from_upload_batches.sql',
-    '0003_add_validation_warning_to_uploaded_files.sql',
-    '0004_ancient_zuras.sql',
-    '0005_salty_titanium_man.sql',
-    '0006_living_zombie.sql',
-    '0007_wandering_absorbing_man.sql',
-    '0008_worried_blonde_phantom.sql',
-    '0009_faithful_cable.sql',
-  ];
-  
   const fs = require('fs');
   const path = require('path');
+  const migrationsDir = path.join(__dirname, '../../lib/db/migrations');
+  const migrationFiles = fs.readdirSync(migrationsDir)
+    .filter((f: string) => f.endsWith('.sql'))
+    .sort();
+  
+  const { user, password } = parseDbUrl(MAIN_DB_URL);
   
   for (const file of migrationFiles) {
-    const migrationPath = path.join(__dirname, '../../lib/db/migrations', file);
-    if (fs.existsSync(migrationPath)) {
-      const migrationSql = fs.readFileSync(migrationPath, 'utf-8');
-      // Pipe SQL file content to docker exec
-      try {
+    const migrationPath = path.join(migrationsDir, file);
+    
+    try {
+      if (IS_CI) {
+        // CI: Use direct psql with file input
+        execSync(
+          `psql -h localhost -U ${user} -d ${TEST_DB_NAME} < "${migrationPath}"`,
+          { encoding: 'utf-8', stdio: 'ignore', env: { ...process.env, PGPASSWORD: password } }
+        );
+      } else {
+        // Local: Use docker compose with piped stdin
+        const migrationSql = fs.readFileSync(migrationPath, 'utf-8');
         const process = require('child_process');
         const psqlProc = process.spawn('docker', [
           'compose', 'exec', '-T', 'postgres',
-          'psql', '-U', 'expenseuser', '-d', TEST_DB_NAME
+          'psql', '-U', user, '-d', TEST_DB_NAME
         ], {
           stdio: ['pipe', 'pipe', 'pipe']
         });
@@ -135,11 +146,11 @@ export async function runMigrations(): Promise<void> {
             }
           });
         });
-      } catch (error: any) {
-        // Ignore "already exists" errors
-        if (!error.message?.includes('already exists')) {
-          console.error(`Error applying migration ${file}:`, error.message);
-        }
+      }
+    } catch (error: any) {
+      // Ignore "already exists" errors
+      if (!error.message?.includes('already exists')) {
+        console.error(`Error applying migration ${file}:`, error.message);
       }
     }
   }

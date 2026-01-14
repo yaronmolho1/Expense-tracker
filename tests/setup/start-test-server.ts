@@ -30,31 +30,57 @@ async function isServerReady(): Promise<boolean> {
  * Kill any process using the server port
  */
 function killPortProcess(port: number): void {
+  console.log(`Cleaning up port ${port}...`);
   try {
     if (process.platform === 'win32') {
       // Windows
-      const output = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf-8' });
-      const lines = output.split('\n');
-      const pids = new Set<string>();
-      
-      for (const line of lines) {
-        const match = line.match(/\s+(\d+)\s*$/);
-        if (match) {
-          pids.add(match[1]);
+      try {
+        const output = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf-8' });
+        const lines = output.split('\n');
+        const pids = new Set<string>();
+        
+        for (const line of lines) {
+          const match = line.match(/\s+(\d+)\s*$/);
+          if (match) {
+            pids.add(match[1]);
+          }
         }
+        
+        pids.forEach(pid => {
+          try {
+            execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' });
+            console.log(`Killed process ${pid} on port ${port}`);
+          } catch {}
+        });
+      } catch {}
+    } else {
+      // Unix-like - more aggressive cleanup
+      try {
+        // Try to find and kill processes on the port
+        const result = execSync(`lsof -ti:${port}`, { encoding: 'utf-8', stdio: 'pipe' });
+        const pids = result.trim().split('\n').filter(pid => pid);
+        
+        for (const pid of pids) {
+          try {
+            execSync(`kill -9 ${pid}`, { stdio: 'ignore' });
+            console.log(`Killed process ${pid} on port ${port}`);
+          } catch {}
+        }
+      } catch {
+        // No process found, that's fine
       }
       
-      pids.forEach(pid => {
-        try {
-          execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' });
-        } catch {}
-      });
-    } else {
-      // Unix-like
-      execSync(`lsof -ti:${port} | xargs kill -9`, { stdio: 'ignore' });
+      // Also try fuser as backup
+      try {
+        execSync(`fuser -k ${port}/tcp`, { stdio: 'ignore' });
+      } catch {
+        // fuser might not be available
+      }
     }
-  } catch {
-    // No process using port, that's fine
+    
+    console.log(`✓ Port ${port} cleaned`);
+  } catch (error) {
+    console.log(`Port ${port} is free`);
   }
 }
 
@@ -90,7 +116,8 @@ export async function startServer(): Promise<void> {
   serverProcess = spawn('npm', ['run', 'dev'], {
     env: {
       ...process.env,
-      DATABASE_URL: 'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker_integration',
+      // Use DATABASE_URL from environment (CI) or fallback to local dev
+      DATABASE_URL: process.env.DATABASE_URL || 'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker_integration',
       NODE_ENV: 'test',
       PORT: SERVER_PORT.toString(),
     },
@@ -108,27 +135,54 @@ export async function startServer(): Promise<void> {
  * Stop dev server
  */
 export async function stopServer(): Promise<void> {
-  if (serverProcess) {
-    console.log('\n=== Stopping Test Server ===\n');
-    
-    // Kill the process
-    if (process.platform === 'win32') {
-      // Windows: kill process tree
-      try {
-        execSync(`taskkill /F /T /PID ${serverProcess.pid}`, { stdio: 'ignore' });
-      } catch {}
-    } else {
-      // Unix: kill process group
-      try {
-        process.kill(-serverProcess.pid!);
-      } catch {}
+  console.log('\n=== Stopping Test Server ===\n');
+  
+  try {
+    // Kill the server process if we have a reference
+    if (serverProcess && serverProcess.pid) {
+      console.log(`Stopping server process ${serverProcess.pid}...`);
+      
+      if (process.platform === 'win32') {
+        // Windows: kill process tree
+        try {
+          execSync(`taskkill /F /T /PID ${serverProcess.pid}`, { stdio: 'ignore', timeout: 5000 });
+          console.log(`Killed Windows process tree ${serverProcess.pid}`);
+        } catch (err) {
+          console.warn('Failed to kill Windows process');
+        }
+      } else {
+        // Unix: try SIGTERM first, then SIGKILL
+        try {
+          serverProcess.kill('SIGTERM');
+          // Wait briefly for graceful shutdown
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Force kill if still running
+          if (!serverProcess.killed) {
+            serverProcess.kill('SIGKILL');
+            console.log(`Force killed process ${serverProcess.pid}`);
+          } else {
+            console.log(`Gracefully stopped process ${serverProcess.pid}`);
+          }
+        } catch (err) {
+          console.warn('Failed to kill Unix process');
+        }
+      }
+      
+      serverProcess = null;
     }
     
-    serverProcess = null;
-    
-    // Clean up port
+    // Always clean up the port as a safety measure
+    // This ensures no orphaned processes are left
+    await new Promise(resolve => setTimeout(resolve, 500)); // Wait for port to free
     killPortProcess(SERVER_PORT);
     
     console.log('✓ Server stopped');
+  } catch (error) {
+    console.error('Error stopping server:', error);
+    // Still try to clean up port even if process kill failed
+    try {
+      killPortProcess(SERVER_PORT);
+    } catch {}
   }
 }

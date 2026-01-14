@@ -89,13 +89,29 @@ export async function POST(request: NextRequest) {
 
     logger.info({ username }, 'Successful login');
 
-    return NextResponse.json({
+    // Create response with token
+    const response = NextResponse.json({
       token,
       user: {
         id: 'default-user',
         username,
       },
     });
+
+    // Set auth cookie so proxy can validate subsequent requests
+    // Use secure flag only if request is over HTTPS (not just production)
+    const isHttps = request.headers.get('x-forwarded-proto') === 'https' || 
+                    request.url.startsWith('https://');
+    
+    response.cookies.set('auth_token', token, {
+      httpOnly: false, // Allow client-side access for API calls
+      secure: isHttps, // Only secure if actually using HTTPS
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/',
+    });
+
+    return response;
 
   } catch (error) {
     return createErrorResponse(error, 500);

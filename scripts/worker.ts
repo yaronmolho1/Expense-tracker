@@ -10,6 +10,9 @@ async function startWorker() {
 
   const boss = await getPgBoss();
 
+  // Create process-batch queue
+  await boss.createQueue('process-batch');
+
   // Register process-batch job handler
   await boss.work('process-batch', async (jobs) => {
     for (const job of jobs) {

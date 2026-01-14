@@ -19,6 +19,9 @@ export default defineConfig({
   // Run tests in files in parallel
   fullyParallel: true,
   
+  // Run auth setup before all tests
+  testMatch: /.*\.spec\.ts/,
+  
   // Fail the build on CI if you accidentally left test.only in the source code
   forbidOnly: !!process.env.CI,
   
@@ -55,9 +58,20 @@ export default defineConfig({
 
   // Configure projects for major browsers
   projects: [
+    // Setup project - runs first to create auth state
+    {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+    },
+    // Main tests - depend on setup and use stored auth state
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Use stored auth state (comment out to disable optimization)
+        // storageState: 'playwright/.auth/user.json',
+      },
+      dependencies: ['setup'],
     },
   ],
 
@@ -74,8 +88,9 @@ export default defineConfig({
     // Playwright will wait until /login returns a 200 status
     // This ensures the Next.js server is ready (even if DB isn't connected yet)
     env: {
+      ...process.env,
       // Database connection - USE TEST DATABASE
-      DATABASE_URL: process.env.TEST_DATABASE_URL || 'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker_test',
+      DATABASE_URL: process.env.DATABASE_URL || process.env.TEST_DATABASE_URL || 'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker_test',
       // JWT secret for authentication
       JWT_SECRET: process.env.JWT_SECRET || 'test-secret-key-for-e2e-testing-only-change-in-production',
       JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
@@ -85,8 +100,6 @@ export default defineConfig({
       // Optional: Anthropic API key
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
       NODE_ENV: 'test',
-      // Note: HOSTNAME removed - conflicts with npm run dev -H 0.0.0.0
-      // The -H flag already binds to all interfaces, which includes 127.0.0.1
       PORT: '3000',
     },
   },

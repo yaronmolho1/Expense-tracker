@@ -34,4 +34,10 @@ export const navSections: NavSection[] = [
       { label: "Projected", href: "/reports/projected" },
     ],
   },
+  {
+    title: "Admin",
+    items: [
+      { label: "Database", href: "/admin/database" },
+    ],
+  },
 ];

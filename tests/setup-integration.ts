@@ -5,7 +5,7 @@
  */
 
 // Set test environment variables BEFORE any imports
-process.env.NODE_ENV = 'test';
+(process.env as any).NODE_ENV = 'test';
 if (!process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'test-secret-key-for-testing-only';
 }

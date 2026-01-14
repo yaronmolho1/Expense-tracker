@@ -50,6 +50,24 @@ COPY --from=builder --chown=nextjs:nodejs /app/lib/db/migrations ./lib/db/migrat
 # Copy scripts for migrations
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 
+# Copy migration dependencies from builder's node_modules
+# These are needed by migrate.ts script but not included in standalone build
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
+
+# Copy entrypoint script
+COPY --from=builder --chown=nextjs:nodejs /app/docker-entrypoint.sh ./docker-entrypoint.sh
+
+# Install tsx globally for running TypeScript migration script
+# Must be done as root before switching to non-root user
+RUN npm install -g tsx@^4.21.0
+
+# Create uploads directory with proper permissions
+RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
+
+# Make entrypoint script executable
+RUN chmod +x ./docker-entrypoint.sh
+
 # Switch to non-root user
 USER nextjs
 
@@ -60,5 +78,9 @@ EXPOSE 3000
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
 
-# Start the application
-CMD ["node", "server.js"]
+# Start the application using entrypoint script
+# The entrypoint script will wait for DB, run migrations, then start the app
+ENTRYPOINT ["./docker-entrypoint.sh"]
+
+# Production stage alias (for orchestration compose files)
+FROM runner AS production

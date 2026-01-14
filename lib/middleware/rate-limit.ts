@@ -91,6 +91,11 @@ export function checkRateLimit(
   request: NextRequest,
   config: RateLimitConfig = DEFAULT_RATE_LIMIT
 ): NextResponse | null {
+  // Skip rate limiting in test environment
+  if (process.env.NODE_ENV === 'test' || process.env.CI === 'true') {
+    return null;
+  }
+  
   const clientId = getClientIdentifier(request);
   const key = `${clientId}:${request.nextUrl.pathname}`;
   const now = Date.now();
