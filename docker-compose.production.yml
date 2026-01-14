@@ -2,11 +2,10 @@
 # 
 # Usage: docker compose -f docker-compose.production.yml up -d
 
-env_file:
-  - .env.production
-
 services:
   db:
+    env_file:
+      - .env.production
     image: postgres:16-alpine
     container_name: expense-tracker-db
     environment:
@@ -28,6 +27,8 @@ services:
       - default
 
   app:
+    env_file:
+      - .env.production
     build:
       context: .
       dockerfile: Dockerfile.production
@@ -57,6 +58,8 @@ services:
       start_period: 40s
 
   worker:
+    env_file:
+      - .env.production
     build:
       context: .
       dockerfile: Dockerfile.worker
