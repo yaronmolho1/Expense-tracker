@@ -13,8 +13,8 @@ export async function POST() {
     return NextResponse.json({
       success: true,
       suggestionsCreated: result.suggestionsCreated,
-      businessesAnalyzed: result.businessesAnalyzed,
-      message: `Analyzed ${result.businessesAnalyzed} businesses and created ${result.suggestionsCreated} merge suggestions`,
+      businessesCompared: result.businessesCompared,
+      message: `Compared ${result.businessesCompared} business pairs and created ${result.suggestionsCreated} merge suggestions`,
     });
   } catch (error) {
     console.error('Error detecting business merges:', error);

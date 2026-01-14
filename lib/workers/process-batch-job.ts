@@ -420,7 +420,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
       const mergeResult = await suggestionService.detectBusinessMerges();
       logger.info({
         suggestionsCreated: mergeResult.suggestionsCreated,
-        businessesAnalyzed: mergeResult.businessesAnalyzed,
+        businessesCompared: mergeResult.businessesCompared,
       }, 'Business merge detection complete');
     } catch (error) {
       logger.error(error, 'Failed to run business merge detection');
