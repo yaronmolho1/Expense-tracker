@@ -119,45 +119,87 @@ function seedTestBatch() {
 }
 
 /**
+ * Seed test businesses (required for transactions)
+ */
+function seedTestBusinesses() {
+  console.log('Seeding test businesses...');
+  
+  const businesses = [
+    { name: 'Test Grocery Store', category: 'Groceries' },
+    { name: 'Test Restaurant', category: 'Restaurants' },
+    { name: 'Test Gas Station', category: 'Gas' },
+    { name: 'Test Clothing Store', category: 'Clothing' },
+    { name: 'Test Electronics', category: 'Electronics' },
+  ];
+
+  for (const business of businesses) {
+    // Insert business with category reference
+    execSql(`
+      INSERT INTO businesses (normalized_name, display_name, primary_category_id, approved)
+      SELECT '${business.name.toLowerCase().replace(/\s+/g, '_')}', 
+             '${business.name}', 
+             id, 
+             true
+      FROM categories 
+      WHERE name = '${business.category}' 
+      LIMIT 1
+    `);
+  }
+
+  console.log(`✓ Seeded ${businesses.length} test businesses`);
+}
+
+/**
  * Seed test transactions
  */
 function seedTransactions() {
   console.log('Seeding test transactions...');
   
-  // Get card IDs and category IDs
+  // Get card IDs
   const cards = [1, 2, 3]; // Test cards from seedTestCards
-  const categories = [1, 2, 3, 4, 5]; // From seedCategories
   
   // Generate 25 transactions with variety:
   // - Different dates (last 3 months)
   // - Different amounts
-  // - Different categories
-  // - Mix of statuses (completed, pending)
-  // - Some installments
+  // - Different businesses
+  // - Mix of statuses (completed, projected)
   
   const baseDate = new Date();
   baseDate.setMonth(baseDate.getMonth() - 3);
   
   for (let i = 0; i < 25; i++) {
     const daysOffset = Math.floor(i * 3.6); // Spread over 90 days
-    const transactionDate = new Date(baseDate);
-    transactionDate.setDate(transactionDate.getDate() + daysOffset);
+    const dealDate = new Date(baseDate);
+    dealDate.setDate(dealDate.getDate() + daysOffset);
+    const bankChargeDate = new Date(dealDate);
+    bankChargeDate.setDate(bankChargeDate.getDate() + 2); // Charge 2 days after deal
     
     const amount = (Math.random() * 500 + 50).toFixed(2);
     const cardId = cards[i % cards.length];
-    const categoryId = categories[i % categories.length];
-    const status = i % 5 === 0 ? 'pending' : 'completed';
+    const businessId = (i % 5) + 1; // Cycle through 5 test businesses
+    const status = i % 5 === 0 ? 'projected' : 'completed';
+    const transactionHash = `test_hash_${i}_${Date.now()}`;
     
     execSql(`
       INSERT INTO transactions 
-      (card_id, category_id, business_name, amount_ils, bank_charge_date, status)
+      (transaction_hash, transaction_type, business_id, card_id, deal_date, bank_charge_date,
+       original_amount, original_currency, charged_amount_ils, payment_type, status, 
+       is_refund, source_file, upload_batch_id)
       VALUES (
-        ${cardId}, 
-        ${categoryId}, 
-        'Test Business ${i}', 
-        ${amount}, 
-        '${transactionDate.toISOString().split('T')[0]}', 
-        '${status}'
+        '${transactionHash}',
+        'one_time',
+        ${businessId},
+        ${cardId},
+        '${dealDate.toISOString().split('T')[0]}',
+        '${bankChargeDate.toISOString().split('T')[0]}',
+        ${amount},
+        'ILS',
+        ${amount},
+        'one_time',
+        '${status}',
+        false,
+        'test_seed.csv',
+        1
       )
     `);
   }
@@ -175,6 +217,7 @@ export function seedTestDatabase(): void {
   seedCategories();
   seedTestCards();
   seedTestBatch();
+  seedTestBusinesses();
   seedTransactions();
   
   console.log('\n✓ Test database seeding complete\n');
