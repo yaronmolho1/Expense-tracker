@@ -11,7 +11,7 @@ import logger from '@/lib/logger';
 
 // Constants for validation
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
-const MAX_FILE_COUNT = 10;
+const MAX_FILE_COUNT = 100; // Increased limit for bulk uploads
 const ALLOWED_EXTENSIONS = ['.xlsx', '.xls', '.csv'];
 
 // Zod schema for card mappings
