@@ -33,6 +33,9 @@ COPY package*.json ./
 # Install all dependencies (tsx is in devDependencies but needed for runtime)
 RUN npm ci
 
+# Install tsx globally (needed to run TypeScript worker script)
+RUN npm install -g tsx@^4.21.0
+
 # Copy application code (needed for worker script and lib files)
 COPY --from=builder --chown=worker:nodejs /app/scripts ./scripts
 COPY --from=builder --chown=worker:nodejs /app/lib ./lib
