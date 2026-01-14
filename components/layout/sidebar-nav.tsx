@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, ChevronDown, ChevronRight } from "lucide-react";
+import { Menu, ChevronDown, ChevronRight, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -12,6 +12,17 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { navSections } from "./nav-items";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +41,11 @@ export function SidebarNav() {
         ? prev.filter((s) => s !== title)
         : [...prev, title]
     );
+  };
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
   };
 
   return (
@@ -86,23 +102,42 @@ export function SidebarNav() {
                           </Link>
                         );
                       })}
+                      
+                      {/* Add Logout to Manage section */}
+                      {section.title === "Manage" && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button
+                              className={cn(
+                                "rounded-md px-3 py-2 text-sm transition-colors text-left flex items-center gap-2",
+                                "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                              )}
+                            >
+                              <LogOut className="h-4 w-4" />
+                              Logout
+                            </button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to logout? You'll need to sign in again to access your account.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleLogout}>
+                                Logout
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   )}
                 </div>
               );
             })}
-          </div>
-          <div className="mt-auto pt-4 border-t">
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={async () => {
-                await fetch('/api/auth/logout', { method: 'POST' });
-                window.location.href = '/login';
-              }}
-            >
-              Logout
-            </Button>
           </div>
         </nav>
       </SheetContent>

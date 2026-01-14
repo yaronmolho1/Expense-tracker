@@ -20,7 +20,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U expenseuser"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -56,11 +56,16 @@ jobs:
           # Create integration database
           PGPASSWORD=testpass psql -h localhost -U expenseuser -d expensedb_test -c "DROP DATABASE IF EXISTS expense_tracker_integration;"
           PGPASSWORD=testpass psql -h localhost -U expenseuser -d expensedb_test -c "CREATE DATABASE expense_tracker_integration;"
+        env:
+          PGUSER: expenseuser
+          PGPASSWORD: testpass
       
       - name: Run integration tests
         run: npm run test:integration
         env:
           DATABASE_URL: postgresql://expenseuser:testpass@localhost:5432/expense_tracker_integration
+          PGUSER: expenseuser
+          PGPASSWORD: testpass
           JWT_SECRET: test-secret-key-for-ci
           AUTH_USERNAME: testuser
           AUTH_PASSWORD_HASH_BASE64: JDJiJDEyJHRlc3Q=
@@ -73,11 +78,17 @@ jobs:
           # Create E2E database
           PGPASSWORD=testpass psql -h localhost -U expenseuser -d expensedb_test -c "DROP DATABASE IF EXISTS expense_tracker_test;"
           PGPASSWORD=testpass psql -h localhost -U expenseuser -d expensedb_test -c "CREATE DATABASE expense_tracker_test;"
+        env:
+          PGUSER: expenseuser
+          PGPASSWORD: testpass
       
       - name: Run E2E tests
         run: npm run test:e2e
         env:
           DATABASE_URL: postgresql://expenseuser:testpass@localhost:5432/expense_tracker_test
+          TEST_DATABASE_URL: postgresql://expenseuser:testpass@localhost:5432/expense_tracker_test
+          PGUSER: expenseuser
+          PGPASSWORD: testpass
           JWT_SECRET: test-secret-key-for-ci
           AUTH_USERNAME: gili
           AUTH_PASSWORD_HASH_BASE64: ${{ secrets.AUTH_PASSWORD_HASH_BASE64 }}

@@ -17,25 +17,46 @@ async function loginWithCookies(page: Page) {
   await page.fill('input[name="username"]', 'gili');
   await page.fill('input[name="password"]', 'y1a3r5o7n');
   
-  // Intercept the login response to get the token
-  const responsePromise = page.waitForResponse(resp => 
-    resp.url().includes('/api/auth/login') && resp.status() === 200
+  // Intercept the login response to get the token BEFORE clicking submit
+  const responsePromise = page.waitForResponse(
+    resp => resp.url().includes('/api/auth/login') && resp.status() === 200,
+    { timeout: 15000 }
   );
   
+  // Click submit button
   await page.click('button[type="submit"]');
+  
+  // Wait for response and extract token carefully
   const response = await responsePromise;
-  const data = await response.json();
+  let data: any;
+  try {
+    data = await response.json();
+  } catch (error) {
+    // If JSON parsing fails (e.g., page navigated), try to get cookies directly
+    console.log('Could not parse response JSON, checking cookies...');
+    const cookies = await page.context().cookies();
+    const authCookie = cookies.find(c => c.name === 'auth_token');
+    if (authCookie) {
+      // Cookie was set, just navigate
+      await page.goto('/', { waitUntil: 'networkidle' });
+      await expect(page).toHaveURL('/', { timeout: 5000 });
+      return;
+    }
+    throw new Error('Failed to get auth token from response or cookies');
+  }
   
   // Explicitly set the auth cookie using Playwright
-  await page.context().addCookies([{
-    name: 'auth_token',
-    value: data.token,
-    domain: 'localhost',
-    path: '/',
-    httpOnly: false,
-    sameSite: 'Lax',
-    expires: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60
-  }]);
+  if (data.token) {
+    await page.context().addCookies([{
+      name: 'auth_token',
+      value: data.token,
+      domain: 'localhost',
+      path: '/',
+      httpOnly: false,
+      sameSite: 'Lax',
+      expires: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60
+    }]);
+  }
   
   // Now navigate - cookie is guaranteed to be set
   await page.goto('/', { waitUntil: 'networkidle' });
