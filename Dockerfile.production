@@ -47,18 +47,20 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # Copy database migrations (needed for migrate script)
 COPY --from=builder --chown=nextjs:nodejs /app/lib/db/migrations ./lib/db/migrations
 
-# Copy drizzle config (needed for drizzle-kit migrate)
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
-
 # Copy scripts for migrations
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+
+# Copy migration dependencies from builder's node_modules
+# These are needed by migrate.ts script but not included in standalone build
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
 
 # Copy entrypoint script
 COPY --from=builder --chown=nextjs:nodejs /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
-# Install migration tools (needed for db:migrate command)
+# Install tsx globally for running TypeScript migration script
 # Must be done as root before switching to non-root user
-RUN npm install -g drizzle-kit@^0.31.8 tsx@^4.21.0
+RUN npm install -g tsx@^4.21.0
 
 # Make entrypoint script executable
 RUN chmod +x ./docker-entrypoint.sh
