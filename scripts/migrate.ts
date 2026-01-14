@@ -26,7 +26,10 @@ async function runMigrations() {
     const connection = postgres(databaseUrl, { max: 1 });
     const db = drizzle(connection);
     
-    const migrationsFolder = path.join(__dirname, '../lib/db/migrations');
+    // Resolve migrations folder path
+    // Use process.cwd() which will be /app in the container
+    // This works reliably in standalone builds
+    const migrationsFolder = path.join(process.cwd(), 'lib/db/migrations');
     
     console.log(`📁 Migrations folder: ${migrationsFolder}`);
     console.log('🚀 Running migrations...');
