@@ -1,12 +1,13 @@
 /**
  * One-time script to rerun categorization for all businesses
  * 
- * Usage: 
- *   Local: npx tsx scripts/rerun-categorization.ts
- *   Production: docker compose -f docker-compose.production.yml exec worker tsx scripts/rerun-categorization.ts
+ * Usage (Production only):
+ *   docker compose -f docker-compose.production.yml exec worker tsx scripts/rerun-categorization.ts
  * 
  * This script reruns LLM categorization for all uncategorized businesses.
  * Use this after fixing API credit issues or other categorization failures.
+ * 
+ * Environment variables are loaded from .env.production via docker-compose.production.yml
  */
 
 import { categorizationService } from '../lib/services/categorization-service';
@@ -16,6 +17,21 @@ import { isNull } from 'drizzle-orm';
 
 async function rerunCategorization() {
   console.log('🔄 Rerunning categorization for all businesses...\n');
+
+  // Verify API key is set
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error('❌ ANTHROPIC_API_KEY environment variable is not set!');
+    console.error('   Make sure it\'s set in .env.production and loaded in docker-compose');
+    process.exit(1);
+  }
+
+  // Check API key format (should start with sk-)
+  if (!process.env.ANTHROPIC_API_KEY.startsWith('sk-')) {
+    console.warn('⚠️  Warning: ANTHROPIC_API_KEY does not start with "sk-"');
+    console.warn('   This might indicate an invalid API key format');
+  } else {
+    console.log('✅ API key found and format looks correct\n');
+  }
 
   try {
     // Check how many uncategorized businesses exist
