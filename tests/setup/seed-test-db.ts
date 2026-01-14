@@ -119,6 +119,53 @@ function seedTestBatch() {
 }
 
 /**
+ * Seed test transactions
+ */
+function seedTransactions() {
+  console.log('Seeding test transactions...');
+  
+  // Get card IDs and category IDs
+  const cards = [1, 2, 3]; // Test cards from seedTestCards
+  const categories = [1, 2, 3, 4, 5]; // From seedCategories
+  
+  // Generate 25 transactions with variety:
+  // - Different dates (last 3 months)
+  // - Different amounts
+  // - Different categories
+  // - Mix of statuses (completed, pending)
+  // - Some installments
+  
+  const baseDate = new Date();
+  baseDate.setMonth(baseDate.getMonth() - 3);
+  
+  for (let i = 0; i < 25; i++) {
+    const daysOffset = Math.floor(i * 3.6); // Spread over 90 days
+    const transactionDate = new Date(baseDate);
+    transactionDate.setDate(transactionDate.getDate() + daysOffset);
+    
+    const amount = (Math.random() * 500 + 50).toFixed(2);
+    const cardId = cards[i % cards.length];
+    const categoryId = categories[i % categories.length];
+    const status = i % 5 === 0 ? 'pending' : 'completed';
+    
+    execSql(`
+      INSERT INTO transactions 
+      (card_id, category_id, business_name, amount_ils, bank_charge_date, status)
+      VALUES (
+        ${cardId}, 
+        ${categoryId}, 
+        'Test Business ${i}', 
+        ${amount}, 
+        '${transactionDate.toISOString().split('T')[0]}', 
+        '${status}'
+      )
+    `);
+  }
+  
+  console.log('✓ Seeded 25 test transactions');
+}
+
+/**
  * Main seed function
  * 
  * Note: User authentication is via environment variables (AUTH_USERNAME, AUTH_PASSWORD_HASH_BASE64)
@@ -128,6 +175,7 @@ export function seedTestDatabase(): void {
   seedCategories();
   seedTestCards();
   seedTestBatch();
+  seedTransactions();
   
   console.log('\n✓ Test database seeding complete\n');
   console.log('Note: Auth credentials configured via environment variables\n');

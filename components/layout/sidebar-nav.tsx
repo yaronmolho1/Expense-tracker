@@ -44,52 +44,66 @@ export function SidebarNav() {
         <SheetHeader className="border-b px-6 py-4">
           <SheetTitle>Navigation</SheetTitle>
         </SheetHeader>
-        <nav className="flex flex-col gap-2 p-4">
-          {navSections.map((section) => {
-            const isExpanded = expandedSections.includes(section.title);
+        <nav className="flex flex-col gap-2 p-4 h-full">
+          <div className="flex-1">
+            {navSections.map((section) => {
+              const isExpanded = expandedSections.includes(section.title);
 
-            return (
-              <div key={section.title}>
-                {/* Section Header */}
-                <button
-                  onClick={() => toggleSection(section.title)}
-                  className="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-semibold text-foreground hover:bg-accent transition-colors"
-                >
-                  {section.title}
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
+              return (
+                <div key={section.title}>
+                  {/* Section Header */}
+                  <button
+                    onClick={() => toggleSection(section.title)}
+                    className="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-semibold text-foreground hover:bg-accent transition-colors"
+                  >
+                    {section.title}
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </button>
+
+                  {/* Section Items */}
+                  {isExpanded && (
+                    <div className="ml-3 mt-1 flex flex-col gap-1 border-l pl-3">
+                      {section.items.map((item) => {
+                        const isActive = pathname === item.href;
+
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={() => setOpen(false)}
+                            className={cn(
+                              "rounded-md px-3 py-2 text-sm transition-colors",
+                              isActive
+                                ? "bg-accent text-accent-foreground font-medium"
+                                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                            )}
+                          >
+                            {item.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   )}
-                </button>
-
-                {/* Section Items */}
-                {isExpanded && (
-                  <div className="ml-3 mt-1 flex flex-col gap-1 border-l pl-3">
-                    {section.items.map((item) => {
-                      const isActive = pathname === item.href;
-
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => setOpen(false)}
-                          className={cn(
-                            "rounded-md px-3 py-2 text-sm transition-colors",
-                            isActive
-                              ? "bg-accent text-accent-foreground font-medium"
-                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                          )}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-auto pt-4 border-t">
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={async () => {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/login';
+              }}
+            >
+              Logout
+            </Button>
+          </div>
         </nav>
       </SheetContent>
     </Sheet>

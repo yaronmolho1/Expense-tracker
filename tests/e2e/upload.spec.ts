@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import path from 'path';
 
 /**
@@ -7,15 +7,45 @@ import path from 'path';
  * Tests the complete file upload and processing workflow.
  */
 
+/**
+ * Helper function to login with explicit cookie handling
+ * This ensures cookies are properly set before navigation
+ */
+async function loginWithCookies(page: Page) {
+  await page.goto('/login', { waitUntil: 'networkidle' });
+  await page.waitForSelector('input[name="username"]', { timeout: 10000 });
+  await page.fill('input[name="username"]', 'gili');
+  await page.fill('input[name="password"]', 'y1a3r5o7n');
+  
+  // Intercept the login response to get the token
+  const responsePromise = page.waitForResponse(resp => 
+    resp.url().includes('/api/auth/login') && resp.status() === 200
+  );
+  
+  await page.click('button[type="submit"]');
+  const response = await responsePromise;
+  const data = await response.json();
+  
+  // Explicitly set the auth cookie using Playwright
+  await page.context().addCookies([{
+    name: 'auth_token',
+    value: data.token,
+    domain: 'localhost',
+    path: '/',
+    httpOnly: false,
+    sameSite: 'Lax',
+    expires: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60
+  }]);
+  
+  // Now navigate - cookie is guaranteed to be set
+  await page.goto('/', { waitUntil: 'networkidle' });
+  await expect(page).toHaveURL('/', { timeout: 5000 });
+}
+
 test.describe('File Upload', () => {
   // Helper to login before each test
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login', { waitUntil: 'networkidle' });
-    await page.waitForSelector('input[name="username"]', { timeout: 10000 });
-    await page.fill('input[name="username"]', 'gili');
-    await page.fill('input[name="password"]', 'y1a3r5o7n');
-    await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/', { timeout: 15000 });
+    await loginWithCookies(page);
   });
 
   test('should navigate to upload page', async ({ page }) => {
@@ -65,12 +95,7 @@ test.describe('File Upload', () => {
 
 test.describe('File Upload - Card Detection', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login', { waitUntil: 'networkidle' });
-    await page.waitForSelector('input[name="username"]', { timeout: 10000 });
-    await page.fill('input[name="username"]', 'gili');
-    await page.fill('input[name="password"]', 'y1a3r5o7n');
-    await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/', { timeout: 15000 });
+    await loginWithCookies(page);
     await page.goto('/upload', { waitUntil: 'networkidle' });
   });
 

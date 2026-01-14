@@ -1,5 +1,8 @@
+"use client";
+
 import { MainNav } from "@/components/layout/main-nav";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { Button } from "@/components/ui/button";
 
 export default function DashboardLayout({
   children,
@@ -10,11 +13,21 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-gray-50">
       {/* Top Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b">
-        <div className="flex items-center justify-center px-4 py-4 relative">
-          <div className="absolute left-4">
+        <div className="flex items-center justify-between px-4 py-4">
+          <div className="flex items-center gap-4">
             <SidebarNav />
+            <h1 className="text-xl font-bold">Expense Tracker</h1>
           </div>
-          <h1 className="text-xl font-bold">Expense Tracker</h1>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={async () => {
+              await fetch('/api/auth/logout', { method: 'POST' });
+              window.location.href = '/login';
+            }}
+          >
+            Logout
+          </Button>
         </div>
       </header>
 
