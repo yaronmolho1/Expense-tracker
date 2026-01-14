@@ -3,8 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronRight, Menu, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Menu, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { navSections } from "./nav-items";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +34,11 @@ export function MainNav() {
         ? prev.filter((s) => s !== title)
         : [...prev, title]
     );
+  };
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
   };
 
   return (
@@ -67,6 +83,39 @@ export function MainNav() {
                     <ChevronRight className="h-4 w-4" />
                   )}
                 </button>
+
+                {/* Logout button right after Manage header */}
+                {section.title === "Manage" && (
+                  <div className="ml-3 mt-2 mb-1">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          className={cn(
+                            "rounded-md px-3 py-2 text-sm transition-colors text-left flex items-center gap-2 w-full",
+                            "text-muted-foreground hover:bg-accent hover:text-accent-foreground font-medium"
+                          )}
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Logout
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to logout? You'll need to sign in again to access your account.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleLogout}>
+                            Logout
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
 
                 {/* Section Items */}
                 {isExpanded && (
