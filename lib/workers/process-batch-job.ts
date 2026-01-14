@@ -414,6 +414,19 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
       // Don't fail the batch if subscription detection fails
     }
 
+    // Run business merge detection after batch processing
+    try {
+      const { suggestionService } = await import('@/lib/services/suggestion-service');
+      const mergeResult = await suggestionService.detectBusinessMerges();
+      logger.info({
+        suggestionsCreated: mergeResult.suggestionsCreated,
+        businessesAnalyzed: mergeResult.businessesAnalyzed,
+      }, 'Business merge detection complete');
+    } catch (error) {
+      logger.error(error, 'Failed to run business merge detection');
+      // Don't fail the batch if merge detection fails
+    }
+
   } catch (error) {
     logger.error(error, `Fatal error processing batch ${batchId}`);
 
