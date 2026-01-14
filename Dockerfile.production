@@ -47,8 +47,21 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # Copy database migrations (needed for migrate script)
 COPY --from=builder --chown=nextjs:nodejs /app/lib/db/migrations ./lib/db/migrations
 
+# Copy drizzle config (needed for drizzle-kit migrate)
+COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
+
 # Copy scripts for migrations
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+
+# Copy entrypoint script
+COPY --from=builder --chown=nextjs:nodejs /app/docker-entrypoint.sh ./docker-entrypoint.sh
+
+# Install migration tools (needed for db:migrate command)
+# Must be done as root before switching to non-root user
+RUN npm install -g drizzle-kit@^0.31.8 tsx@^4.21.0
+
+# Make entrypoint script executable
+RUN chmod +x ./docker-entrypoint.sh
 
 # Switch to non-root user
 USER nextjs
@@ -60,8 +73,9 @@ EXPOSE 3000
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
 
-# Start the application
-CMD ["node", "server.js"]
+# Start the application using entrypoint script
+# The entrypoint script will wait for DB, run migrations, then start the app
+ENTRYPOINT ["./docker-entrypoint.sh"]
 
 # Production stage alias (for orchestration compose files)
 FROM runner AS production
