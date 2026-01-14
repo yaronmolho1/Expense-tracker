@@ -61,8 +61,18 @@ export class CategorizationService {
    */
   private async buildPrompt(businessNames: string[]): Promise<string> {
     const categoryTree = await this.getCategoryTree();
+    
+    // Get list of valid parent categories for explicit validation
+    const allCategories = await db.select().from(categories);
+    const parentCategories = allCategories
+      .filter((c) => c.level === 0)
+      .map((c) => c.name)
+      .sort();
 
     return `You are an Israeli expense categorization expert. Given business names (in Hebrew and English), categorize them into the provided category tree.
+
+VALID PARENT CATEGORIES (you MUST use one of these EXACT names - copy them EXACTLY):
+${parentCategories.map((name, idx) => `${idx + 1}. "${name}"`).join('\n')}
 
 ${categoryTree}
 
@@ -71,18 +81,33 @@ ${businessNames.map((name, idx) => `${idx + 1}. ${name}`).join('\n')}
 
 CRITICAL INSTRUCTIONS:
 1. Return ONLY a JSON array with NO markdown formatting, NO code blocks, NO preamble, NO explanation
-2. For each business, determine the most appropriate primary category and child category
-3. Provide a confidence score (0.00-1.00) based on how certain you are
-4. If a business name is ambiguous or you're unsure, use a lower confidence score
-5. Israeli context matters: "רמי לוי" = supermarket, "דור אלון" = gas station, "ביטוח" = insurance
-6. IMPORTANT: If a business name contains quotes (like ביה"ס), escape them as \\" in the JSON
+2. The "primary_category" field MUST be EXACTLY one of the valid parent categories listed above (case-sensitive, including spaces, ampersands "&", slashes "/", no spaces around "&")
+3. The "child_category" field MUST be EXACTLY one of the child categories shown under that parent in the category tree above (case-sensitive, exact spelling)
+4. DO NOT invent category names. DO NOT use variations. Examples of WRONG names:
+   - WRONG: "Travel & Transportation" → CORRECT: "Transportation & Car"
+   - WRONG: "Food & Beverage" → CORRECT: "Food & Household"
+   - WRONG: "Technology" → CORRECT: "Communications&Subscriptions"
+   - WRONG: "Travel" → CORRECT: "Lifestyle&Leisure" (with child "Travel/vacations")
+   - WRONG: "Entertainment" → CORRECT: "Lifestyle&Leisure" (with child "Entertainment&hobbies")
+   - WRONG: "Health & Fitness" → CORRECT: "Health/Fitness" (note the slash, not "&")
+   - WRONG: "Retail" or "Shopping" → CORRECT: "Food & Household" or "Personal Care" depending on context
+5. Provide a confidence score (0.00-1.00) based on how certain you are
+6. If a business name is ambiguous or you're unsure, use a lower confidence score
+7. Israeli context examples:
+   - "רמי לוי" (supermarket) → "Food & Household" / "Groceries"
+   - "דור אלון" (gas station) → "Transportation & Car" / "Fuel and ev charging"
+   - "Netflix" → "Communications&Subscriptions" / "Streaming services"
+   - "OpenAI" or "Anthropic" → "Communications&Subscriptions" / "AI/Developer tools"
+   - "Uber" → "Transportation & Car" / "Public Transport"
+   - Restaurant names → "Food & Household" / "Eating out and deliveries"
+8. IMPORTANT: If a business name contains quotes (like ביה"ס), escape them as \\" in the JSON
 
 EXACT OUTPUT FORMAT (nothing else):
 [
   {
     "name": "exact business name from list (escape any quotes as \\\\")",
-    "primary_category": "exact parent category name",
-    "child_category": "exact child category name",
+    "primary_category": "EXACT parent category name from valid list above",
+    "child_category": "EXACT child category name from tree above",
     "confidence": 0.95
   }
 ]
