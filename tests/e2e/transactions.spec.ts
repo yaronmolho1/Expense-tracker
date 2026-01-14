@@ -16,7 +16,7 @@ async function loginWithCookies(page: Page) {
   await page.fill('input[name="username"]', 'gili');
   await page.fill('input[name="password"]', 'y1a3r5o7n');
   
-  // Intercept the login response to get the token BEFORE clicking submit
+  // Intercept the login response BEFORE clicking submit
   const responsePromise = page.waitForResponse(
     resp => resp.url().includes('/api/auth/login') && resp.status() === 200,
     { timeout: 15000 }
@@ -25,40 +25,28 @@ async function loginWithCookies(page: Page) {
   // Click submit button
   await page.click('button[type="submit"]');
   
-  // Wait for response and extract token carefully
-  const response = await responsePromise;
-  let data: any;
-  try {
-    data = await response.json();
-  } catch (error) {
-    // If JSON parsing fails (e.g., page navigated), try to get cookies directly
-    console.log('Could not parse response JSON, checking cookies...');
-    const cookies = await page.context().cookies();
-    const authCookie = cookies.find(c => c.name === 'auth_token');
-    if (authCookie) {
-      // Cookie was set, just navigate
-      await page.goto('/', { waitUntil: 'networkidle' });
-      await expect(page).toHaveURL('/', { timeout: 5000 });
-      return;
-    }
-    throw new Error('Failed to get auth token from response or cookies');
+  // Wait for successful response
+  await responsePromise;
+  
+  // Wait for redirect/navigation to complete
+  await page.waitForURL('/', { timeout: 10000 }).catch(() => {
+    // If direct navigation doesn't happen, manually navigate
+  });
+  
+  // Ensure we're on dashboard by checking cookies
+  const cookies = await page.context().cookies();
+  const authCookie = cookies.find(c => c.name === 'auth_token');
+  
+  if (!authCookie) {
+    throw new Error('Auth cookie not set after login');
   }
   
-  // Explicitly set the auth cookie using Playwright
-  if (data.token) {
-    await page.context().addCookies([{
-      name: 'auth_token',
-      value: data.token,
-      domain: 'localhost',
-      path: '/',
-      httpOnly: false,
-      sameSite: 'Lax',
-      expires: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60
-    }]);
+  // If not already on dashboard, navigate there
+  const currentUrl = page.url();
+  if (!currentUrl.includes(':3000/') || currentUrl.includes('/login')) {
+    await page.goto('/', { waitUntil: 'networkidle' });
   }
   
-  // Now navigate - cookie is guaranteed to be set
-  await page.goto('/', { waitUntil: 'networkidle' });
   await expect(page).toHaveURL('/', { timeout: 5000 });
 }
 
@@ -86,7 +74,21 @@ test.describe('Transactions', () => {
   });
 
   test('should display transaction table or list', async ({ page }) => {
-    await page.goto('/transactions');
+    await page.goto('/transactions', { waitUntil: 'networkidle' });
+    
+    // Wait for page to load - either table or empty state should appear
+    await page.waitForTimeout(2000); // Give time for API call to complete
+    
+    // Wait for either table content or empty state
+    try {
+      // Try to wait for table rows (with data)
+      await page.waitForSelector('table tbody tr, [role="row"]', { timeout: 5000 });
+    } catch {
+      // If no rows, check for empty state message
+      await page.waitForSelector('text=/no transactions|empty/i', { timeout: 2000 }).catch(() => {
+        // If neither, just check that page loaded
+      });
+    }
     
     // Better empty state handling - check for UI elements or actual data
     const hasTable = await page.locator('table, [role="table"]').count();

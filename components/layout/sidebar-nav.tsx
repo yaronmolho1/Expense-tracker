@@ -80,6 +80,39 @@ export function SidebarNav() {
                     )}
                   </button>
 
+                  {/* Add Logout right after Manage section header */}
+                  {section.title === "Manage" && (
+                    <div className="ml-3 mt-2 mb-1">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            className={cn(
+                              "rounded-md px-3 py-2 text-sm transition-colors text-left flex items-center gap-2 w-full",
+                              "text-muted-foreground hover:bg-accent hover:text-accent-foreground font-medium"
+                            )}
+                          >
+                            <LogOut className="h-4 w-4" />
+                            Logout
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to logout? You'll need to sign in again to access your account.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleLogout}>
+                              Logout
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
+                  
                   {/* Section Items */}
                   {isExpanded && (
                     <div className="ml-3 mt-1 flex flex-col gap-1 border-l pl-3">
@@ -102,37 +135,6 @@ export function SidebarNav() {
                           </Link>
                         );
                       })}
-                      
-                      {/* Add Logout to Manage section */}
-                      {section.title === "Manage" && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <button
-                              className={cn(
-                                "rounded-md px-3 py-2 text-sm transition-colors text-left flex items-center gap-2",
-                                "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                              )}
-                            >
-                              <LogOut className="h-4 w-4" />
-                              Logout
-                            </button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to logout? You'll need to sign in again to access your account.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleLogout}>
-                                Logout
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
                     </div>
                   )}
                 </div>

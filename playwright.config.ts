@@ -19,6 +19,9 @@ export default defineConfig({
   // Run tests in files in parallel
   fullyParallel: true,
   
+  // Run auth setup before all tests
+  testMatch: /.*\.spec\.ts/,
+  
   // Fail the build on CI if you accidentally left test.only in the source code
   forbidOnly: !!process.env.CI,
   
@@ -55,9 +58,20 @@ export default defineConfig({
 
   // Configure projects for major browsers
   projects: [
+    // Setup project - runs first to create auth state
+    {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+    },
+    // Main tests - depend on setup and use stored auth state
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Use stored auth state (comment out to disable optimization)
+        // storageState: 'playwright/.auth/user.json',
+      },
+      dependencies: ['setup'],
     },
   ],
 

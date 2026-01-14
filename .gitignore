@@ -23,6 +23,7 @@ vitest.config.ts.timestamp-*
 /test-results/
 /playwright-report/
 /playwright/.cache/
+/playwright/.auth/
 .playwright/
 playwright-report/
 test-results/
