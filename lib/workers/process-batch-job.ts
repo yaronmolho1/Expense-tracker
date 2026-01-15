@@ -170,6 +170,10 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
           }
         }
 
+        // CRITICAL: Track processed transaction IDs within this batch for in-batch exclusion
+        // Prevents twins in same file from latching onto the same projected slot
+        const processedTransactionIds = new Set<number>();
+
         // Process each transaction
         for (const parsedTx of parseResult.transactions) {
           parsedTransactionCount++; // Count every transaction from file
@@ -220,8 +224,12 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
             // For payment N on date D: payment 1 = D, payment 2 = D+30, payment 3 = D+60, etc.
             const originalPurchaseDateStr = dealDateStr;
 
-            // Calculate group ID using original purchase date
-            const totalPaymentSum = finalAmountIls * parsedTx.installmentTotal!;
+            // CRITICAL: Use the parsed originalAmount directly - it's the TOTAL DEAL SUM from the file
+            // ALL payments (Payment 1, 2, 3...24) have the SAME originalAmount in the file
+            // This elegantly solves Payment 1 variance (132 vs 129) - both anchor to same total (3,099)
+            const totalPaymentSum = parsedTx.originalAmount;
+            
+            // Calculate group ID using original purchase date and total from file
             const groupId = generateInstallmentGroupId({
               businessNormalizedName: business.normalizedName,
               totalPaymentSum,
@@ -247,18 +255,55 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                   dealDate: originalPurchaseDateStr,
                   installmentTotal: parsedTx.installmentTotal!,
                   installmentIndex: 1,
-                  chargedAmountIls: finalAmountIls,
+                  originalAmount: parsedTx.originalAmount, // Use parsed total deal sum
                   currentBatchId: batchId,
+                  processedIds: processedTransactionIds,
                 });
                 
                 if (exactDuplicate) {
-                  logger.debug({
-                    businessName: parsedTx.businessName,
-                    installmentIndex: 1,
-                    groupId: exactDuplicate.installmentGroupId?.slice(0, 16),
-                  }, 'Duplicate detected - skipping (idempotency)');
-                  duplicateTransactions++;
-                  continue; // Skip - already processed
+                  // Check if this is a ghost that needs updating
+                  if (!exactDuplicate.sourceFile || exactDuplicate.uploadBatchId !== batchId) {
+                    // This is a Ghost! Update it with real data
+                    logger.info({
+                      businessName: parsedTx.businessName,
+                      installmentIndex: 1,
+                      installmentTotal: parsedTx.installmentTotal,
+                      transactionId: exactDuplicate.id,
+                      oldAmount: exactDuplicate.chargedAmountIls,
+                      newAmount: finalAmountIls.toFixed(2),
+                      groupId: exactDuplicate.installmentGroupId?.slice(0, 16),
+                    }, 'Found exact duplicate Ghost Payment 1 - updating with real data');
+                    
+                    await db.update(transactions)
+                      .set({
+                        sourceFile: file.filename,
+                        chargedAmountIls: finalAmountIls.toString(),
+                        exchangeRateUsed: finalExchangeRate?.toString() || null,
+                        actualChargeDate: originalPurchaseDateStr,
+                        uploadBatchId: batchId,
+                        updatedAt: new Date(),
+                      })
+                      .where(eq(transactions.id, exactDuplicate.id));
+                    
+                    logger.info({
+                      transactionId: exactDuplicate.id,
+                    }, `Updated Ghost Payment 1 (ID: ${exactDuplicate.id}) - chargedAmountIls patched to ${finalAmountIls.toFixed(2)}`);
+                    
+                    // CRITICAL: Add to processed set to prevent twin latching
+                    processedTransactionIds.add(exactDuplicate.id);
+                    
+                    updatedTransactions += 1;
+                    continue;
+                  } else {
+                    // This is a real duplicate from the current batch with real data
+                    logger.debug({
+                      businessName: parsedTx.businessName,
+                      installmentIndex: 1,
+                      groupId: exactDuplicate.installmentGroupId?.slice(0, 16),
+                    }, 'Duplicate detected - skipping (idempotency)');
+                    duplicateTransactions++;
+                    continue; // Skip - already processed
+                  }
                 }
                 
                 // STEP 2: Check if standard hash is occupied
@@ -276,6 +321,9 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                       businessName: parsedTx.businessName,
                       installmentIndex: 1,
                       installmentTotal: parsedTx.installmentTotal,
+                      transactionId: existingPayment1.id,
+                      oldAmount: existingPayment1.chargedAmountIls,
+                      newAmount: finalAmountIls.toFixed(2),
                       groupId: existingPayment1.installmentGroupId?.slice(0, 16),
                     }, 'Found standard hash Ghost Payment 1 - updating with real data');
                     
@@ -290,6 +338,13 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                       })
                       .where(eq(transactions.id, existingPayment1.id));
                     
+                    logger.info({
+                      transactionId: existingPayment1.id,
+                    }, `Updated Ghost Payment 1 (ID: ${existingPayment1.id}) - chargedAmountIls patched to ${finalAmountIls.toFixed(2)}`);
+                    
+                    // CRITICAL: Add to processed set to prevent twin latching
+                    processedTransactionIds.add(existingPayment1.id);
+                    
                     updatedTransactions += 1;
                     totalAmountIls += finalAmountIls;
                   } else {
@@ -300,9 +355,10 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                       cardId: card.id,
                       dealDate: originalPurchaseDateStr,
                       installmentTotal: parsedTx.installmentTotal!,
-                      chargedAmountIls: finalAmountIls,
+                      originalAmount: parsedTx.originalAmount, // Use parsed total deal sum
                       baseGroupId: groupId,
                       currentBatchId: batchId,
+                      processedIds: processedTransactionIds,
                     });
                     
                     if (orphanedPayment1) {
@@ -311,6 +367,9 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                         businessName: parsedTx.businessName,
                         installmentIndex: parsedTx.installmentIndex,
                         installmentTotal: parsedTx.installmentTotal,
+                        transactionId: orphanedPayment1.id,
+                        oldAmount: orphanedPayment1.chargedAmountIls,
+                        newAmount: finalAmountIls.toFixed(2),
                         orphanedGroupId: orphanedPayment1.installmentGroupId?.slice(0, 16),
                       }, 'Found orphaned backfilled Payment 1 - updating with real data');
                       
@@ -324,6 +383,13 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                           updatedAt: new Date(),
                         })
                         .where(eq(transactions.id, orphanedPayment1.id));
+                      
+                      logger.info({
+                        transactionId: orphanedPayment1.id,
+                      }, `Updated Orphaned Payment 1 (ID: ${orphanedPayment1.id}) - chargedAmountIls patched to ${finalAmountIls.toFixed(2)}`);
+                      
+                      // CRITICAL: Add to processed set to prevent twin latching
+                      processedTransactionIds.add(orphanedPayment1.id);
                       
                       updatedTransactions += 1;
                       totalAmountIls += finalAmountIls;
@@ -410,8 +476,9 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                 dealDate: originalPurchaseDateStr,
                 installmentTotal: parsedTx.installmentTotal!,
                 installmentIndex: parsedTx.installmentIndex!,
-                chargedAmountIls: finalAmountIls,
+                originalAmount: parsedTx.originalAmount, // Use parsed total deal sum
                 currentBatchId: batchId,
+                processedIds: processedTransactionIds,
               });
               
               if (exactDuplicate) {
@@ -423,14 +490,15 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                 continue;
               }
               
-              // STEP 2: Search for ANY projected slot (metadata-only)
+              // STEP 2: Search for ANY projected slot (metadata-only with total deal sum matching)
               const projectedPayment = await findProjectedPaymentInBucket({
                 businessId: business.id,
                 cardId: card.id,
                 dealDate: originalPurchaseDateStr,
                 installmentTotal: parsedTx.installmentTotal!,
                 installmentIndex: parsedTx.installmentIndex!,
-                chargedAmountIls: finalAmountIls,
+                originalAmount: parsedTx.originalAmount, // Use parsed total deal sum
+                processedIds: processedTransactionIds,
               });
               
               if (projectedPayment) {
@@ -448,6 +516,9 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                   chargedAmountIls: finalAmountIls, // Use actual amount from file
                   exchangeRateUsed: finalExchangeRate,
                 });
+                
+                // CRITICAL: Add to processed set to prevent twin latching
+                processedTransactionIds.add(projectedPayment.id);
                 
                 updatedTransactions += 1;
                 totalAmountIls += finalAmountIls;

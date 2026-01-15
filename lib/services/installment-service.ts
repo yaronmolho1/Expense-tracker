@@ -380,7 +380,7 @@ export async function findCompletedPayment1(groupId: string) {
 /**
  * Check if this EXACT transaction already exists (for idempotency)
  * Searches by metadata regardless of group ID
- * CRITICAL: Excludes transactions from the current batch to allow twin purchases in same file
+ * CRITICAL: Uses Total Deal Sum from file (not calculated) + batch exclusion for twin handling
  */
 export async function findExactDuplicate(params: {
   businessId: number;
@@ -388,27 +388,35 @@ export async function findExactDuplicate(params: {
   dealDate: string;
   installmentTotal: number;
   installmentIndex: number;
-  chargedAmountIls: number;
+  originalAmount: number; // Total deal sum from file (e.g., 3,099)
   currentBatchId: number; // Exclude transactions from this batch
+  processedIds: Set<number>; // Exclude IDs already processed in this batch
 }) {
-  const amountTolerance = params.chargedAmountIls * 0.01;
+  const amountTolerance = params.originalAmount * 0.01;
+  
+  // Build exclusion conditions
+  const conditions = [
+    eq(transactions.businessId, params.businessId),
+    eq(transactions.cardId, params.cardId),
+    eq(transactions.dealDate, params.dealDate),
+    eq(transactions.installmentTotal, params.installmentTotal),
+    eq(transactions.installmentIndex, params.installmentIndex),
+    eq(transactions.status, 'completed'), // Only check completed (ignore projected)
+    // CRITICAL: Match on TOTAL DEAL SUM from file (same for all payments in the installment)
+    sql`${transactions.originalAmount}::numeric BETWEEN ${params.originalAmount - amountTolerance} AND ${params.originalAmount + amountTolerance}`,
+    // Exclude current batch (allows twin purchases in same file)
+    not(eq(transactions.uploadBatchId, params.currentBatchId))
+  ];
+  
+  // Exclude already processed IDs in this batch (prevents twin latching)
+  if (params.processedIds.size > 0) {
+    conditions.push(sql`${transactions.id} NOT IN (${sql.join(Array.from(params.processedIds).map(id => sql`${id}`), sql`, `)})`);
+  }
   
   const [duplicate] = await db
     .select()
     .from(transactions)
-    .where(
-      and(
-        eq(transactions.businessId, params.businessId),
-        eq(transactions.cardId, params.cardId),
-        eq(transactions.dealDate, params.dealDate),
-        eq(transactions.installmentTotal, params.installmentTotal),
-        eq(transactions.installmentIndex, params.installmentIndex),
-        eq(transactions.status, 'completed'), // Only check completed (ignore projected)
-        sql`${transactions.chargedAmountIls}::numeric BETWEEN ${params.chargedAmountIls - amountTolerance} AND ${params.chargedAmountIls + amountTolerance}`,
-        // CRITICAL: Exclude current batch (allows twin purchases in same file)
-        not(eq(transactions.uploadBatchId, params.currentBatchId))
-      )
-    )
+    .where(and(...conditions))
     .limit(1);
   
   return duplicate || null;
@@ -417,6 +425,7 @@ export async function findExactDuplicate(params: {
 /**
  * Find ANY projected payment matching metadata (ignores group IDs entirely)
  * This is the "pool" approach - take first available slot
+ * Uses Total Deal Sum from file for perfect matching across Payment 1 variance
  */
 export async function findProjectedPaymentInBucket(params: {
   businessId: number;
@@ -424,24 +433,32 @@ export async function findProjectedPaymentInBucket(params: {
   dealDate: string;
   installmentTotal: number;
   installmentIndex: number;
-  chargedAmountIls: number;
+  originalAmount: number; // Total deal sum from file (e.g., 3,099)
+  processedIds: Set<number>; // Exclude IDs already processed in this batch
 }) {
-  const amountTolerance = params.chargedAmountIls * 0.01;
+  const amountTolerance = params.originalAmount * 0.01;
+  
+  // Build exclusion conditions
+  const conditions = [
+    eq(transactions.businessId, params.businessId),
+    eq(transactions.cardId, params.cardId),
+    eq(transactions.dealDate, params.dealDate),
+    eq(transactions.installmentTotal, params.installmentTotal),
+    eq(transactions.installmentIndex, params.installmentIndex),
+    eq(transactions.status, 'projected'),
+    // CRITICAL: Match on TOTAL DEAL SUM from file
+    sql`${transactions.originalAmount}::numeric BETWEEN ${params.originalAmount - amountTolerance} AND ${params.originalAmount + amountTolerance}`
+  ];
+  
+  // Exclude already processed IDs in this batch (prevents twin latching)
+  if (params.processedIds.size > 0) {
+    conditions.push(sql`${transactions.id} NOT IN (${sql.join(Array.from(params.processedIds).map(id => sql`${id}`), sql`, `)})`);
+  }
   
   const [projectedPayment] = await db
     .select()
     .from(transactions)
-    .where(
-      and(
-        eq(transactions.businessId, params.businessId),
-        eq(transactions.cardId, params.cardId),
-        eq(transactions.dealDate, params.dealDate),
-        eq(transactions.installmentTotal, params.installmentTotal),
-        eq(transactions.installmentIndex, params.installmentIndex),
-        eq(transactions.status, 'projected'),
-        sql`${transactions.chargedAmountIls}::numeric BETWEEN ${params.chargedAmountIls - amountTolerance} AND ${params.chargedAmountIls + amountTolerance}`
-      )
-    )
+    .where(and(...conditions))
     .limit(1);
 
   return projectedPayment || null;
@@ -470,48 +487,51 @@ export async function countGroupsWithBaseId(baseGroupId: string) {
  * 1. User uploads Payment 2/24 first
  * 2. Twin A creates standard group (baseGroupId)
  * 3. Twin B detects collision, creates salted group (SHA256-hashed)
- * 4. Both backfill Payment 1 as 'completed' with CALCULATED amount (Total - (RegularPayment × (N-1)))
+ * 4. Both backfill Payment 1 with CALCULATED amount from total deal sum
  * 5. User uploads Payment 1/24 later
  * 6. Twin A finds its Payment 1 by hash
  * 7. Twin B cannot find its Payment 1 by hash (salted ID is unpredictable)
  * 8. This function finds Twin B's Payment 1 by matching metadata instead
  * 
- * NOTE: We use 5% tolerance for amount matching (instead of 1%) to handle:
- * - Exchange rate differences between backfill calculation and real charge
- * - Edge cases where Payment 1 variance is distributed differently
+ * Uses Total Deal Sum from file for perfect mathematical matching
  */
 export async function findOrphanedBackfilledPayment1(params: {
   businessId: number;
   cardId: number;
   dealDate: string; // Original purchase date (YYYY-MM-DD)
   installmentTotal: number;
-  chargedAmountIls: number;
+  originalAmount: number; // Total deal sum from file
   baseGroupId: string; // Exclude this ID from search
-  currentBatchId: number; // Exclude transactions from current batch (already updated by twins in same file)
+  currentBatchId: number; // Exclude transactions from current batch
+  processedIds: Set<number>; // Exclude IDs already processed in this batch
 }) {
-  // Use 5% tolerance instead of 1% to handle edge cases
-  const amountTolerance = params.chargedAmountIls * 0.05;
+  const amountTolerance = params.originalAmount * 0.01;
+  
+  // Build exclusion conditions
+  const conditions = [
+    eq(transactions.businessId, params.businessId),
+    eq(transactions.cardId, params.cardId),
+    eq(transactions.dealDate, params.dealDate),
+    eq(transactions.installmentTotal, params.installmentTotal),
+    eq(transactions.installmentIndex, 1),
+    eq(transactions.status, 'completed'),
+    // CRITICAL: Match on TOTAL DEAL SUM from file
+    sql`${transactions.originalAmount}::numeric BETWEEN ${params.originalAmount - amountTolerance} AND ${params.originalAmount + amountTolerance}`,
+    // ONLY exclude the standard hash we just checked
+    not(eq(transactions.installmentGroupId, params.baseGroupId)),
+    // Exclude current batch
+    not(eq(transactions.uploadBatchId, params.currentBatchId))
+  ];
+  
+  // Exclude already processed IDs in this batch (prevents twin latching)
+  if (params.processedIds.size > 0) {
+    conditions.push(sql`${transactions.id} NOT IN (${sql.join(Array.from(params.processedIds).map(id => sql`${id}`), sql`, `)})`);
+  }
   
   const [orphan] = await db
     .select()
     .from(transactions)
-    .where(
-      and(
-        eq(transactions.businessId, params.businessId),
-        eq(transactions.cardId, params.cardId),
-        eq(transactions.dealDate, params.dealDate),
-        eq(transactions.installmentTotal, params.installmentTotal),
-        eq(transactions.installmentIndex, 1),
-        eq(transactions.status, 'completed'),
-        // 5% amount tolerance (wider than normal to handle Payment 1 variance edge cases)
-        sql`${transactions.chargedAmountIls}::numeric BETWEEN ${params.chargedAmountIls - amountTolerance} AND ${params.chargedAmountIls + amountTolerance}`,
-        // ONLY exclude the standard hash we just checked
-        not(eq(transactions.installmentGroupId, params.baseGroupId)),
-        // CRITICAL: Exclude current batch (prevents finding ghosts already updated by earlier twins in same file)
-        not(eq(transactions.uploadBatchId, params.currentBatchId))
-        // REMOVED: not(like(..._copy_%)) - we now search ALL groups
-      )
-    )
+    .where(and(...conditions))
     .limit(1);
 
   return orphan || null;
