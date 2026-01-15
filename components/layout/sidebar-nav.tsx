@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, ChevronDown, ChevronRight, LogOut } from "lucide-react";
@@ -28,12 +28,18 @@ import { cn } from "@/lib/utils";
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<string[]>([
     "Main",
     "Manage",
     "Reports",
   ]);
+
+  // Prevent hydration mismatch by only rendering after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const toggleSection = (title: string) => {
     setExpandedSections((prev) =>
@@ -47,6 +53,16 @@ export function SidebarNav() {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/login';
   };
+
+  // Show placeholder button during SSR to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <Button variant="ghost" size="icon" className="md:hidden">
+        <Menu className="h-5 w-5" />
+        <span className="sr-only">Toggle menu</span>
+      </Button>
+    );
+  }
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>

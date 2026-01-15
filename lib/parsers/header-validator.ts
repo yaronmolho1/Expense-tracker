@@ -30,16 +30,34 @@ function validateIsracardHeader(rows: any[][]): HeaderValidationResult | null {
   for (let i = 3; i < Math.min(7, rows.length); i++) {
     const rowText = rows[i]?.[0]?.toString() || '';
 
-    // MUST contain either "ישראכרט" or "אמריקן אקספרס" to be Isracard (avoid matching MAX files)
-    if (!rowText.includes('ישראכרט') && !rowText.includes('אמריקן אקספרס')) {
+    // Isracard files can have various card types in the header:
+    // - "ישראכרט" (Isracard)
+    // - "אמריקן אקספרס" (American Express in Hebrew)
+    // - "מסטרקארד" (Mastercard in Hebrew)
+    // - "AMEX" (American Express in English)
+    // All these are Isracard-issued cards
+    const isIsracardFile =
+      rowText.includes('ישראכרט') ||
+      rowText.includes('אמריקן אקספרס') ||
+      rowText.includes('מסטרקארד') ||
+      rowText.toUpperCase().includes('AMEX');
+
+    if (!isIsracardFile) {
       continue;
     }
 
-    // Match pattern: "ישראכרט" or "אמריקן אקספרס" + " - " + 4 digits
+    // Match pattern: card name + " - " + 4 digits
     const cardMatch = rowText.match(/-\s*(\d{4})/);
 
     if (cardMatch) {
-      const cardType = rowText.includes('אמריקן אקספרס') ? 'AMEX' : 'Isracard';
+      // Determine card type for additional info
+      let cardType = 'Isracard';
+      if (rowText.includes('אמריקן אקספרס') || rowText.toUpperCase().includes('AMEX')) {
+        cardType = 'AMEX';
+      } else if (rowText.includes('מסטרקארד')) {
+        cardType = 'Mastercard';
+      }
+
       return {
         last4: cardMatch[1],
         issuer: 'ISRACARD',

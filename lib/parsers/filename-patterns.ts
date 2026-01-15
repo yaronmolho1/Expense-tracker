@@ -78,10 +78,10 @@ export const ISSUER_CONFIGS: IssuerConfig[] = [
     parserName: 'isracard',
     patterns: [
       {
-        pattern: /^(\d{4})_(\d{2})_(\d{4})\.xlsx$/,
+        pattern: /^(\d{4})_(\d{2})_(\d{4})(\.xlsx)?$/,
         last4Extractor: (match) => match[1],
-        description: 'Format: XXXX_MM_YYYY.xlsx',
-        examples: ['8041_01_2025.xlsx', '7547_10_2025.xlsx', '8582_08_2025.xlsx'],
+        description: 'Format: XXXX_MM_YYYY or XXXX_MM_YYYY.xlsx',
+        examples: ['8041_01_2025', '8041_01_2025.xlsx', '7547_10_2025', '8582_08_2025.xlsx'],
       },
       {
         pattern: /^ISRACARD[_\s-](\d{4})[_\s-]\d{2}[_\s-]\d{2,4}\.xlsx$/i,

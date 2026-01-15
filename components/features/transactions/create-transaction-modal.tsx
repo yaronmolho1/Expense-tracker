@@ -35,7 +35,7 @@ interface CreateTransactionModalProps {
 
 export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionModalProps) {
   const createTransaction = useCreateTransaction();
-  const { data: businessesData } = useBusinesses('', undefined, 'name', undefined, { enabled: isOpen });
+  const { data: businessesData } = useBusinesses({ search: '', sort: 'name' }, { enabled: isOpen });
 
   // Fetch cards
   const { data: cardsData, isLoading: cardsLoading, error: cardsError } = useQuery({

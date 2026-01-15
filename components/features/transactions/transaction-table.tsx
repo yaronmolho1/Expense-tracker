@@ -27,10 +27,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, MoreVertical, Trash2 } from 'lucide-react';
+import { Plus, MoreVertical, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { type Transaction, useDeleteTransaction } from '@/hooks/use-transactions';
 import { TransactionDetailModal } from './transaction-detail-modal';
 import { InlineCategoryEditor } from './inline-category-editor';
+import { InlineStatusEditor } from './inline-status-editor';
 import { toast } from 'sonner';
 
 interface TransactionTableProps {
@@ -40,6 +41,8 @@ interface TransactionTableProps {
   page: number;
   perPage: number;
   onPageChange: (page: number) => void;
+  sortBy?: string;
+  onSortChange?: (sortBy: string) => void;
 }
 
 export function TransactionTable({
@@ -49,6 +52,8 @@ export function TransactionTable({
   page,
   perPage,
   onPageChange,
+  sortBy = 'bank_charge_date:desc',
+  onSortChange,
 }: TransactionTableProps) {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
@@ -116,6 +121,46 @@ export function TransactionTable({
     }
   };
 
+  // Parse current sort state
+  const [currentSortField, currentSortDirection] = sortBy.split(':') as [string, 'asc' | 'desc'];
+
+  // Handle column header click for sorting
+  const handleSort = (field: string) => {
+    if (!onSortChange) return;
+
+    if (currentSortField === field) {
+      // Toggle direction if same field
+      const newDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+      onSortChange(`${field}:${newDirection}`);
+    } else {
+      // Default direction for new field
+      const defaultDirection = field === 'business_name' ? 'asc' : 'desc';
+      onSortChange(`${field}:${defaultDirection}`);
+    }
+  };
+
+  // Sortable header component
+  const SortableHeader = ({ field, children, className }: { field: string; children: React.ReactNode; className?: string }) => {
+    const isActive = currentSortField === field;
+    const isAsc = currentSortDirection === 'asc';
+
+    return (
+      <TableHead
+        className={`cursor-pointer select-none hover:bg-muted/50 ${className || ''}`}
+        onClick={() => handleSort(field)}
+      >
+        <div className="flex items-center gap-1">
+          {children}
+          {isActive ? (
+            isAsc ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+          ) : (
+            <ArrowUpDown className="h-4 w-4 opacity-30" />
+          )}
+        </div>
+      </TableHead>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -139,11 +184,11 @@ export function TransactionTable({
           <TableHeader>
             <TableRow>
               <TableHead className="w-[50px]"></TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Business</TableHead>
+              <SortableHeader field="bank_charge_date">Date</SortableHeader>
+              <SortableHeader field="business_name">Business</SortableHeader>
               <TableHead>Category</TableHead>
               <TableHead>Card</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
+              <SortableHeader field="charged_amount_ils" className="text-right">Amount</SortableHeader>
               <TableHead>Type</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[50px]"></TableHead>
@@ -219,7 +264,12 @@ export function TransactionTable({
                       <span className="text-muted-foreground">One-time</span>
                     )}
                   </TableCell>
-                  <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <InlineStatusEditor
+                      transactionId={transaction.id}
+                      currentStatus={transaction.status as 'completed' | 'projected' | 'cancelled'}
+                    />
+                  </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

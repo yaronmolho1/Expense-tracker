@@ -24,7 +24,7 @@ type CategorizationResult = z.infer<typeof categorizationResponseSchema>[0];
  * Processes businesses in batches of 50 to optimize API costs.
  */
 export class CategorizationService {
-  private readonly BATCH_SIZE = 15; // Optimized for speed + token limits
+  private readonly BATCH_SIZE = 50; // Optimized for speed + token limits
   private readonly PARALLEL_BATCHES = 5; // Process 5 batches concurrently
   private readonly AUTO_APPLY_THRESHOLD = 0.8;
   private readonly MODEL = 'claude-3-haiku-20240307';

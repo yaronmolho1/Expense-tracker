@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { transactions } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and, like, not, sql } from 'drizzle-orm';
+import { randomUUID, createHash } from 'node:crypto';
 import {
   generateInstallmentGroupId,
   generateInstallmentTransactionHash,
@@ -191,17 +192,40 @@ export async function createInstallmentGroupFromMiddle(params: CreateInstallment
   // Calculate total purchase amount
   const totalPaymentSum = amount * total;
 
-  // Generate group ID (parent hash)
-  const groupId = generateInstallmentGroupId({
+  // Generate base group ID (parent hash)
+  const baseGroupId = generateInstallmentGroupId({
     businessNormalizedName: firstTransactionData.businessNormalizedName,
     totalPaymentSum,
     installmentTotal: total,
     dealDate: firstTransactionData.dealDate,
   });
 
+  // CRITICAL: Check for collision during backfill
+  // If this group ID already exists, generate a unique suffix to avoid duplicate key errors
+  let groupId = baseGroupId;
+  const existingGroup = await findAnyTransactionInGroup(baseGroupId);
+  
+  if (existingGroup) {
+    // Collision detected! Another identical backfill is in progress
+    // Generate unique ID by re-hashing base + UUID to ensure it fits in varchar(64)
+    // CRITICAL: We must re-hash instead of concatenating to avoid exceeding column limit
+    // Formula: SHA256(baseGroupId + UUID) = guaranteed 64 chars
+    const uniqueId = randomUUID();
+    groupId = createHash('sha256')
+      .update(baseGroupId + uniqueId)
+      .digest('hex');
+    
+    console.log(`[Backfill Collision] Group ID ${baseGroupId.slice(0, 8)} exists. Re-hashed with UUID: ${groupId.slice(0, 16)}`);
+  }
+
   const allPayments = [];
 
   // STEP 1: Backfill past payments (1 to currentIndex-1) as completed
+  // CRITICAL: Calculate Payment 1 amount accurately (handles rounding variance)
+  // Payment 1 = Total - (Regular Payment × (N-1))
+  // Example: 3099 = 132 + (129 × 23)
+  const payment1Amount = totalPaymentSum - (amount * (total - 1));
+  
   for (let i = 1; i < currentIndex; i++) {
     // Calculate charge date for payment i: original date + (i - 1) * 30 days
     const dealDateObj = new Date(firstTransactionData.dealDate);
@@ -214,6 +238,9 @@ export async function createInstallmentGroupFromMiddle(params: CreateInstallment
       installmentIndex: i,
     });
 
+    // Use calculated Payment 1 amount for index 1, regular amount for others
+    const paymentAmount = i === 1 ? payment1Amount : amount;
+
     allPayments.push({
       transactionHash: hash,
       transactionType: 'installment' as const,
@@ -223,7 +250,7 @@ export async function createInstallmentGroupFromMiddle(params: CreateInstallment
       originalAmount: firstTransactionData.originalAmount.toString(),
       originalCurrency: firstTransactionData.originalCurrency,
       exchangeRateUsed: firstTransactionData.exchangeRateUsed?.toString() || null,
-      chargedAmountIls: amount.toString(),
+      chargedAmountIls: paymentAmount.toString(),
       paymentType: 'installments' as const,
       installmentGroupId: groupId,
       installmentIndex: i,
@@ -324,4 +351,168 @@ export async function findAnyTransactionInGroup(groupId: string) {
     .limit(1);
 
   return existing || null;
+}
+
+/**
+ * Find completed Payment 1 by exact group ID
+ * Used to detect if the standard hash is already occupied
+ */
+export async function findCompletedPayment1(groupId: string) {
+  const expectedHash = generateInstallmentTransactionHash({
+    installmentGroupId: groupId,
+    installmentIndex: 1,
+  });
+
+  const [payment1] = await db
+    .select()
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.transactionHash, expectedHash),
+        eq(transactions.status, 'completed')
+      )
+    )
+    .limit(1);
+
+  return payment1 || null;
+}
+
+/**
+ * Check if this EXACT transaction already exists (for idempotency)
+ * Searches by metadata regardless of group ID
+ * CRITICAL: Excludes transactions from the current batch to allow twin purchases in same file
+ */
+export async function findExactDuplicate(params: {
+  businessId: number;
+  cardId: number;
+  dealDate: string;
+  installmentTotal: number;
+  installmentIndex: number;
+  chargedAmountIls: number;
+  currentBatchId: number; // Exclude transactions from this batch
+}) {
+  const amountTolerance = params.chargedAmountIls * 0.01;
+  
+  const [duplicate] = await db
+    .select()
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.businessId, params.businessId),
+        eq(transactions.cardId, params.cardId),
+        eq(transactions.dealDate, params.dealDate),
+        eq(transactions.installmentTotal, params.installmentTotal),
+        eq(transactions.installmentIndex, params.installmentIndex),
+        eq(transactions.status, 'completed'), // Only check completed (ignore projected)
+        sql`${transactions.chargedAmountIls}::numeric BETWEEN ${params.chargedAmountIls - amountTolerance} AND ${params.chargedAmountIls + amountTolerance}`,
+        // CRITICAL: Exclude current batch (allows twin purchases in same file)
+        not(eq(transactions.uploadBatchId, params.currentBatchId))
+      )
+    )
+    .limit(1);
+  
+  return duplicate || null;
+}
+
+/**
+ * Find ANY projected payment matching metadata (ignores group IDs entirely)
+ * This is the "pool" approach - take first available slot
+ */
+export async function findProjectedPaymentInBucket(params: {
+  businessId: number;
+  cardId: number;
+  dealDate: string;
+  installmentTotal: number;
+  installmentIndex: number;
+  chargedAmountIls: number;
+}) {
+  const amountTolerance = params.chargedAmountIls * 0.01;
+  
+  const [projectedPayment] = await db
+    .select()
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.businessId, params.businessId),
+        eq(transactions.cardId, params.cardId),
+        eq(transactions.dealDate, params.dealDate),
+        eq(transactions.installmentTotal, params.installmentTotal),
+        eq(transactions.installmentIndex, params.installmentIndex),
+        eq(transactions.status, 'projected'),
+        sql`${transactions.chargedAmountIls}::numeric BETWEEN ${params.chargedAmountIls - amountTolerance} AND ${params.chargedAmountIls + amountTolerance}`
+      )
+    )
+    .limit(1);
+
+  return projectedPayment || null;
+}
+
+/**
+ * Count how many groups exist with the given baseGroupId (including _copy_N variants)
+ * Used to generate unique suffix for twin purchases
+ */
+export async function countGroupsWithBaseId(baseGroupId: string) {
+  const result = await db
+    .select({ count: sql<number>`COUNT(DISTINCT ${transactions.installmentGroupId})` })
+    .from(transactions)
+    .where(
+      sql`(${transactions.installmentGroupId} = ${baseGroupId} OR ${transactions.installmentGroupId} LIKE ${baseGroupId + '_copy_%'})`
+    );
+
+  return result[0]?.count || 0;
+}
+
+/**
+ * Find orphaned backfilled Payment 1 by metadata (business, card, date, amount)
+ * Used to match "Salted Orphans" when real Payment 1 arrives
+ * 
+ * The "Salted Orphan" problem:
+ * 1. User uploads Payment 2/24 first
+ * 2. Twin A creates standard group (baseGroupId)
+ * 3. Twin B detects collision, creates salted group (SHA256-hashed)
+ * 4. Both backfill Payment 1 as 'completed' with CALCULATED amount (Total - (RegularPayment × (N-1)))
+ * 5. User uploads Payment 1/24 later
+ * 6. Twin A finds its Payment 1 by hash
+ * 7. Twin B cannot find its Payment 1 by hash (salted ID is unpredictable)
+ * 8. This function finds Twin B's Payment 1 by matching metadata instead
+ * 
+ * NOTE: We use 5% tolerance for amount matching (instead of 1%) to handle:
+ * - Exchange rate differences between backfill calculation and real charge
+ * - Edge cases where Payment 1 variance is distributed differently
+ */
+export async function findOrphanedBackfilledPayment1(params: {
+  businessId: number;
+  cardId: number;
+  dealDate: string; // Original purchase date (YYYY-MM-DD)
+  installmentTotal: number;
+  chargedAmountIls: number;
+  baseGroupId: string; // Exclude this ID from search
+  currentBatchId: number; // Exclude transactions from current batch (already updated by twins in same file)
+}) {
+  // Use 5% tolerance instead of 1% to handle edge cases
+  const amountTolerance = params.chargedAmountIls * 0.05;
+  
+  const [orphan] = await db
+    .select()
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.businessId, params.businessId),
+        eq(transactions.cardId, params.cardId),
+        eq(transactions.dealDate, params.dealDate),
+        eq(transactions.installmentTotal, params.installmentTotal),
+        eq(transactions.installmentIndex, 1),
+        eq(transactions.status, 'completed'),
+        // 5% amount tolerance (wider than normal to handle Payment 1 variance edge cases)
+        sql`${transactions.chargedAmountIls}::numeric BETWEEN ${params.chargedAmountIls - amountTolerance} AND ${params.chargedAmountIls + amountTolerance}`,
+        // ONLY exclude the standard hash we just checked
+        not(eq(transactions.installmentGroupId, params.baseGroupId)),
+        // CRITICAL: Exclude current batch (prevents finding ghosts already updated by earlier twins in same file)
+        not(eq(transactions.uploadBatchId, params.currentBatchId))
+        // REMOVED: not(like(..._copy_%)) - we now search ALL groups
+      )
+    )
+    .limit(1);
+
+  return orphan || null;
 }

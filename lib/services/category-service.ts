@@ -148,6 +148,22 @@ export async function getBusinessCountForCategory(categoryId: number): Promise<n
 }
 
 /**
+ * Reorder categories by updating their display orders
+ * Accepts an array of { id, displayOrder } pairs
+ */
+export async function reorderCategories(
+  updates: Array<{ id: number; displayOrder: number }>
+): Promise<void> {
+  // Update each category's displayOrder in a transaction-like manner
+  for (const update of updates) {
+    await db
+      .update(categories)
+      .set({ displayOrder: update.displayOrder })
+      .where(eq(categories.id, update.id));
+  }
+}
+
+/**
  * Delete category with option to move businesses to another category or uncategorize
  */
 export async function deleteCategory(

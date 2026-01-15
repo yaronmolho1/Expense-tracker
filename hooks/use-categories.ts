@@ -148,6 +148,34 @@ export function useUpdateCategory() {
 }
 
 // ============================================
+// REORDER CATEGORIES
+// ============================================
+
+async function reorderCategories(updates: Array<{ id: number; displayOrder: number }>): Promise<void> {
+  const res = await fetch('/api/categories/reorder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ updates }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Failed to reorder categories');
+  }
+}
+
+export function useReorderCategories() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: reorderCategories,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+}
+
+// ============================================
 // DELETE CATEGORY
 // ============================================
 

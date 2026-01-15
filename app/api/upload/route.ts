@@ -9,6 +9,59 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import logger from '@/lib/logger';
 
+/**
+ * Checks if an error message contains SQL syntax or database-related information
+ */
+function containsSqlOrDatabaseInfo(message: string): boolean {
+  const lowerMessage = message.toLowerCase();
+  
+  const sqlIndicators = [
+    'insert into',
+    'update set',
+    'delete from',
+    'select from',
+    'constraint',
+    'unique constraint',
+    'foreign key',
+    'primary key',
+    'duplicate key',
+    'sql',
+    'postgres',
+    'database',
+    'relation',
+    'column',
+    'violates',
+    '23505', // PostgreSQL unique violation code
+    '23503', // PostgreSQL foreign key violation code
+  ];
+  
+  return sqlIndicators.some(indicator => lowerMessage.includes(indicator));
+}
+
+/**
+ * Sanitizes error messages before sending to client
+ * Prevents exposing SQL queries and database internals
+ */
+function sanitizeErrorForClient(error: unknown): string {
+  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  
+  // Check if error contains SQL or database information
+  if (containsSqlOrDatabaseInfo(errorMessage)) {
+    // Log the raw error internally for debugging
+    logger.error({
+      error,
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+    }, 'SQL/Database error prevented from client exposure');
+    
+    // Return sanitized message
+    return 'File uploaded with errors. Please check the logs for details.';
+  }
+  
+  // Safe to return as-is
+  return errorMessage;
+}
+
 // Constants for validation
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
 const MAX_FILE_COUNT = 100; // Increased limit for bulk uploads
@@ -356,14 +409,19 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('[UPLOAD API] ERROR:', error);
+    // Log raw error internally for debugging
     logger.error(error, 'Upload error');
-    const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+    console.error('[UPLOAD API] ERROR:', error);
+    
+    // Sanitize error message to prevent exposing SQL or database details
+    const sanitizedMessage = sanitizeErrorForClient(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
+    
     return NextResponse.json(
       {
+        success: false,
         error: 'Upload failed',
-        details: errorMessage,
+        message: sanitizedMessage,
         stack: process.env.NODE_ENV === 'development' ? errorStack : undefined,
       },
       { status: 500 }

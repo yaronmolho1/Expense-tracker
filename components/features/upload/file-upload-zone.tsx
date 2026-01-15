@@ -121,7 +121,8 @@ export function FileUploadZone({ onUploadComplete }: FileUploadZoneProps) {
                     </ul>
                     {conflict.detectedLast4 && !conflict.isNewCard && (
                       <p className="mt-2 text-xs font-semibold text-blue-700">
-                        File Header (Most Reliable): {conflict.detectedIssuer?.toUpperCase()} •••• {conflict.detectedLast4}
+                        {conflict.detectionSource === 'header' ? 'File Header (Most Reliable)' :
+                         conflict.detectionSource === 'filename' ? 'Filename Pattern' : 'Detected'}: {conflict.detectedIssuer?.toUpperCase()} •••• {conflict.detectedLast4}
                       </p>
                     )}
                   </div>

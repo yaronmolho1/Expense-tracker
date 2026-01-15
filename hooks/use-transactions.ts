@@ -97,6 +97,70 @@ export function useTransactions(filters: TransactionFilters = {}) {
   });
 }
 
+export function useUpdateTransactionStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      transactionId,
+      status,
+    }: {
+      transactionId: number;
+      status: 'completed' | 'projected' | 'cancelled';
+    }) => {
+      const response = await fetch(`/api/transactions/${transactionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update transaction status');
+      }
+
+      return response.json();
+    },
+    onMutate: async ({ transactionId, status }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['transactions'] });
+
+      // Snapshot previous value
+      const previousData = queryClient.getQueriesData({ queryKey: ['transactions'] });
+
+      // Optimistically update all matching queries
+      queryClient.setQueriesData<TransactionListResponse>({ queryKey: ['transactions'] }, (old) => {
+        if (!old) return old;
+
+        return {
+          ...old,
+          transactions: old.transactions.map((transaction) =>
+            transaction.id === transactionId
+              ? { ...transaction, status }
+              : transaction
+          ),
+        };
+      });
+
+      return { previousData };
+    },
+    onError: (_err, _variables, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSuccess: () => {
+      // Refresh to get server state
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['businesses'] });
+      queryClient.invalidateQueries({ queryKey: ['time-flow'] });
+    },
+  });
+}
+
 export function useDeleteTransaction() {
   const queryClient = useQueryClient();
 

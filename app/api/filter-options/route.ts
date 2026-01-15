@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { businesses, categories, cards } from '@/lib/db/schema';
-import { sql } from 'drizzle-orm';
+import { sql, isNull } from 'drizzle-orm';
 
 export async function GET() {
   try {
-    // Get all businesses with transaction counts
+    // Get all businesses with transaction counts (excluding merged businesses)
     const businessList = await db
       .select({
         id: businesses.id,
@@ -13,6 +13,7 @@ export async function GET() {
         transactionCount: sql<number>`count(*)::int`,
       })
       .from(businesses)
+      .where(isNull(businesses.mergedToId))
       .groupBy(businesses.id, businesses.displayName)
       .orderBy(businesses.displayName);
 

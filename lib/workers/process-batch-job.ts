@@ -16,6 +16,11 @@ import {
   findAnyTransactionInGroup,
   matchInstallmentPayment,
   completeProjectedInstallment,
+  findCompletedPayment1,
+  findProjectedPaymentInBucket,
+  countGroupsWithBaseId,
+  findOrphanedBackfilledPayment1,
+  findExactDuplicate,
 } from '@/lib/services/installment-service';
 import { convertToILS } from '@/lib/services/exchange-rate-service';
 import { SubscriptionDetectionService } from '@/lib/services/subscription-detection-service';
@@ -26,6 +31,61 @@ import logger from '@/lib/logger';
 
 export interface ProcessBatchJobData {
   batchId: number;
+}
+
+/**
+ * Checks if an error is a database error (contains SQL or is a DB-related error)
+ */
+function isDatabaseError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  
+  const errorMessage = error.message.toLowerCase();
+  const errorString = String(error).toLowerCase();
+  
+  // Check for common SQL keywords or database error indicators
+  const sqlIndicators = [
+    'insert into',
+    'update set',
+    'delete from',
+    'select from',
+    'constraint',
+    'unique constraint',
+    'foreign key',
+    'primary key',
+    'duplicate key',
+    'sql',
+    'postgres',
+    'database',
+    'relation',
+    'column',
+    'violates',
+    'error code',
+    '23505', // PostgreSQL unique violation code
+    '23503', // PostgreSQL foreign key violation code
+  ];
+  
+  return sqlIndicators.some(indicator => 
+    errorMessage.includes(indicator) || errorString.includes(indicator)
+  );
+}
+
+/**
+ * Sanitizes a database error by returning a user-friendly message
+ * Logs the raw error internally for debugging
+ */
+function sanitizeDatabaseError(error: unknown, context?: string): Error {
+  const rawError = error instanceof Error ? error : new Error(String(error));
+  
+  // Log the raw error with full details for internal debugging
+  logger.error({
+    error: rawError,
+    message: rawError.message,
+    stack: rawError.stack,
+    context,
+  }, 'Database error occurred during row processing');
+  
+  // Return sanitized error message
+  return new Error('Row processing failed: Duplicate or Invalid Data');
 }
 
 export async function processBatchJob(jobData: ProcessBatchJobData) {
@@ -114,8 +174,9 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
         for (const parsedTx of parseResult.transactions) {
           parsedTransactionCount++; // Count every transaction from file
           
-          // Get or create business
-          const business = await getOrCreateBusiness(parsedTx.businessName);
+          try {
+            // Get or create business
+            const business = await getOrCreateBusiness(parsedTx.businessName);
 
           const dealDateStr = parsedTx.dealDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -168,52 +229,244 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
               dealDate: originalPurchaseDateStr, // Use original purchase date, not charge date
             });
 
-            // Check if this installment group already exists
-            const existingInGroup = await findAnyTransactionInGroup(groupId);
-
-            if (!existingInGroup) {
-              // CASE 1: First time seeing this installment group
-              if (parsedTx.installmentIndex === 1) {
-                // Normal case: payment 1/N
-                logger.info({
-                  businessName: parsedTx.businessName,
-                  installmentIndex: parsedTx.installmentIndex,
-                  installmentTotal: parsedTx.installmentTotal,
-                }, 'Creating installment group from payment 1');
-
-                await createInstallmentGroup({
-                  firstTransactionData: {
-                    businessId: business.id,
-                    businessNormalizedName: business.normalizedName,
-                    cardId: card.id,
-                    dealDate: originalPurchaseDateStr, // Use calculated original purchase date
-                    originalAmount: parsedTx.originalAmount,
-                    originalCurrency: parsedTx.originalCurrency,
-                    exchangeRateUsed: finalExchangeRate,
-                    chargedAmountIls: finalAmountIls,
-                    sourceFile: file.filename,
-                    uploadBatchId: batchId,
-                  },
-                  installmentInfo: {
-                    index: parsedTx.installmentIndex!,
-                    total: parsedTx.installmentTotal!,
-                    amount: finalAmountIls,
-                  },
+            // CRITICAL: Handle Payment 1 vs Payment N differently
+            // Payment 1: Check for orphaned backfills first
+            // Payment N: Try bucket matching first (handles twins with backfill collision)
+            
+            if (parsedTx.installmentIndex === 1) {
+              // CASE 1: Payment 1 - Check for twins and orphaned backfills
+                // SUBCASES for Payment 1:
+                // A) No existing Payment 1 → Create first group normally
+                // B) Standard hash occupied by real twin → Create _copy_1 group
+                // C) Orphaned backfilled Payment 1 exists → Update it instead of duplicating
+                
+                // STEP 1: Check if this exact transaction already exists (idempotency)
+                const exactDuplicate = await findExactDuplicate({
+                  businessId: business.id,
+                  cardId: card.id,
+                  dealDate: originalPurchaseDateStr,
+                  installmentTotal: parsedTx.installmentTotal!,
+                  installmentIndex: 1,
+                  chargedAmountIls: finalAmountIls,
+                  currentBatchId: batchId,
                 });
-              } else {
-                // Backfill case: payment N/X where N > 1
+                
+                if (exactDuplicate) {
+                  logger.debug({
+                    businessName: parsedTx.businessName,
+                    installmentIndex: 1,
+                    groupId: exactDuplicate.installmentGroupId?.slice(0, 16),
+                  }, 'Duplicate detected - skipping (idempotency)');
+                  duplicateTransactions++;
+                  continue; // Skip - already processed
+                }
+                
+                // STEP 2: Check if standard hash is occupied
+                const existingPayment1 = await findCompletedPayment1(groupId);
+                
+                if (existingPayment1) {
+                  // The standard hash is occupied - this could be:
+                  // 1) A Ghost from previous backfill (uploadBatchId != current)
+                  // 2) A real twin purchase from current batch (uploadBatchId == current)
+                  
+                  // STEP 3A: Check if existingPayment1 is a Ghost from previous batch
+                  if (existingPayment1.uploadBatchId !== batchId) {
+                    // This is a Ghost! Update it with real data
+                    logger.info({
+                      businessName: parsedTx.businessName,
+                      installmentIndex: 1,
+                      installmentTotal: parsedTx.installmentTotal,
+                      groupId: existingPayment1.installmentGroupId?.slice(0, 16),
+                    }, 'Found standard hash Ghost Payment 1 - updating with real data');
+                    
+                    await db.update(transactions)
+                      .set({
+                        sourceFile: file.filename,
+                        chargedAmountIls: finalAmountIls.toString(),
+                        exchangeRateUsed: finalExchangeRate?.toString() || null,
+                        actualChargeDate: originalPurchaseDateStr,
+                        uploadBatchId: batchId,
+                        updatedAt: new Date(),
+                      })
+                      .where(eq(transactions.id, existingPayment1.id));
+                    
+                    updatedTransactions += 1;
+                    totalAmountIls += finalAmountIls;
+                  } else {
+                    // existingPayment1 is from current batch - it's a real twin!
+                    // STEP 3B: Search for orphaned backfilled Payment 1 by metadata
+                    const orphanedPayment1 = await findOrphanedBackfilledPayment1({
+                      businessId: business.id,
+                      cardId: card.id,
+                      dealDate: originalPurchaseDateStr,
+                      installmentTotal: parsedTx.installmentTotal!,
+                      chargedAmountIls: finalAmountIls,
+                      baseGroupId: groupId,
+                      currentBatchId: batchId,
+                    });
+                    
+                    if (orphanedPayment1) {
+                      // Found a "Salted Orphan"! Update it with real file data
+                      logger.info({
+                        businessName: parsedTx.businessName,
+                        installmentIndex: parsedTx.installmentIndex,
+                        installmentTotal: parsedTx.installmentTotal,
+                        orphanedGroupId: orphanedPayment1.installmentGroupId?.slice(0, 16),
+                      }, 'Found orphaned backfilled Payment 1 - updating with real data');
+                      
+                      await db.update(transactions)
+                        .set({
+                          sourceFile: file.filename,
+                          chargedAmountIls: finalAmountIls.toString(),
+                          exchangeRateUsed: finalExchangeRate?.toString() || null,
+                          actualChargeDate: originalPurchaseDateStr,
+                          uploadBatchId: batchId,
+                          updatedAt: new Date(),
+                        })
+                        .where(eq(transactions.id, orphanedPayment1.id));
+                      
+                      updatedTransactions += 1;
+                      totalAmountIls += finalAmountIls;
+                    } else {
+                      // No orphan found - this is a REAL twin purchase
+                      // Generate unique suffix for new group
+                      const existingGroupCount = await countGroupsWithBaseId(groupId);
+                      const actualGroupId = `${groupId}_copy_${existingGroupCount + 1}`;
+                      
+                      logger.info({
+                        businessName: parsedTx.businessName,
+                        installmentIndex: parsedTx.installmentIndex,
+                        installmentTotal: parsedTx.installmentTotal,
+                        baseGroupId: groupId.slice(0, 8),
+                        actualGroupId: actualGroupId.slice(0, 16),
+                      }, 'Detected twin purchase - creating new group with suffix');
+                    
+                    // Create new installment group for twin
+                    await createInstallmentGroup({
+                      firstTransactionData: {
+                        businessId: business.id,
+                        businessNormalizedName: business.normalizedName,
+                        cardId: card.id,
+                        dealDate: originalPurchaseDateStr,
+                        originalAmount: parsedTx.originalAmount,
+                        originalCurrency: parsedTx.originalCurrency,
+                        exchangeRateUsed: finalExchangeRate,
+                        chargedAmountIls: finalAmountIls,
+                        sourceFile: file.filename,
+                        uploadBatchId: batchId,
+                      },
+                      installmentInfo: {
+                        index: parsedTx.installmentIndex!,
+                        total: parsedTx.installmentTotal!,
+                        amount: finalAmountIls,
+                      },
+                    });
+                    
+                    newTransactions += parsedTx.installmentTotal!;
+                    totalTransactions += parsedTx.installmentTotal!;
+                    totalAmountIls += finalAmountIls;
+                    }
+                  }
+                } else {
+                  // No existing Payment 1 - create first group normally
+                  logger.info({
+                    businessName: parsedTx.businessName,
+                    installmentIndex: parsedTx.installmentIndex,
+                    installmentTotal: parsedTx.installmentTotal,
+                  }, 'Creating first installment group from payment 1');
+                  
+                  await createInstallmentGroup({
+                    firstTransactionData: {
+                      businessId: business.id,
+                      businessNormalizedName: business.normalizedName,
+                      cardId: card.id,
+                      dealDate: originalPurchaseDateStr,
+                      originalAmount: parsedTx.originalAmount,
+                      originalCurrency: parsedTx.originalCurrency,
+                      exchangeRateUsed: finalExchangeRate,
+                      chargedAmountIls: finalAmountIls,
+                      sourceFile: file.filename,
+                      uploadBatchId: batchId,
+                    },
+                    installmentInfo: {
+                      index: parsedTx.installmentIndex!,
+                      total: parsedTx.installmentTotal!,
+                      amount: finalAmountIls,
+                    },
+                  });
+                  
+                  newTransactions += parsedTx.installmentTotal!;
+                  totalTransactions += parsedTx.installmentTotal!;
+                  totalAmountIls += finalAmountIls;
+                }
+                
+            } else {
+              // CASE 2: Payment N (N > 1) - Try bucket matching first (handles twins)
+              
+              // STEP 1: Check if this exact transaction already exists (idempotency)
+              const exactDuplicate = await findExactDuplicate({
+                businessId: business.id,
+                cardId: card.id,
+                dealDate: originalPurchaseDateStr,
+                installmentTotal: parsedTx.installmentTotal!,
+                installmentIndex: parsedTx.installmentIndex!,
+                chargedAmountIls: finalAmountIls,
+                currentBatchId: batchId,
+              });
+              
+              if (exactDuplicate) {
+                logger.debug({
+                  businessName: parsedTx.businessName,
+                  installmentIndex: parsedTx.installmentIndex,
+                }, 'Duplicate detected - skipping');
+                duplicateTransactions++;
+                continue;
+              }
+              
+              // STEP 2: Search for ANY projected slot (metadata-only)
+              const projectedPayment = await findProjectedPaymentInBucket({
+                businessId: business.id,
+                cardId: card.id,
+                dealDate: originalPurchaseDateStr,
+                installmentTotal: parsedTx.installmentTotal!,
+                installmentIndex: parsedTx.installmentIndex!,
+                chargedAmountIls: finalAmountIls,
+              });
+              
+              if (projectedPayment) {
+                // Found a projected payment in the bucket - complete it
                 logger.info({
                   businessName: parsedTx.businessName,
                   installmentIndex: parsedTx.installmentIndex,
                   installmentTotal: parsedTx.installmentTotal,
-                }, 'Creating installment group with backfill');
-
+                  groupId: projectedPayment.installmentGroupId?.slice(0, 16),
+                }, 'Bucket match found - completing projected payment');
+                
+                // CRITICAL: Always overwrite amount (fixes penny rounding)
+                await completeProjectedInstallment(projectedPayment.id, {
+                  actualChargeDate: projectedPayment.projectedChargeDate || dealDateStr,
+                  chargedAmountIls: finalAmountIls, // Use actual amount from file
+                  exchangeRateUsed: finalExchangeRate,
+                });
+                
+                updatedTransactions += 1;
+                totalAmountIls += finalAmountIls;
+                
+              } else {
+                // No projected payment found - this is backfill from middle
+                // The createInstallmentGroupFromMiddle function handles collision detection
+                logger.info({
+                  businessName: parsedTx.businessName,
+                  installmentIndex: parsedTx.installmentIndex,
+                  installmentTotal: parsedTx.installmentTotal,
+                }, 'No bucket match - creating installment group with backfill');
+                
                 await createInstallmentGroupFromMiddle({
                   firstTransactionData: {
                     businessId: business.id,
                     businessNormalizedName: business.normalizedName,
                     cardId: card.id,
-                    dealDate: originalPurchaseDateStr, // Use calculated original purchase date
+                    dealDate: originalPurchaseDateStr,
                     originalAmount: parsedTx.originalAmount,
                     originalCurrency: parsedTx.originalCurrency,
                     exchangeRateUsed: finalExchangeRate,
@@ -227,54 +480,10 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                     amount: finalAmountIls,
                   },
                 });
-              }
-
-              // Count all created transactions
-              newTransactions += parsedTx.installmentTotal!;
-              totalTransactions += parsedTx.installmentTotal!;
-              // Add only the single payment amount from the file (not all installments)
-              totalAmountIls += finalAmountIls;
-
-            } else {
-              // CASE 2: Installment group exists - match to projected payment
-              const expectedHash = generateInstallmentTransactionHash({
-                installmentGroupId: groupId,
-                installmentIndex: parsedTx.installmentIndex!,
-              });
-
-              const existingProjected = await matchInstallmentPayment(expectedHash);
-
-              if (existingProjected && existingProjected.status === 'projected') {
-                // Update projected → completed
-                logger.info({
-                  businessName: parsedTx.businessName,
-                  installmentIndex: parsedTx.installmentIndex,
-                  installmentTotal: parsedTx.installmentTotal,
-                }, 'Matching installment payment');
-
-                await completeProjectedInstallment(existingProjected.id, {
-                  actualChargeDate: existingProjected.projectedChargeDate || dealDateStr,
-                  chargedAmountIls: finalAmountIls,
-                  exchangeRateUsed: finalExchangeRate,
-                });
-
-                updatedTransactions += 1;
+                
+                newTransactions += parsedTx.installmentTotal!;
+                totalTransactions += parsedTx.installmentTotal!;
                 totalAmountIls += finalAmountIls;
-
-              } else if (existingProjected && existingProjected.status === 'completed') {
-                // Duplicate - already processed
-                logger.debug({
-                  hashPrefix: expectedHash.slice(0, 8),
-                  businessName: parsedTx.businessName,
-                }, 'Duplicate installment detected');
-                duplicateTransactions++;
-
-              } else {
-                // No match found - should not happen if group exists
-                logger.error(
-                  new Error('Group exists but payment not found'),
-                  `Installment payment mismatch: ${parsedTx.businessName} ${parsedTx.installmentIndex}/${parsedTx.installmentTotal}`
-                );
               }
             }
 
@@ -332,6 +541,16 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
             totalTransactions++;
             totalAmountIls += finalAmountIls;
           }
+          } catch (rowError) {
+            // Catch database errors during row processing
+            if (isDatabaseError(rowError)) {
+              // Log raw error and throw sanitized version
+              const sanitizedError = sanitizeDatabaseError(rowError, `Transaction processing for file ${file.filename}`);
+              throw sanitizedError;
+            }
+            // Re-throw non-database errors as-is (they should be handled by outer catch)
+            throw rowError;
+          }
         }
 
         // Update file status
@@ -345,11 +564,19 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
       } catch (error) {
         logger.error(error, `File processing error: ${file.filename}`);
         
-        // Update file with error
+        // Sanitize error message before storing (prevents exposing SQL/database details)
+        let errorMessage: string;
+        if (isDatabaseError(error)) {
+          errorMessage = 'Row processing failed: Duplicate or Invalid Data';
+        } else {
+          errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        }
+        
+        // Update file with sanitized error
         await db.update(uploadedFiles)
           .set({ 
             status: 'failed',
-            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            errorMessage,
           })
           .where(eq(uploadedFiles.id, file.id));
       }
@@ -430,15 +657,27 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
   } catch (error) {
     logger.error(error, `Fatal error processing batch ${batchId}`);
 
-    // Update batch with failure
+    // Sanitize error message before storing (prevents exposing SQL/database details)
+    let errorMessage: string;
+    if (isDatabaseError(error)) {
+      errorMessage = 'Row processing failed: Duplicate or Invalid Data';
+    } else {
+      errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    }
+
+    // Update batch with sanitized error
     await db.update(uploadBatches)
       .set({
         status: 'failed',
-        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorMessage,
         processingCompletedAt: new Date(),
       })
       .where(eq(uploadBatches.id, batchId));
 
+    // Re-throw sanitized error if it's a database error, otherwise throw original
+    if (isDatabaseError(error)) {
+      throw sanitizeDatabaseError(error, `Batch ${batchId} processing`);
+    }
     throw error;
   }
 }

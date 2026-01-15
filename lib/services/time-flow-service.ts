@@ -85,15 +85,24 @@ export async function queryTimeFlow(
     if (r.childCategoryId) categoryIdsSet.add(r.childCategoryId);
   });
 
-  // Fetch category names
-  const categoryMap = new Map<number, string>();
+  // Fetch category names and display orders
+  const categoryMap = new Map<number, { name: string; displayOrder: number; parentId: number | null }>();
   if (categoryIdsSet.size > 0) {
     const cats = await db
-      .select({ id: categories.id, name: categories.name })
+      .select({ 
+        id: categories.id, 
+        name: categories.name, 
+        displayOrder: categories.displayOrder,
+        parentId: categories.parentId
+      })
       .from(categories)
       .where(inArray(categories.id, Array.from(categoryIdsSet)));
 
-    cats.forEach((c) => categoryMap.set(c.id, c.name));
+    cats.forEach((c) => categoryMap.set(c.id, { 
+      name: c.name, 
+      displayOrder: c.displayOrder || 0,
+      parentId: c.parentId
+    }));
   }
 
   // Group by main category and sub-category
@@ -110,7 +119,7 @@ export async function queryTimeFlow(
     if (!categoryDataMap.has(mainCatId)) {
       categoryDataMap.set(mainCatId, {
         mainCategoryId: mainCatId,
-        mainCategoryName: mainCatId === UNCATEGORIZED_ID ? 'Uncategorized' : (categoryMap.get(mainCatId) || 'Unknown'),
+        mainCategoryName: mainCatId === UNCATEGORIZED_ID ? 'Uncategorized' : (categoryMap.get(mainCatId)?.name || 'Unknown'),
         subCategories: [],
         categoryTotal: 0,
       });
@@ -126,7 +135,7 @@ export async function queryTimeFlow(
     if (!subCat) {
       subCat = {
         subCategoryId: subCatId,
-        subCategoryName: subCatId ? categoryMap.get(subCatId) || null : null,
+        subCategoryName: subCatId ? categoryMap.get(subCatId)?.name || null : null,
         monthlyExpenses: {},
         monthlyBudgets: {},
         rowTotal: 0,
@@ -181,9 +190,29 @@ export async function queryTimeFlow(
     });
   });
 
+  // Sort categories by display_order
+  const sortedCategories = Array.from(categoryDataMap.values()).sort((a, b) => {
+    const aOrder = a.mainCategoryId === UNCATEGORIZED_ID ? 9999 : (categoryMap.get(a.mainCategoryId)?.displayOrder || 0);
+    const bOrder = b.mainCategoryId === UNCATEGORIZED_ID ? 9999 : (categoryMap.get(b.mainCategoryId)?.displayOrder || 0);
+    return aOrder - bOrder;
+  });
+
+  // Sort subcategories within each main category by display_order
+  sortedCategories.forEach((mainCat) => {
+    mainCat.subCategories.sort((a, b) => {
+      if (!a.subCategoryId && !b.subCategoryId) return 0;
+      if (!a.subCategoryId) return 1; // null subcategories go last
+      if (!b.subCategoryId) return -1;
+      
+      const aOrder = categoryMap.get(a.subCategoryId)?.displayOrder || 0;
+      const bOrder = categoryMap.get(b.subCategoryId)?.displayOrder || 0;
+      return aOrder - bOrder;
+    });
+  });
+
   return {
     months,
-    categories: Array.from(categoryDataMap.values()),
+    categories: sortedCategories,
     columnTotals,
     grandTotal,
   };

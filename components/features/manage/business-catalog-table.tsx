@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { useBusinesses, useUpdateBusiness } from '@/hooks/use-businesses';
+import { useState } from 'react';
+import { useBusinesses, useUpdateBusiness, type BusinessFilters } from '@/hooks/use-businesses';
 import {
   Table,
   TableBody,
@@ -10,82 +10,100 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { InlineCategoryEditor } from '@/components/features/transactions/inline-category-editor';
 import { ManualMergeDialog } from '@/components/features/manage/manual-merge-dialog';
-import { Search, Filter, ArrowUp, ArrowDown, ChevronsUpDown, GitMerge, Pencil, Check, X } from 'lucide-react';
+import { BusinessFilters as BusinessFiltersComponent } from '@/components/features/manage/business-filters';
+import { BulkActionsToolbar } from '@/components/features/manage/bulk-actions-toolbar';
+import { BulkCategoryDialog } from '@/components/features/manage/bulk-category-dialog';
+import { GitMerge, Pencil, Check, X, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 type SortField = 'name' | 'total_spent' | 'transaction_count' | 'last_used_date';
 type SortDirection = 'asc' | 'desc';
+type ApprovalFilter = 'all' | 'approved' | 'unapproved' | 'uncategorized';
 
 export function BusinessCatalogTable() {
-  const [search, setSearch] = useState('');
-  const [approvalFilter, setApprovalFilter] = useState<'all' | 'approved' | 'unapproved' | 'uncategorized'>('all');
-  const [sortField, setSortField] = useState<SortField>('name');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  // NEW: Single filter state object
+  const [filters, setFilters] = useState({
+    search: '',
+    approvalFilter: 'all' as ApprovalFilter,
+    sortField: 'name' as SortField,
+    sortDirection: 'asc' as SortDirection,
+    parentCategoryIds: [] as string[],
+    childCategoryIds: [] as string[],
+    dateFrom: '',
+    dateTo: '',
+    uncategorized: false,
+  });
 
   // Manual merge state
   const [showMergeDialog, setShowMergeDialog] = useState(false);
+
+  // NEW: Bulk category dialog state
+  const [showBulkCategoryDialog, setShowBulkCategoryDialog] = useState(false);
 
   // Display name editing state
   const [editingBusinessId, setEditingBusinessId] = useState<number | null>(null);
   const [editingDisplayName, setEditingDisplayName] = useState('');
 
-  // Search input ref to maintain focus
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  // NEW: Multi-select state
+  const [selectedBusinessIds, setSelectedBusinessIds] = useState<Set<number>>(new Set());
 
-  const approvedOnly = approvalFilter === 'approved' ? true : approvalFilter === 'unapproved' ? false : undefined;
-  const uncategorized = approvalFilter === 'uncategorized';
+  const handleFilterChange = (updates: Partial<typeof filters>) => {
+    setFilters(prev => ({ ...prev, ...updates }));
+  };
+
+  // NEW: Selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked && data?.businesses) {
+      setSelectedBusinessIds(new Set(data.businesses.map(b => b.id)));
+    } else {
+      setSelectedBusinessIds(new Set());
+    }
+  };
+
+  const handleSelectBusiness = (businessId: number, checked: boolean) => {
+    setSelectedBusinessIds(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(businessId);
+      } else {
+        next.delete(businessId);
+      }
+      return next;
+    });
+  };
 
   // Build sort parameter for API
-  const sortParam = sortField === 'name' && sortDirection === 'asc' ? 'name' :
-                    sortField === 'name' && sortDirection === 'desc' ? 'name_desc' :
-                    sortField === 'total_spent' && sortDirection === 'desc' ? 'total_spent' :
-                    sortField === 'total_spent' && sortDirection === 'asc' ? 'total_spent_asc' :
-                    sortField === 'transaction_count' && sortDirection === 'desc' ? 'transaction_count' :
-                    sortField === 'transaction_count' && sortDirection === 'asc' ? 'transaction_count_asc' :
-                    sortField === 'last_used_date' && sortDirection === 'desc' ? 'last_used_date' :
-                    sortField === 'last_used_date' && sortDirection === 'asc' ? 'last_used_date_asc' :
-                    'name';
+  const buildSortParam = (field: SortField, direction: SortDirection) => {
+    if (field === 'name') return direction === 'asc' ? 'name' : 'name_desc';
+    if (field === 'total_spent') return direction === 'desc' ? 'total_spent' : 'total_spent_asc';
+    if (field === 'transaction_count') return direction === 'desc' ? 'transaction_count' : 'transaction_count_asc';
+    if (field === 'last_used_date') return direction === 'desc' ? 'last_used_date' : 'last_used_date_asc';
+    return 'name';
+  };
 
-  const { data, isLoading } = useBusinesses(search, approvedOnly, sortParam, uncategorized);
+  // Convert UI filters to API filters
+  const apiFilters: BusinessFilters = {
+    search: filters.search,
+    approvedOnly: filters.approvalFilter === 'approved' ? true : filters.approvalFilter === 'unapproved' ? false : undefined,
+    sort: buildSortParam(filters.sortField, filters.sortDirection),
+    uncategorized: filters.uncategorized,
+    parentCategoryIds: filters.parentCategoryIds.map(Number),
+    childCategoryIds: filters.childCategoryIds.map(Number),
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+  };
+
+  const { data, isLoading } = useBusinesses(apiFilters);
   const updateBusiness = useUpdateBusiness();
 
-  // Maintain focus on search input when data updates
-  useEffect(() => {
-    if (searchInputRef.current && document.activeElement !== searchInputRef.current && search.length > 0) {
-      searchInputRef.current.focus();
-    }
-  }, [data, search]);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      // Toggle direction
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      // New field - default direction based on field type
-      setSortField(field);
-      setSortDirection(field === 'name' ? 'asc' : 'desc');
-    }
-  };
-
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return <ChevronsUpDown className="h-4 w-4 opacity-30" />;
-    }
-    return sortDirection === 'asc' ?
-      <ArrowUp className="h-4 w-4" /> :
-      <ArrowDown className="h-4 w-4" />;
-  };
+  // Check if all visible businesses are selected (must be after data is defined)
+  const allSelected = data?.businesses && data.businesses.length > 0 &&
+    data.businesses.every(b => selectedBusinessIds.has(b.id));
 
   const handleApprovedToggle = async (businessId: number, currentApproved: boolean) => {
     try {
@@ -124,99 +142,121 @@ export function BusinessCatalogTable() {
     setEditingDisplayName('');
   };
 
+  // NEW: Bulk action handlers
+  const handleBulkMerge = () => {
+    if (selectedBusinessIds.size < 2) {
+      toast.error('Please select at least 2 businesses to merge');
+      return;
+    }
+    setShowMergeDialog(true);
+  };
+
+  const handleBulkSetCategory = () => {
+    setShowBulkCategoryDialog(true);
+  };
+
+  const handleBulkCategorySuccess = () => {
+    setSelectedBusinessIds(new Set()); // Clear selection after success
+  };
+
+  const handleBulkMergeSuccess = () => {
+    setSelectedBusinessIds(new Set()); // Clear selection after merge
+  };
+
+  const handleClearSelection = () => {
+    setSelectedBusinessIds(new Set());
+  };
+
+  // Handle column header click for sorting
+  const handleSort = (field: SortField) => {
+    if (filters.sortField === field) {
+      // Toggle direction if same field
+      const newDirection = filters.sortDirection === 'asc' ? 'desc' : 'asc';
+      handleFilterChange({ sortDirection: newDirection });
+    } else {
+      // Default direction for new field
+      const defaultDirection = field === 'name' ? 'asc' : 'desc';
+      handleFilterChange({ sortField: field, sortDirection: defaultDirection });
+    }
+  };
+
+  // Sortable header component
+  const SortableHeader = ({ field, children, className }: { field: SortField; children: React.ReactNode; className?: string }) => {
+    const isActive = filters.sortField === field;
+    const isAsc = filters.sortDirection === 'asc';
+
+    return (
+      <TableHead
+        className={`cursor-pointer select-none hover:bg-muted/50 ${className || ''}`}
+        onClick={() => handleSort(field)}
+      >
+        <div className="flex items-center gap-1">
+          {children}
+          {isActive ? (
+            isAsc ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+          ) : (
+            <ArrowUpDown className="h-4 w-4 opacity-30" />
+          )}
+        </div>
+      </TableHead>
+    );
+  };
+
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            ref={searchInputRef}
-            placeholder="Search businesses..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={approvalFilter} onValueChange={(v: any) => setApprovalFilter(v)}>
-          <SelectTrigger className="w-[200px]">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Businesses</SelectItem>
-            <SelectItem value="approved">Approved Only</SelectItem>
-            <SelectItem value="unapproved">Unapproved Only</SelectItem>
-            <SelectItem value="uncategorized">Uncategorized Only</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* NEW: Filters Component */}
+      <BusinessFiltersComponent filters={filters} onFilterChange={handleFilterChange} />
+
+      {/* Manual Merge Button */}
+      <div className="flex justify-end">
         <Button onClick={() => setShowMergeDialog(true)} variant="default">
           <GitMerge className="h-4 w-4 mr-2" />
           Manual Merge
         </Button>
       </div>
 
-      {/* Table */}
+      {/* Table (sortable headers removed, sort now in filter dropdown) */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[300px]">
-                <button
-                  onClick={() => handleSort('name')}
-                  className="flex items-center gap-2 hover:text-foreground transition-colors"
-                >
-                  Business Name
-                  {getSortIcon('name')}
-                </button>
+              <TableHead className="w-[50px]">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={handleSelectAll}
+                  disabled={!data || data.businesses.length === 0}
+                />
               </TableHead>
+              <SortableHeader field="name" className="w-[300px]">Business Name</SortableHeader>
               <TableHead>Category</TableHead>
-              <TableHead className="w-[100px] text-center">
-                <button
-                  onClick={() => handleSort('transaction_count')}
-                  className="flex items-center gap-2 mx-auto hover:text-foreground transition-colors"
-                >
-                  Transactions
-                  {getSortIcon('transaction_count')}
-                </button>
-              </TableHead>
-              <TableHead className="w-[120px] text-right">
-                <button
-                  onClick={() => handleSort('total_spent')}
-                  className="flex items-center gap-2 ml-auto hover:text-foreground transition-colors"
-                >
-                  Total Spent
-                  {getSortIcon('total_spent')}
-                </button>
-              </TableHead>
-              <TableHead className="w-[120px]">
-                <button
-                  onClick={() => handleSort('last_used_date')}
-                  className="flex items-center gap-2 hover:text-foreground transition-colors"
-                >
-                  Last Used
-                  {getSortIcon('last_used_date')}
-                </button>
-              </TableHead>
+              <SortableHeader field="transaction_count" className="w-[100px] text-center">Transactions</SortableHeader>
+              <SortableHeader field="total_spent" className="w-[120px] text-right">Total Spent</SortableHeader>
+              <SortableHeader field="last_used_date" className="w-[120px]">Last Used</SortableHeader>
               <TableHead className="w-[80px] text-center">Approved</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   Loading businesses...
                 </TableCell>
               </TableRow>
             ) : !data || data.businesses.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   No businesses found.
                 </TableCell>
               </TableRow>
             ) : (
               data.businesses.map((business) => (
                 <TableRow key={business.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedBusinessIds.has(business.id)}
+                      onCheckedChange={(checked) => handleSelectBusiness(business.id, checked as boolean)}
+                    />
+                  </TableCell>
                   <TableCell>
                     {editingBusinessId === business.id ? (
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -317,6 +357,24 @@ export function BusinessCatalogTable() {
       <ManualMergeDialog
         open={showMergeDialog}
         onOpenChange={setShowMergeDialog}
+        preselectedBusinessIds={Array.from(selectedBusinessIds)}
+        onSuccess={handleBulkMergeSuccess}
+      />
+
+      {/* NEW: Bulk Category Dialog */}
+      <BulkCategoryDialog
+        open={showBulkCategoryDialog}
+        onOpenChange={setShowBulkCategoryDialog}
+        businessIds={Array.from(selectedBusinessIds)}
+        onSuccess={handleBulkCategorySuccess}
+      />
+
+      {/* NEW: Bulk Actions Toolbar */}
+      <BulkActionsToolbar
+        selectedCount={selectedBusinessIds.size}
+        onBulkMerge={handleBulkMerge}
+        onBulkSetCategory={handleBulkSetCategory}
+        onClear={handleClearSelection}
       />
     </div>
   );

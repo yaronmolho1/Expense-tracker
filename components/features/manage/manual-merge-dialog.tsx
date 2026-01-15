@@ -27,9 +27,16 @@ interface Business {
 interface ManualMergeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preselectedBusinessIds?: number[]; // NEW: Optional preselected businesses
+  onSuccess?: () => void; // NEW: Callback after successful merge
 }
 
-export function ManualMergeDialog({ open, onOpenChange }: ManualMergeDialogProps) {
+export function ManualMergeDialog({
+  open,
+  onOpenChange,
+  preselectedBusinessIds = [],
+  onSuccess
+}: ManualMergeDialogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBusinesses, setSelectedBusinesses] = useState<Business[]>([]);
   const [selectedTargetId, setSelectedTargetId] = useState<number | null>(null);
@@ -38,13 +45,34 @@ export function ManualMergeDialog({ open, onOpenChange }: ManualMergeDialogProps
 
   // Only fetch when search query is not empty
   const { data: searchResults } = useBusinesses(
-    searchQuery,
-    undefined,
-    undefined,
-    undefined,
+    { search: searchQuery },
     { enabled: searchQuery.trim().length > 0 }
   );
+
+  // NEW: Fetch preselected businesses when dialog opens
+  const { data: allBusinesses } = useBusinesses(
+    {},
+    { enabled: preselectedBusinessIds.length > 0 && open }
+  );
+
   const mergeBusinesses = useMergeBusinesses();
+
+  // NEW: Load preselected businesses when dialog opens
+  useEffect(() => {
+    if (open && preselectedBusinessIds.length > 0 && allBusinesses) {
+      const preselected = allBusinesses.businesses.filter(b =>
+        preselectedBusinessIds.includes(b.id)
+      );
+      setSelectedBusinesses(preselected);
+      setSelectedTargetId(null); // NO pre-selection of target
+    } else if (!open) {
+      // Reset when closing
+      setSelectedBusinesses([]);
+      setSelectedTargetId(null);
+      setSearchQuery('');
+      setShowResults(false);
+    }
+  }, [open, preselectedBusinessIds, allBusinesses]);
 
   // Maintain focus on search input when results update
   useEffect(() => {
@@ -80,6 +108,8 @@ export function ManualMergeDialog({ open, onOpenChange }: ManualMergeDialogProps
       setSelectedTargetId(null);
       setSearchQuery('');
       onOpenChange(false);
+      // Call success callback to clear selections in parent
+      onSuccess?.();
     } catch (error) {
       console.error('Failed to merge businesses:', error);
     }

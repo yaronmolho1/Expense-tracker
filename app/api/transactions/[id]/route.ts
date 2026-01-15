@@ -2,6 +2,78 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { transactions } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
+import { z } from 'zod';
+
+const UpdateTransactionSchema = z.object({
+  status: z.enum(['completed', 'projected', 'cancelled']).optional(),
+});
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const transactionId = parseInt(id);
+
+    if (isNaN(transactionId)) {
+      return NextResponse.json(
+        { error: 'Invalid transaction ID' },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const validation = UpdateTransactionSchema.safeParse(body);
+
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Invalid request body', details: validation.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const { status } = validation.data;
+
+    // Check if transaction exists
+    const existing = await db.query.transactions.findFirst({
+      where: eq(transactions.id, transactionId),
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Transaction not found' },
+        { status: 404 }
+      );
+    }
+
+    // Build update object
+    const updates: any = {
+      updatedAt: new Date(),
+    };
+
+    if (status !== undefined) {
+      updates.status = status;
+    }
+
+    // Update the transaction
+    await db
+      .update(transactions)
+      .set(updates)
+      .where(eq(transactions.id, transactionId));
+
+    return NextResponse.json({
+      success: true,
+      message: 'Transaction updated successfully',
+    });
+  } catch (error) {
+    console.error('Error updating transaction:', error);
+    return NextResponse.json(
+      { error: 'Failed to update transaction' },
+      { status: 500 }
+    );
+  }
+}
 
 export async function DELETE(
   request: NextRequest,

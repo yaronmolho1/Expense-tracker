@@ -23,15 +23,40 @@ interface BusinessesResponse {
   businesses: Business[];
 }
 
-export function useBusinesses(search?: string, approvedOnly?: boolean, sort?: string, uncategorized?: boolean, options?: { enabled?: boolean }) {
+// NEW: Filter interface for all business filtering options
+export interface BusinessFilters {
+  search?: string;
+  approvedOnly?: boolean;
+  sort?: string;
+  uncategorized?: boolean;
+  parentCategoryIds?: number[];
+  childCategoryIds?: number[];
+  dateFrom?: string; // YYYY-MM-DD
+  dateTo?: string;   // YYYY-MM-DD
+}
+
+export function useBusinesses(filters: BusinessFilters = {}, options?: { enabled?: boolean }) {
   const params = new URLSearchParams();
-  if (search) params.set('search', search);
-  if (approvedOnly !== undefined) params.set('approved_only', approvedOnly.toString());
-  if (sort) params.set('sort', sort);
-  if (uncategorized) params.set('uncategorized', 'true');
+
+  if (filters.search) params.set('search', filters.search);
+  if (filters.approvedOnly !== undefined) params.set('approved_only', filters.approvedOnly.toString());
+  if (filters.sort) params.set('sort', filters.sort);
+  if (filters.uncategorized) params.set('uncategorized', 'true');
+
+  // NEW: Category params
+  if (filters.parentCategoryIds && filters.parentCategoryIds.length > 0) {
+    params.set('parent_category_ids', filters.parentCategoryIds.join(','));
+  }
+  if (filters.childCategoryIds && filters.childCategoryIds.length > 0) {
+    params.set('child_category_ids', filters.childCategoryIds.join(','));
+  }
+
+  // NEW: Date params
+  if (filters.dateFrom) params.set('date_from', filters.dateFrom);
+  if (filters.dateTo) params.set('date_to', filters.dateTo);
 
   return useQuery<BusinessesResponse>({
-    queryKey: ['businesses', search, approvedOnly, sort, uncategorized],
+    queryKey: ['businesses', filters], // Use entire filter object as key
     queryFn: async () => {
       const response = await fetch(`/api/businesses?${params.toString()}`);
       if (!response.ok) {
@@ -151,6 +176,44 @@ export function useUpdateBusiness() {
     },
     onSuccess: () => {
       // Refresh to get server state
+      queryClient.invalidateQueries({ queryKey: ['businesses'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    },
+  });
+}
+
+// NEW: Bulk update categories for multiple businesses
+export function useBulkUpdateCategories() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      businessIds,
+      primaryCategoryId,
+      childCategoryId,
+    }: {
+      businessIds: number[];
+      primaryCategoryId: number;
+      childCategoryId?: number | null;
+    }) => {
+      const response = await fetch('/api/businesses/bulk-update', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_ids: businessIds,
+          primary_category_id: primaryCategoryId,
+          child_category_id: childCategoryId,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update businesses');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['businesses'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },

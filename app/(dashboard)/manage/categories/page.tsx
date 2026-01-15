@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useCategories, useSetBudget, useRemoveBudget, useUpdateCategory, useDeleteCategory, useCreateCategory, useBudgetHistory, useDeleteBudgetHistoryRecord, useDeleteAllBudgetHistory, useBusinessCount } from '@/hooks/use-categories';
+import { useCategories, useSetBudget, useRemoveBudget, useUpdateCategory, useDeleteCategory, useCreateCategory, useBudgetHistory, useDeleteBudgetHistoryRecord, useDeleteAllBudgetHistory, useBusinessCount, useReorderCategories } from '@/hooks/use-categories';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -12,13 +12,46 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Edit, Trash2, Wallet, Plus, History, ChevronRight, ChevronDown } from 'lucide-react';
+import { Edit, Trash2, Wallet, Plus, History, ChevronRight, ChevronDown, GripVertical } from 'lucide-react';
 import type { Category, SetBudgetInput } from '@/hooks/use-categories';
 import { DatePicker } from '@/components/ui/date-picker';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 export default function CategoriesPage() {
   const { data: categories, isLoading } = useCategories('tree');
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeParentId, setActiveParentId] = useState<number | null>(null);
+  const reorderMutation = useReorderCategories();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const toggleCategory = (id: number) => {
     setExpandedCategories(prev => {
@@ -32,6 +65,104 @@ export default function CategoriesPage() {
     });
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const id = event.active.id as string;
+    setActiveId(id);
+
+    // Check if it's a child drag (format: "child-{id}")
+    if (id.startsWith('child-')) {
+      const childId = parseInt(id.replace('child-', ''));
+      // Find the parent of this child
+      const parent = categories?.find(p => p.children?.some(c => c.id === childId));
+      setActiveParentId(parent?.id ?? null);
+    } else {
+      setActiveParentId(null);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+    setActiveParentId(null);
+
+    if (!over || active.id === over.id || !categories) return;
+
+    const activeIdStr = active.id as string;
+    const overIdStr = over.id as string;
+
+    // Check if we're dragging parents or children
+    const isDraggingParent = activeIdStr.startsWith('parent-');
+    const isDraggingChild = activeIdStr.startsWith('child-');
+
+    if (isDraggingParent && overIdStr.startsWith('parent-')) {
+      // Reordering parents
+      const activeParentId = parseInt(activeIdStr.replace('parent-', ''));
+      const overParentId = parseInt(overIdStr.replace('parent-', ''));
+
+      const oldIndex = categories.findIndex(c => c.id === activeParentId);
+      const newIndex = categories.findIndex(c => c.id === overParentId);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(categories, oldIndex, newIndex);
+        const updates = newOrder.map((cat, index) => ({
+          id: cat.id,
+          displayOrder: index,
+        }));
+
+        reorderMutation.mutate(updates, {
+          onError: (error) => {
+            toast.error(error.message);
+          },
+        });
+      }
+    } else if (isDraggingChild && overIdStr.startsWith('child-')) {
+      // Reordering children within the same parent
+      const activeChildId = parseInt(activeIdStr.replace('child-', ''));
+      const overChildId = parseInt(overIdStr.replace('child-', ''));
+
+      // Find parent of active child
+      const parentCategory = categories.find(p =>
+        p.children?.some(c => c.id === activeChildId)
+      );
+
+      if (parentCategory?.children) {
+        const oldIndex = parentCategory.children.findIndex(c => c.id === activeChildId);
+        const newIndex = parentCategory.children.findIndex(c => c.id === overChildId);
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(parentCategory.children, oldIndex, newIndex);
+          const updates = newOrder.map((cat, index) => ({
+            id: cat.id,
+            displayOrder: index,
+          }));
+
+          reorderMutation.mutate(updates, {
+            onError: (error) => {
+              toast.error(error.message);
+            },
+          });
+        }
+      }
+    }
+  };
+
+  // Get the active item for drag overlay
+  const getActiveItem = (): Category | null => {
+    if (!activeId || !categories) return null;
+
+    if (activeId.startsWith('parent-')) {
+      const id = parseInt(activeId.replace('parent-', ''));
+      return categories.find(c => c.id === id) ?? null;
+    } else if (activeId.startsWith('child-')) {
+      const id = parseInt(activeId.replace('child-', ''));
+      for (const parent of categories) {
+        const child = parent.children?.find(c => c.id === id);
+        if (child) return child;
+      }
+    }
+    return null;
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -40,13 +171,16 @@ export default function CategoriesPage() {
     );
   }
 
+  const parentIds = categories?.map(c => `parent-${c.id}`) ?? [];
+  const activeItem = getActiveItem();
+
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Category Management</h1>
           <p className="text-muted-foreground mt-2">
-            Manage your expense categories and set budgets
+            Manage your expense categories and set budgets. Drag to reorder.
           </p>
         </div>
         <CreateCategoryDialog />
@@ -56,22 +190,123 @@ export default function CategoriesPage() {
         <CardHeader>
           <CardTitle>Categories</CardTitle>
           <CardDescription>
-            Click on categories to expand and manage sub-categories and budgets
+            Drag categories to reorder. Click to expand and manage sub-categories.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {categories?.map((parent) => (
-              <CategoryRow
-                key={parent.id}
-                category={parent}
-                isExpanded={expandedCategories.has(parent.id)}
-                onToggle={() => toggleCategory(parent.id)}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={parentIds} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {categories?.map((parent) => (
+                  <SortableParentCategory
+                    key={parent.id}
+                    category={parent}
+                    isExpanded={expandedCategories.has(parent.id)}
+                    onToggle={() => toggleCategory(parent.id)}
+                    isDraggingChild={activeParentId === parent.id}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+
+            <DragOverlay>
+              {activeItem && (
+                <div className="bg-background border rounded-lg p-3 shadow-lg opacity-90">
+                  <div className="flex items-center gap-2">
+                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{activeItem.name}</span>
+                  </div>
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ============================================
+// SORTABLE COMPONENTS
+// ============================================
+
+interface SortableParentCategoryProps {
+  category: Category;
+  isExpanded: boolean;
+  onToggle: () => void;
+  isDraggingChild: boolean;
+}
+
+function SortableParentCategory({ category, isExpanded, onToggle, isDraggingChild }: SortableParentCategoryProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `parent-${category.id}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={isDraggingChild ? 'ring-2 ring-blue-500' : ''}>
+      <CategoryRow
+        category={category}
+        isExpanded={isExpanded}
+        onToggle={onToggle}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
+      {isExpanded && category.children && category.children.length > 0 && (
+        <div className="ml-6 mt-2 space-y-1">
+          <SortableContext items={category.children.map(c => `child-${c.id}`)} strategy={verticalListSortingStrategy}>
+            {category.children.map((child) => (
+              <SortableChildCategory key={child.id} category={child} />
+            ))}
+          </SortableContext>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface SortableChildCategoryProps {
+  category: Category;
+}
+
+function SortableChildCategory({ category }: SortableChildCategoryProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `child-${category.id}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <CategoryRow
+        category={category}
+        isExpanded={false}
+        onToggle={() => {}}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
     </div>
   );
 }
@@ -84,9 +319,10 @@ interface CategoryRowProps {
   category: Category;
   isExpanded: boolean;
   onToggle: () => void;
+  dragHandleProps?: any;
 }
 
-function CategoryRow({ category, isExpanded, onToggle }: CategoryRowProps) {
+function CategoryRow({ category, isExpanded, onToggle, dragHandleProps }: CategoryRowProps) {
   const hasChildren = category.children && category.children.length > 0;
   const { data: history } = useBudgetHistory(category.level === 1 ? category.id : 0);
 
@@ -97,6 +333,11 @@ function CategoryRow({ category, isExpanded, onToggle }: CategoryRowProps) {
     <div>
       {/* Parent Category */}
       <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 border">
+        {dragHandleProps && (
+          <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded">
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </div>
+        )}
         <div
           className="flex items-center gap-3 flex-1 cursor-pointer"
           onClick={hasChildren ? onToggle : undefined}
@@ -144,8 +385,8 @@ function CategoryRow({ category, isExpanded, onToggle }: CategoryRowProps) {
         </div>
       </div>
 
-      {/* Child Categories */}
-      {isExpanded && hasChildren && (
+      {/* Child Categories - only show in non-sortable mode */}
+      {isExpanded && hasChildren && !dragHandleProps && (
         <div className="ml-8 mt-2 space-y-2">
           {category.children?.map((child) => (
             <ChildCategoryRow key={child.id} category={child} />

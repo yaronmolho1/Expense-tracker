@@ -11,6 +11,14 @@ export async function GET(request: Request) {
     const uncategorized = searchParams.get('uncategorized');
     const sort = searchParams.get('sort') || 'name';
 
+    // NEW: Category filters
+    const parentCategoryIds = searchParams.get('parent_category_ids');
+    const childCategoryIds = searchParams.get('child_category_ids');
+
+    // NEW: Date range filters
+    const dateFrom = searchParams.get('date_from'); // YYYY-MM-DD
+    const dateTo = searchParams.get('date_to');     // YYYY-MM-DD
+
     // Build query conditions using raw SQL
     const conditions: string[] = [];
 
@@ -27,8 +35,39 @@ export async function GET(request: Request) {
       conditions.push('b.approved = false');
     }
 
+    // Uncategorized filter takes precedence over category filters
     if (uncategorized === 'true') {
       conditions.push('b.primary_category_id IS NULL');
+    } else {
+      // NEW: Category filtering
+      if (parentCategoryIds) {
+        const ids = parentCategoryIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id) && id > 0);
+        if (ids.length > 0) {
+          conditions.push(`b.primary_category_id IN (${ids.join(',')})`);
+        }
+      }
+
+      if (childCategoryIds) {
+        const ids = childCategoryIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id) && id > 0);
+        if (ids.length > 0) {
+          conditions.push(`b.child_category_id IN (${ids.join(',')})`);
+        }
+      }
+    }
+
+    // NEW: Build transaction subquery conditions for date filtering
+    const transactionConditions: string[] = ['t.business_id = b.id'];
+    if (dateFrom) {
+      transactionConditions.push(`t.deal_date >= '${dateFrom.replace(/'/g, "''")}'`);
+    }
+    if (dateTo) {
+      transactionConditions.push(`t.deal_date <= '${dateTo.replace(/'/g, "''")}'`);
+    }
+    const txWhereClause = transactionConditions.join(' AND ');
+
+    // NEW: If date filters are applied, only show businesses with transactions in that range
+    if (dateFrom || dateTo) {
+      conditions.push(`EXISTS (SELECT 1 FROM transactions t WHERE ${txWhereClause})`);
     }
 
     // Fetch businesses with transaction counts and category names using raw SQL
@@ -65,6 +104,7 @@ export async function GET(request: Request) {
         orderClause = sql.raw('ORDER BY b.display_name ASC');
     }
 
+    // NEW: Modified aggregation subqueries to respect date range
     const result = await db.execute(sql`
       SELECT
         b.id,
@@ -74,9 +114,9 @@ export async function GET(request: Request) {
         b.child_category_id,
         b.categorization_source,
         b.approved,
-        COALESCE((SELECT COUNT(*)::int FROM transactions t WHERE t.business_id = b.id), 0) as transaction_count,
-        COALESCE((SELECT SUM(charged_amount_ils) FROM transactions t WHERE t.business_id = b.id AND t.status = 'completed'), 0) as total_spent,
-        (SELECT MAX(deal_date)::text FROM transactions t WHERE t.business_id = b.id) as last_used_date
+        COALESCE((SELECT COUNT(*)::int FROM transactions t WHERE ${sql.raw(txWhereClause)}), 0) as transaction_count,
+        COALESCE((SELECT SUM(charged_amount_ils) FROM transactions t WHERE ${sql.raw(txWhereClause)} AND t.status = 'completed'), 0) as total_spent,
+        (SELECT MAX(deal_date)::text FROM transactions t WHERE ${sql.raw(txWhereClause)}) as last_used_date
       FROM businesses b
       ${whereClause}
       ${orderClause}

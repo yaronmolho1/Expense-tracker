@@ -66,6 +66,8 @@ export default function TransactionsPage() {
         page={filters.page}
         perPage={filters.perPage}
         onPageChange={handlePageChange}
+        sortBy={filters.sortBy}
+        onSortChange={(sortBy) => handleFilterChange({ sortBy })}
       />
 
       <CreateTransactionModal
