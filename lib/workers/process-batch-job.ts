@@ -263,8 +263,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                 if (exactDuplicate) {
                   // Check if this is a ghost that needs updating
                   if (!exactDuplicate.sourceFile || exactDuplicate.uploadBatchId !== batchId) {
-                    // This is a Ghost! Update it with real data
-                    // Update ghost with real file data
+                    // Ghost Payment 1 - update it with real data
                     await db.update(transactions)
                       .set({
                         sourceFile: file.filename,
@@ -276,20 +275,13 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                       })
                       .where(eq(transactions.id, exactDuplicate.id));
                     
-                    // CRITICAL: Add to processed set to prevent twin latching
                     processedTransactionIds.add(exactDuplicate.id);
-                    
                     updatedTransactions += 1;
                     continue;
                   } else {
-                    // This is a real duplicate from the current batch with real data
-                    logger.debug({
-                      businessName: parsedTx.businessName,
-                      installmentIndex: 1,
-                      groupId: exactDuplicate.installmentGroupId?.slice(0, 16),
-                    }, 'Duplicate detected - skipping (idempotency)');
+                    // Real duplicate - skip
                     duplicateTransactions++;
-                    continue; // Skip - already processed
+                    continue;
                   }
                 }
                 
@@ -303,8 +295,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                   
                   // STEP 3A: Check if existingPayment1 is a Ghost from previous batch
                   if (existingPayment1.uploadBatchId !== batchId) {
-                    // This is a Ghost! Update it with real data
-                    // Update ghost with real file data
+                    // Ghost Payment 1 - update with real data
                     await db.update(transactions)
                       .set({
                         sourceFile: file.filename,
@@ -316,9 +307,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                       })
                       .where(eq(transactions.id, existingPayment1.id));
                     
-                    // CRITICAL: Add to processed set to prevent twin latching
                     processedTransactionIds.add(existingPayment1.id);
-                    
                     updatedTransactions += 1;
                     totalAmountIls += finalAmountIls;
                   } else {
@@ -336,8 +325,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                     });
                     
                     if (orphanedPayment1) {
-                      // Found a "Salted Orphan"! Update it with real file data
-                      // Update orphaned ghost with real file data
+                      // Orphaned Payment 1 - update with real data
                       await db.update(transactions)
                         .set({
                           sourceFile: file.filename,
@@ -349,26 +337,23 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                         })
                         .where(eq(transactions.id, orphanedPayment1.id));
                       
-                      // CRITICAL: Add to processed set to prevent twin latching
                       processedTransactionIds.add(orphanedPayment1.id);
-                      
                       updatedTransactions += 1;
                       totalAmountIls += finalAmountIls;
                     } else {
-                      // No orphan found - this is a REAL twin purchase
-                      // Generate unique suffix for new group
+                      // No orphan found - this is a twin purchase
                       const existingGroupCount = await countGroupsWithBaseId(groupId);
                       const actualGroupId = `${groupId}_copy_${existingGroupCount + 1}`;
-                      
+                    
                       logger.info({
                         businessName: parsedTx.businessName,
                         installmentIndex: parsedTx.installmentIndex,
                         installmentTotal: parsedTx.installmentTotal,
                         baseGroupId: groupId.slice(0, 8),
-                        actualGroupId: actualGroupId.slice(0, 16),
-                      }, 'Detected twin purchase - creating new group with suffix');
+                        twinGroupId: actualGroupId.slice(0, 16),
+                      }, 'Creating twin installment group with custom groupId');
                     
-                    // Create new installment group for twin
+                    // Create new installment group for twin with custom groupId
                     await createInstallmentGroup({
                       firstTransactionData: {
                         businessId: business.id,
@@ -387,6 +372,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                         total: parsedTx.installmentTotal!,
                         amount: finalAmountIls,
                       },
+                      customGroupId: actualGroupId, // Use custom groupId for twin
                     });
                     
                     newTransactions += parsedTx.installmentTotal!;
@@ -443,10 +429,6 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
               });
               
               if (exactDuplicate) {
-                logger.debug({
-                  businessName: parsedTx.businessName,
-                  installmentIndex: parsedTx.installmentIndex,
-                }, 'Duplicate detected - skipping');
                 duplicateTransactions++;
                 continue;
               }

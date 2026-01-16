@@ -27,6 +27,7 @@ interface CreateInstallmentGroupParams {
     uploadBatchId: number;
   };
   installmentInfo: InstallmentInfo;
+  customGroupId?: string; // Optional: Use this groupId instead of generating one (for twin purchases)
 }
 
 /**
@@ -36,14 +37,14 @@ interface CreateInstallmentGroupParams {
  * - Generates N-1 projected future payments
  */
 export async function createInstallmentGroup(params: CreateInstallmentGroupParams) {
-  const { firstTransactionData, installmentInfo } = params;
+  const { firstTransactionData, installmentInfo, customGroupId } = params;
   const { index, total, amount } = installmentInfo;
 
   // Calculate total purchase amount
   const totalPaymentSum = amount * total;
 
-  // Generate group ID (parent hash)
-  const groupId = generateInstallmentGroupId({
+  // Use custom groupId if provided (for twin purchases), otherwise generate one
+  const groupId = customGroupId || generateInstallmentGroupId({
     businessNormalizedName: firstTransactionData.businessNormalizedName,
     totalPaymentSum,
     installmentTotal: total,
@@ -56,29 +57,66 @@ export async function createInstallmentGroup(params: CreateInstallmentGroupParam
     installmentIndex: index,
   });
 
+  // CRITICAL: Check if transaction already exists before inserting (race condition protection)
+  const existingTransaction = await db.query.transactions.findFirst({
+    where: eq(transactions.transactionHash, firstPaymentHash),
+  });
+
+  if (existingTransaction) {
+    // Transaction already exists - return existing payment (idempotency)
+    return {
+      groupId: existingTransaction.installmentGroupId || groupId,
+      firstPaymentId: existingTransaction.id,
+      projectedCount: 0, // Projected payments already exist
+    };
+  }
+
   // Insert first payment (completed)
-  const [firstPayment] = await db
-    .insert(transactions)
-    .values({
-      transactionHash: firstPaymentHash,
-      transactionType: 'installment',
-      businessId: firstTransactionData.businessId,
-      cardId: firstTransactionData.cardId,
-      dealDate: firstTransactionData.dealDate,
-      originalAmount: firstTransactionData.originalAmount.toString(),
-      originalCurrency: firstTransactionData.originalCurrency,
-      exchangeRateUsed: firstTransactionData.exchangeRateUsed?.toString() || null,
-      chargedAmountIls: firstTransactionData.chargedAmountIls.toString(),
-      paymentType: 'installments',
-      installmentGroupId: groupId,
-      installmentIndex: index,
-      installmentTotal: total,
-      status: 'completed',
-      actualChargeDate: firstTransactionData.dealDate,
-      sourceFile: firstTransactionData.sourceFile,
-      uploadBatchId: firstTransactionData.uploadBatchId,
-    })
-    .returning();
+  // Wrap in try-catch to handle race conditions (unique constraint violations)
+  let firstPayment: typeof transactions.$inferSelect;
+  try {
+    const result = await db
+      .insert(transactions)
+      .values({
+        transactionHash: firstPaymentHash,
+        transactionType: 'installment',
+        businessId: firstTransactionData.businessId,
+        cardId: firstTransactionData.cardId,
+        dealDate: firstTransactionData.dealDate,
+        originalAmount: firstTransactionData.originalAmount.toString(),
+        originalCurrency: firstTransactionData.originalCurrency,
+        exchangeRateUsed: firstTransactionData.exchangeRateUsed?.toString() || null,
+        chargedAmountIls: firstTransactionData.chargedAmountIls.toString(),
+        paymentType: 'installments',
+        installmentGroupId: groupId,
+        installmentIndex: index,
+        installmentTotal: total,
+        status: 'completed',
+        actualChargeDate: firstTransactionData.dealDate,
+        sourceFile: firstTransactionData.sourceFile,
+        uploadBatchId: firstTransactionData.uploadBatchId,
+      })
+      .returning();
+    firstPayment = result[0];
+  } catch (error: any) {
+    // Handle unique constraint violation (race condition)
+    if (error?.code === '23505' || error?.message?.includes('unique constraint') || error?.message?.includes('duplicate key')) {
+      // Transaction was inserted by another process - fetch it
+      const duplicateTransaction = await db.query.transactions.findFirst({
+        where: eq(transactions.transactionHash, firstPaymentHash),
+      });
+      
+      if (duplicateTransaction) {
+        return {
+          groupId: duplicateTransaction.installmentGroupId || groupId,
+          firstPaymentId: duplicateTransaction.id,
+          projectedCount: 0, // Projected payments already exist
+        };
+      }
+    }
+    // Re-throw if it's not a duplicate key error
+    throw error;
+  }
 
   // Generate projected payments (index+1 through total)
   const projectedPayments = [];
