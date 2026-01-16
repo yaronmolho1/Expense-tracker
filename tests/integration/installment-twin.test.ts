@@ -242,6 +242,14 @@ describe('Installment Twin & Backfill Logic', () => {
       const existingGroup = await findAnyTransactionInGroup(baseGroupId);
       expect(existingGroup).toBeTruthy(); // Collision detected
 
+      // Create a new batch for the second backfill (simulating a new file upload)
+      const [secondBatch] = await db.insert(uploadBatches).values({
+        status: 'processing',
+        fileCount: 1,
+        totalTransactions: 0,
+      }).returning();
+      const secondBatchId = secondBatch.id;
+
       // Create second backfill - should get re-hashed ID
       const result2 = await createInstallmentGroupFromMiddle({
         firstTransactionData: {
@@ -254,7 +262,7 @@ describe('Installment Twin & Backfill Logic', () => {
           exchangeRateUsed: null,
           chargedAmountIls: regularPayment,
           sourceFile: 'file2.xlsx',
-          uploadBatchId: testBatchId + 1,
+          uploadBatchId: secondBatchId,
         },
         installmentInfo: {
           index: 2,
