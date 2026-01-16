@@ -264,16 +264,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                   // Check if this is a ghost that needs updating
                   if (!exactDuplicate.sourceFile || exactDuplicate.uploadBatchId !== batchId) {
                     // This is a Ghost! Update it with real data
-                    logger.info({
-                      businessName: parsedTx.businessName,
-                      installmentIndex: 1,
-                      installmentTotal: parsedTx.installmentTotal,
-                      transactionId: exactDuplicate.id,
-                      oldAmount: exactDuplicate.chargedAmountIls,
-                      newAmount: finalAmountIls.toFixed(2),
-                      groupId: exactDuplicate.installmentGroupId?.slice(0, 16),
-                    }, 'Found exact duplicate Ghost Payment 1 - updating with real data');
-                    
+                    // Update ghost with real file data
                     await db.update(transactions)
                       .set({
                         sourceFile: file.filename,
@@ -284,10 +275,6 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                         updatedAt: new Date(),
                       })
                       .where(eq(transactions.id, exactDuplicate.id));
-                    
-                    logger.info({
-                      transactionId: exactDuplicate.id,
-                    }, `Updated Ghost Payment 1 (ID: ${exactDuplicate.id}) - chargedAmountIls patched to ${finalAmountIls.toFixed(2)}`);
                     
                     // CRITICAL: Add to processed set to prevent twin latching
                     processedTransactionIds.add(exactDuplicate.id);
@@ -317,16 +304,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                   // STEP 3A: Check if existingPayment1 is a Ghost from previous batch
                   if (existingPayment1.uploadBatchId !== batchId) {
                     // This is a Ghost! Update it with real data
-                    logger.info({
-                      businessName: parsedTx.businessName,
-                      installmentIndex: 1,
-                      installmentTotal: parsedTx.installmentTotal,
-                      transactionId: existingPayment1.id,
-                      oldAmount: existingPayment1.chargedAmountIls,
-                      newAmount: finalAmountIls.toFixed(2),
-                      groupId: existingPayment1.installmentGroupId?.slice(0, 16),
-                    }, 'Found standard hash Ghost Payment 1 - updating with real data');
-                    
+                    // Update ghost with real file data
                     await db.update(transactions)
                       .set({
                         sourceFile: file.filename,
@@ -337,10 +315,6 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                         updatedAt: new Date(),
                       })
                       .where(eq(transactions.id, existingPayment1.id));
-                    
-                    logger.info({
-                      transactionId: existingPayment1.id,
-                    }, `Updated Ghost Payment 1 (ID: ${existingPayment1.id}) - chargedAmountIls patched to ${finalAmountIls.toFixed(2)}`);
                     
                     // CRITICAL: Add to processed set to prevent twin latching
                     processedTransactionIds.add(existingPayment1.id);
@@ -363,16 +337,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                     
                     if (orphanedPayment1) {
                       // Found a "Salted Orphan"! Update it with real file data
-                      logger.info({
-                        businessName: parsedTx.businessName,
-                        installmentIndex: parsedTx.installmentIndex,
-                        installmentTotal: parsedTx.installmentTotal,
-                        transactionId: orphanedPayment1.id,
-                        oldAmount: orphanedPayment1.chargedAmountIls,
-                        newAmount: finalAmountIls.toFixed(2),
-                        orphanedGroupId: orphanedPayment1.installmentGroupId?.slice(0, 16),
-                      }, 'Found orphaned backfilled Payment 1 - updating with real data');
-                      
+                      // Update orphaned ghost with real file data
                       await db.update(transactions)
                         .set({
                           sourceFile: file.filename,
@@ -383,10 +348,6 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                           updatedAt: new Date(),
                         })
                         .where(eq(transactions.id, orphanedPayment1.id));
-                      
-                      logger.info({
-                        transactionId: orphanedPayment1.id,
-                      }, `Updated Orphaned Payment 1 (ID: ${orphanedPayment1.id}) - chargedAmountIls patched to ${finalAmountIls.toFixed(2)}`);
                       
                       // CRITICAL: Add to processed set to prevent twin latching
                       processedTransactionIds.add(orphanedPayment1.id);
