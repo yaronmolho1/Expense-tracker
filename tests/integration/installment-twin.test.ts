@@ -46,13 +46,14 @@ describe('Installment Twin & Backfill Logic', () => {
     const [card] = await db.insert(cards).values({
       last4Digits: '9999',
       fileFormatHandler: 'visa',
-      displayName: 'Test Card',
+      owner: 'test-user',
     }).returning();
     testCardId = card.id;
 
     // Create test batch
     const [batch] = await db.insert(uploadBatches).values({
       status: 'processing',
+      fileCount: 1,
       totalTransactions: 0,
     }).returning();
     testBatchId = batch.id;
