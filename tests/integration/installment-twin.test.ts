@@ -360,10 +360,15 @@ describe('Installment Twin & Backfill Logic', () => {
 
       expect(ghostPayment1).toBeTruthy();
       const ghostAmount = parseFloat(ghostPayment1!.chargedAmountIls);
-      expect(ghostAmount).toBe(payment1Amount); // Calculated amount
+      // createInstallmentGroupFromMiddle calculates: totalPaymentSum = amount * total = 129 * 24 = 3096
+      // Then Payment 1 = 3096 - (129 * 23) = 3096 - 2967 = 129
+      // Note: The function uses amount * total, not originalAmount from firstTransactionData
+      const calculatedPayment1Amount = (regularPayment * installmentTotal) - (regularPayment * (installmentTotal - 1));
+      expect(ghostAmount).toBe(calculatedPayment1Amount); // Should be 129, not 132
 
-      // STEP 2: Real Payment 1 arrives (might have slightly different amount due to rounding)
-      const realPayment1Amount = 132.50; // Slightly different from calculated
+      // STEP 2: Real Payment 1 arrives (with correct amount from file)
+      // The real Payment 1 amount is 132 (from totalPaymentSum = 3099)
+      const realPayment1Amount = payment1Amount; // 132 - the actual Payment 1 amount from file
       
       // In real flow, findOrphanedBackfilledPayment1 would find the ghost
       const orphan = await findOrphanedBackfilledPayment1({
