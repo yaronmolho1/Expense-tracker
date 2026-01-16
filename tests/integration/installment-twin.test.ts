@@ -370,6 +370,14 @@ describe('Installment Twin & Backfill Logic', () => {
       // The real Payment 1 amount is 132 (from totalPaymentSum = 3099)
       const realPayment1Amount = payment1Amount; // 132 - the actual Payment 1 amount from file
       
+      // Create a new batch for the Payment 1 upload (simulating a new file upload)
+      const [newBatch] = await db.insert(uploadBatches).values({
+        status: 'processing',
+        fileCount: 1,
+        totalTransactions: 0,
+      }).returning();
+      const newBatchId = newBatch.id;
+      
       // In real flow, findOrphanedBackfilledPayment1 would find the ghost
       const orphan = await findOrphanedBackfilledPayment1({
         businessId: testBusinessId,
@@ -378,7 +386,7 @@ describe('Installment Twin & Backfill Logic', () => {
         installmentTotal,
         originalAmount: totalPaymentSum,
         baseGroupId,
-        currentBatchId: testBatchId + 1,
+        currentBatchId: newBatchId,
         processedIds: new Set(),
       });
 
@@ -390,7 +398,7 @@ describe('Installment Twin & Backfill Logic', () => {
         .set({
           chargedAmountIls: realPayment1Amount.toString(),
           sourceFile: 'file2.xlsx',
-          uploadBatchId: testBatchId + 1,
+          uploadBatchId: newBatchId,
           updatedAt: new Date(),
         })
         .where(eq(transactions.id, orphan!.id));
