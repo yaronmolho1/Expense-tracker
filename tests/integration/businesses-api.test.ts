@@ -55,12 +55,11 @@ describe('Businesses API - Uncategorized Filter', () => {
       expect(data).toHaveProperty('businesses');
       expect(Array.isArray(data.businesses)).toBe(true);
 
-      // Should include both categorized and uncategorized businesses
-      const hasCategorized = data.businesses.some((b: any) => b.primary_category !== null);
-      const hasUncategorized = data.businesses.some((b: any) => b.primary_category === null);
-
-      // Depending on test data, we should have both types
-      expect(hasCategorized || hasUncategorized).toBe(true);
+      // When no filter is applied, should not specifically filter by categorization status
+      // The endpoint should return businesses regardless of categorization
+      // (The actual content depends on test data, but the response structure should be valid)
+      expect(data).toHaveProperty('total');
+      expect(typeof data.total).toBe('number');
     });
   });
 

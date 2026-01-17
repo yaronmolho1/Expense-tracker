@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { transactions, businesses, cards, categories } from '@/lib/db/schema';
-import { eq, and, gte, lte, inArray, sql, SQL } from 'drizzle-orm';
+import { eq, and, gte, lte, inArray, sql, SQL, isNull, or } from 'drizzle-orm';
 import { getBudgetsForMonth } from './category-service';
 
 export interface TimeFlowFilters {
@@ -9,6 +9,9 @@ export interface TimeFlowFilters {
   cardIds?: number[];
   dateFrom?: string;
   dateTo?: string;
+  parentCategoryIds?: number[];
+  childCategoryIds?: number[];
+  uncategorized?: boolean;
 }
 
 export interface SubCategoryData {
@@ -16,6 +19,9 @@ export interface SubCategoryData {
   subCategoryName: string | null;
   monthlyExpenses: Record<string, number>;
   monthlyBudgets: Record<string, number>;
+  budgetPeriod: 'monthly' | 'annual' | null;
+  annualBudgetAmount: number | null;
+  yearToDateTotal: Record<string, number>; // keyed by year (e.g., "2025")
   rowTotal: number;
 }
 
@@ -42,6 +48,9 @@ export async function queryTimeFlow(
     cardIds,
     dateFrom,
     dateTo,
+    parentCategoryIds,
+    childCategoryIds,
+    uncategorized,
   } = filters;
 
   // Generate month range
@@ -63,6 +72,18 @@ export async function queryTimeFlow(
   if (dateTo) conditions.push(sql`${paymentDateExpr} <= ${dateTo}`);
   if (cardIds?.length) conditions.push(inArray(transactions.cardId, cardIds));
 
+  // Category filtering
+  if (uncategorized) {
+    conditions.push(isNull(businesses.primaryCategoryId));
+  } else {
+    if (parentCategoryIds?.length) {
+      conditions.push(inArray(businesses.primaryCategoryId, parentCategoryIds));
+    }
+    if (childCategoryIds?.length) {
+      conditions.push(inArray(businesses.childCategoryId, childCategoryIds));
+    }
+  }
+
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   // Query all transactions with category info and payment date
@@ -70,6 +91,7 @@ export async function queryTimeFlow(
     .select({
       paymentDate: paymentDateExpr,
       chargedAmountIls: transactions.chargedAmountIls,
+      isRefund: transactions.isRefund,
       businessId: businesses.id,
       primaryCategoryId: businesses.primaryCategoryId,
       childCategoryId: businesses.childCategoryId,
@@ -112,8 +134,12 @@ export async function queryTimeFlow(
   results.forEach((r) => {
     const mainCatId = r.primaryCategoryId || UNCATEGORIZED_ID;
     const subCatId = r.childCategoryId;
-    const amount = Number(r.chargedAmountIls);
+    // Handle refunds: negate the amount if it's a refund
+    const amount = r.isRefund
+      ? -Math.abs(Number(r.chargedAmountIls))
+      : Number(r.chargedAmountIls);
     const yearMonth = r.paymentDate.substring(0, 7);
+    const year = r.paymentDate.substring(0, 4);
 
     // Ensure main category exists
     if (!categoryDataMap.has(mainCatId)) {
@@ -138,6 +164,9 @@ export async function queryTimeFlow(
         subCategoryName: subCatId ? categoryMap.get(subCatId)?.name || null : null,
         monthlyExpenses: {},
         monthlyBudgets: {},
+        budgetPeriod: null,
+        annualBudgetAmount: null,
+        yearToDateTotal: {},
         rowTotal: 0,
       };
       mainCat.subCategories.push(subCat);
@@ -148,6 +177,13 @@ export async function queryTimeFlow(
       subCat.monthlyExpenses[yearMonth] = 0;
     }
     subCat.monthlyExpenses[yearMonth] += amount;
+
+    // Add to year-to-date total
+    if (!subCat.yearToDateTotal[year]) {
+      subCat.yearToDateTotal[year] = 0;
+    }
+    subCat.yearToDateTotal[year] += amount;
+
     subCat.rowTotal += amount;
     mainCat.categoryTotal += amount;
   });
