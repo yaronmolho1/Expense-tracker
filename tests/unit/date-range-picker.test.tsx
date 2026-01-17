@@ -12,12 +12,12 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
  */
 
 describe('DateRangePicker Component', () => {
-  let onFromChange: ReturnType<typeof vi.fn>;
-  let onToChange: ReturnType<typeof vi.fn>;
+  let onFromChange: (date: string) => void;
+  let onToChange: (date: string) => void;
 
   beforeEach(() => {
-    onFromChange = vi.fn();
-    onToChange = vi.fn();
+    onFromChange = vi.fn<(date: string) => void>();
+    onToChange = vi.fn<(date: string) => void>();
   });
 
   describe('Rendering and Display', () => {
@@ -299,7 +299,7 @@ describe('DateRangePicker Component', () => {
 
       // "To Date" should show placeholder
       const buttons = screen.getAllByRole('button');
-      const toDateButton = buttons.find(btn => btn.textContent?.includes('DD/MM/YYYY'));
+      const toDateButton = buttons.find((btn: HTMLElement) => btn.textContent?.includes('DD/MM/YYYY'));
       expect(toDateButton).toBeTruthy();
     });
 
@@ -346,7 +346,7 @@ describe('DateRangePicker Component', () => {
       );
 
       const buttons = screen.getAllByRole('button');
-      buttons.forEach(button => {
+      buttons.forEach((button: HTMLElement) => {
         expect(button.hasAttribute('disabled')).toBe(true);
       });
     });
@@ -363,7 +363,7 @@ describe('DateRangePicker Component', () => {
       );
 
       const buttons = screen.getAllByRole('button');
-      buttons.forEach(button => {
+      buttons.forEach((button: HTMLElement) => {
         expect(button.hasAttribute('disabled')).toBe(false);
       });
     });

@@ -1,118 +1,70 @@
-# name: Deploy
-# 
-# on:
-#   workflow_run:
-#     workflows: ["CI"]
-#     types: [completed]
-#     branches: [main, master]
-#   workflow_dispatch:  # Allow manual triggers
-# 
-# jobs:
-#   # Check if CI tests passed
-#   check-tests:
-#     name: Verify Tests Passed
-#     runs-on: ubuntu-latest
-#     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-#     steps:
-#       - run: echo "Tests passed, proceeding with deployment"
-#   
-#   # Deploy to staging only if tests pass
-#   deploy-staging:
-#     name: Deploy to Staging
-#     runs-on: ubuntu-latest
-#     needs: check-tests
-#     environment: staging
-#     
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
-#       
-#       - name: Deploy to staging server
-#         uses: appleboy/ssh-action@v1.0.3
-#         with:
-#           host: ${{ secrets.STAGING_HOST }}
-#           username: ${{ secrets.SSH_USER }}
-#           key: ${{ secrets.SSH_PRIVATE_KEY }}
-#           port: ${{ secrets.SSH_PORT || 22 }}
-#           script: |
-#             cd /app/expense-tracker
-#             
-#             # Pull latest code
-#             git pull origin ${{ github.ref_name }}
-#             
-#             # Load environment variables
-#             source .env.staging || true
-#             
-#             # Build and restart staging containers
-#             docker compose -f docker-compose.staging.yml pull
-#             docker compose -f docker-compose.staging.yml up -d --build
-#             
-#             # Run migrations
-#             docker compose -f docker-compose.staging.yml exec -T app npm run db:migrate
-#             
-#             # Health check
-#             sleep 10
-#             curl -f http://localhost:3001/api/health || exit 1
-#             
-#             echo "✅ Staging deployment complete"
-# 
-#   # Deploy to production with manual approval
-#   deploy-production:
-#     name: Deploy to Production
-#     runs-on: ubuntu-latest
-#     needs: deploy-staging
-#     environment: production  # Requires manual approval in GitHub
-#     
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
-#       
-#       - name: Deploy to production server
-#         uses: appleboy/ssh-action@v1.0.3
-#         with:
-#           host: ${{ secrets.PRODUCTION_HOST }}
-#           username: ${{ secrets.SSH_USER }}
-#           key: ${{ secrets.SSH_PRIVATE_KEY }}
-#           port: ${{ secrets.SSH_PORT || 22 }}
-#           script: |
-#             cd /app/expense-tracker
-#             
-#             # Backup database before deployment
-#             ./scripts/backup-database.sh
-#             
-#             # Pull latest code
-#             git pull origin ${{ github.ref_name }}
-#             
-#             # Load environment variables
-#             source .env.production || true
-#             
-#             # Build new images
-#             docker compose -f docker-compose.production.yml build
-#             
-#             # Run migrations (before switching traffic)
-#             docker compose -f docker-compose.production.yml run --rm app npm run db:migrate
-#             
-#             # Start new containers
-#             docker compose -f docker-compose.production.yml up -d
-#             
-#             # Health check
-#             sleep 15
-#             curl -f http://localhost:3000/api/health || exit 1
-#             
-#             # Clean up old images
-#             docker image prune -f
-#             
-#             echo "Production deployment complete"
-#       
-#       - name: Notify deployment success
-#         if: success()
-#         run: |
-#           echo "Production deployment successful!"
-#           echo "Commit: ${{ github.sha }}"
-#           echo "Branch: ${{ github.ref_name }}"
-#       
-#       - name: Notify deployment failure
-#         if: failure()
-#         run: |
-#           echo "Production deployment failed!"
-#           echo "Check logs and rollback if necessary"
+name: Deploy to Production
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:  # Allow manual deployment
+
+jobs:
+  # Only deploy if CI passed
+  check-ci:
+    name: Verify CI Passed
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - run: echo "CI passed, proceeding with deployment"
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: check-ci
+    environment: production
+
+    steps:
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd ~/docker-app-stack/apps/expense-tracker
+
+            echo "📦 Pulling latest code from main..."
+            GIT_SSH_COMMAND='ssh -i ~/.ssh/id_ed25519_github -o IdentitiesOnly=yes' git pull origin main
+
+            echo "🏗️  Building Docker images..."
+            docker compose -f docker-compose.production.yml build
+
+            echo "🚀 Deploying containers..."
+            docker compose -f docker-compose.production.yml up -d
+
+            echo "⏳ Waiting for services to start..."
+            sleep 15
+
+            echo "🏥 Running health check..."
+            curl -f http://localhost:3000/api/health || {
+              echo "❌ Health check failed!"
+              docker compose -f docker-compose.production.yml logs --tail=50
+              exit 1
+            }
+
+            echo "🧹 Cleaning up old Docker images..."
+            docker image prune -f
+
+            echo "✅ Deployment complete!"
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "✅ Production deployment successful!"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ Production deployment failed!"
+          echo "Check server logs for details"
