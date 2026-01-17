@@ -31,42 +31,42 @@ interface TableInfo {
 
 const TABLES: TableInfo[] = [
   {
-    name: "transactions",
+    name: "Transactions",
     description: "All transaction records",
-    warning: "This will delete all your transaction data!",
+    warning: "This will delete all transaction data!",
   },
   {
-    name: "businesses",
+    name: "Businesses",
     description: "Business records",
-    warning: "This will cascade delete all related transactions!",
+    warning: "This will cascade delete all related transactions.",
   },
   {
-    name: "cards",
+    name: "Cards",
     description: "Payment card records",
-    warning: "This will cascade delete all related transactions!",
+    warning: "This will cascade delete all related transactions.",
   },
   {
-    name: "upload_batches",
+    name: "Upload_batches",
     description: "Upload batch history",
   },
   {
-    name: "uploaded_files",
+    name: "Uploaded_files",
     description: "File upload records",
   },
   {
-    name: "subscriptions",
+    name: "Subscriptions",
     description: "Subscription records",
   },
   {
-    name: "business_merge_suggestions",
+    name: "Business_merge_suggestions",
     description: "Business merge suggestions",
   },
   {
-    name: "subscription_suggestions",
+    name: "Subscription_suggestions",
     description: "Subscription suggestions",
   },
   {
-    name: "processing_logs",
+    name: "Processing_logs",
     description: "Processing logs",
   },
 ];
@@ -100,7 +100,7 @@ export default function DatabaseAdminPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Database Management</h1>
         <p className="text-muted-foreground">
-          Clear database tables individually. Use with caution!
+          Clear database tables individually.
         </p>
       </div>
 
