@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { DatePicker } from '@/components/ui/date-picker';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -16,7 +16,7 @@ import { useMemo } from 'react';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Search, Filter } from 'lucide-react';
 
-type SortField = 'name' | 'transaction_count' | 'total_spent' | 'last_used_date';
+type SortField = 'name' | 'transaction_count' | 'total_spent' | 'last_used_date' | 'primary_category';
 type SortDirection = 'asc' | 'desc';
 type ApprovalFilter = 'all' | 'approved' | 'unapproved' | 'uncategorized';
 
@@ -144,6 +144,8 @@ export function BusinessFilters({ filters, onFilterChange }: BusinessFiltersProp
                 <SelectItem value="total_spent:asc">Total Spent (Low-High)</SelectItem>
                 <SelectItem value="last_used_date:desc">Last Used (Recent First)</SelectItem>
                 <SelectItem value="last_used_date:asc">Last Used (Oldest First)</SelectItem>
+                <SelectItem value="primary_category:asc">Category (A-Z)</SelectItem>
+                <SelectItem value="primary_category:desc">Category (Z-A)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -200,39 +202,31 @@ export function BusinessFilters({ filters, onFilterChange }: BusinessFiltersProp
         </div>
 
         {/* Row 3: Date Range & Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* From Date */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">From Date</label>
-            <DatePicker
-              value={filters.dateFrom}
-              onChange={(date) => onFilterChange({ dateFrom: date })}
-              placeholder="DD/MM/YYYY"
-            />
-          </div>
+        <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <DateRangePicker
+                fromValue={filters.dateFrom}
+                toValue={filters.dateTo}
+                onFromChange={(date) => onFilterChange({ dateFrom: date })}
+                onToChange={(date) => onFilterChange({ dateTo: date })}
+                fromLabel="Has Transactions From"
+                toLabel="To"
+                fromPlaceholder="DD/MM/YYYY"
+                toPlaceholder="DD/MM/YYYY"
+              />
+            </div>
 
-          {/* To Date */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">To Date</label>
-            <DatePicker
-              value={filters.dateTo}
-              onChange={(date) => onFilterChange({ dateTo: date })}
-              placeholder="DD/MM/YYYY"
-            />
-          </div>
-
-          {/* Empty spacer */}
-          <div></div>
-
-          {/* Clear Filters */}
-          <div className="flex items-end">
-            <Button
-              variant="outline"
-              onClick={handleClearFilters}
-              className="w-full"
-            >
-              Clear Filters
-            </Button>
+            {/* Clear Filters */}
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                onClick={handleClearFilters}
+                className="w-full"
+              >
+                Clear Filters
+              </Button>
+            </div>
           </div>
         </div>
       </div>

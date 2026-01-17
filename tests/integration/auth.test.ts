@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { generateToken, verifyToken, extractToken, hashPassword, verifyPassword } from '@/lib/utils/auth';
+import { generateToken, verifyToken, extractToken } from '@/lib/utils/auth';
+import { hashPassword, verifyPassword } from '@/lib/utils/auth-password';
 
 /**
  * Integration Tests: Authentication Utilities
@@ -9,44 +10,44 @@ import { generateToken, verifyToken, extractToken, hashPassword, verifyPassword 
 
 describe('Authentication Utilities', () => {
   describe('JWT Token Generation and Verification', () => {
-    it('should generate a valid JWT token', () => {
+    it('should generate a valid JWT token', async () => {
       const payload = {
         userId: 'test-user-123',
         email: 'test@example.com',
       };
-      
-      const token = generateToken(payload);
-      
+
+      const token = await generateToken(payload);
+
       expect(token).toBeTruthy();
       expect(typeof token).toBe('string');
       expect(token.split('.')).toHaveLength(3); // JWT has 3 parts
     });
 
-    it('should verify a valid token', () => {
+    it('should verify a valid token', async () => {
       const payload = {
         userId: 'test-user-123',
         email: 'test@example.com',
       };
-      
-      const token = generateToken(payload);
-      const decoded = verifyToken(token);
-      
+
+      const token = await generateToken(payload);
+      const decoded = await verifyToken(token);
+
       expect(decoded.userId).toBe(payload.userId);
       expect(decoded.email).toBe(payload.email);
       expect(decoded.iat).toBeTruthy();
       expect(decoded.exp).toBeTruthy();
     });
 
-    it('should reject an invalid token', () => {
+    it('should reject an invalid token', async () => {
       const invalidToken = 'invalid.token.here';
-      
-      expect(() => verifyToken(invalidToken)).toThrow();
+
+      await expect(verifyToken(invalidToken)).rejects.toThrow();
     });
 
-    it('should reject a malformed token', () => {
+    it('should reject a malformed token', async () => {
       const malformedToken = 'notavalidtoken';
-      
-      expect(() => verifyToken(malformedToken)).toThrow();
+
+      await expect(verifyToken(malformedToken)).rejects.toThrow();
     });
   });
 

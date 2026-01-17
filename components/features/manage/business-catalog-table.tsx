@@ -21,7 +21,7 @@ import { GitMerge, Pencil, Check, X, ArrowUp, ArrowDown, ArrowUpDown } from 'luc
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-type SortField = 'name' | 'total_spent' | 'transaction_count' | 'last_used_date';
+type SortField = 'name' | 'total_spent' | 'transaction_count' | 'last_used_date' | 'primary_category';
 type SortDirection = 'asc' | 'desc';
 type ApprovalFilter = 'all' | 'approved' | 'unapproved' | 'uncategorized';
 
@@ -83,6 +83,7 @@ export function BusinessCatalogTable() {
     if (field === 'total_spent') return direction === 'desc' ? 'total_spent' : 'total_spent_asc';
     if (field === 'transaction_count') return direction === 'desc' ? 'transaction_count' : 'transaction_count_asc';
     if (field === 'last_used_date') return direction === 'desc' ? 'last_used_date' : 'last_used_date_asc';
+    if (field === 'primary_category') return direction === 'asc' ? 'primary_category' : 'primary_category_desc';
     return 'name';
   };
 
@@ -91,7 +92,7 @@ export function BusinessCatalogTable() {
     search: filters.search,
     approvedOnly: filters.approvalFilter === 'approved' ? true : filters.approvalFilter === 'unapproved' ? false : undefined,
     sort: buildSortParam(filters.sortField, filters.sortDirection),
-    uncategorized: filters.uncategorized,
+    uncategorized: filters.uncategorized || filters.approvalFilter === 'uncategorized',
     parentCategoryIds: filters.parentCategoryIds.map(Number),
     childCategoryIds: filters.childCategoryIds.map(Number),
     dateFrom: filters.dateFrom,
@@ -228,7 +229,7 @@ export function BusinessCatalogTable() {
                 />
               </TableHead>
               <SortableHeader field="name" className="w-[300px]">Business Name</SortableHeader>
-              <TableHead>Category</TableHead>
+              <SortableHeader field="primary_category">Category</SortableHeader>
               <SortableHeader field="transaction_count" className="w-[100px] text-center">Transactions</SortableHeader>
               <SortableHeader field="total_spent" className="w-[120px] text-right">Total Spent</SortableHeader>
               <SortableHeader field="last_used_date" className="w-[120px]">Last Used</SortableHeader>

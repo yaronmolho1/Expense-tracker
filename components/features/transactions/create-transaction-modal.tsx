@@ -305,10 +305,14 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
             <div>
               <Label htmlFor="paymentType">Payment Type</Label>
               <Select
-                value={formData.paymentType}
-                onValueChange={(value: 'one_time' | 'installments') =>
-                  setFormData({ ...formData, paymentType: value })
-                }
+                value={formData.isRefund ? 'refund' : formData.paymentType}
+                onValueChange={(value: 'one_time' | 'installments' | 'refund') => {
+                  if (value === 'refund') {
+                    setFormData({ ...formData, paymentType: 'one_time', isRefund: true });
+                  } else {
+                    setFormData({ ...formData, paymentType: value, isRefund: false });
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -316,6 +320,7 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
                 <SelectContent>
                   <SelectItem value="one_time">One-time</SelectItem>
                   <SelectItem value="installments">Installments</SelectItem>
+                  <SelectItem value="refund">Refund</SelectItem>
                 </SelectContent>
               </Select>
             </div>

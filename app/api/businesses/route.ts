@@ -100,6 +100,12 @@ export async function GET(request: Request) {
       case 'last_used_date_asc':
         orderClause = sql.raw('ORDER BY last_used_date ASC NULLS LAST');
         break;
+      case 'primary_category':
+        orderClause = sql.raw('ORDER BY (SELECT name FROM categories WHERE id = b.primary_category_id) ASC NULLS LAST');
+        break;
+      case 'primary_category_desc':
+        orderClause = sql.raw('ORDER BY (SELECT name FROM categories WHERE id = b.primary_category_id) DESC NULLS LAST');
+        break;
       default:
         orderClause = sql.raw('ORDER BY b.display_name ASC');
     }

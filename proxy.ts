@@ -22,7 +22,7 @@ function isPublicPath(pathname: string): boolean {
 }
 
 // Next.js 16 requires the function to be named "proxy"
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public paths
@@ -60,7 +60,7 @@ export function proxy(request: NextRequest) {
 
   // Verify token
   try {
-    verifyToken(token);
+    await verifyToken(token);
     return NextResponse.next();
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid token';

@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { DatePicker } from '@/components/ui/date-picker';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import {
   Select,
   SelectContent,
@@ -152,28 +152,22 @@ export function TransactionFilters({ filters, onFilterChange }: TransactionFilte
           </div>
         </div>
 
-        {/* Row 2: Dates, Card, Type, Status */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Date From */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">From Date</label>
-            <DatePicker
-              value={filters.dateFrom}
-              onChange={(date) => onFilterChange({ ...filters, dateFrom: date })}
-              placeholder="DD/MM/YYYY"
-            />
-          </div>
+        {/* Row 2: Date Range */}
+        <div className="grid grid-cols-1 gap-4">
+          <DateRangePicker
+            fromValue={filters.dateFrom}
+            toValue={filters.dateTo}
+            onFromChange={(date) => onFilterChange({ ...filters, dateFrom: date })}
+            onToChange={(date) => onFilterChange({ ...filters, dateTo: date })}
+            fromLabel="From Date"
+            toLabel="To Date"
+            fromPlaceholder="DD/MM/YYYY"
+            toPlaceholder="DD/MM/YYYY"
+          />
+        </div>
 
-          {/* Date To */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">To Date</label>
-            <DatePicker
-              value={filters.dateTo}
-              onChange={(date) => onFilterChange({ ...filters, dateTo: date })}
-              placeholder="DD/MM/YYYY"
-            />
-          </div>
-
+        {/* Row 3: Card, Type */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Card */}
           <div>
             <label className="text-sm font-medium mb-2 block">Card</label>
@@ -209,7 +203,7 @@ export function TransactionFilters({ filters, onFilterChange }: TransactionFilte
           </div>
         </div>
 
-        {/* Row 3: Status, Sort, Clear */}
+        {/* Row 4: Status, Sort, Clear */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Status */}
           <div>

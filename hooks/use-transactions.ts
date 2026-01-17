@@ -204,6 +204,7 @@ export interface CreateTransactionPayload {
   primaryCategoryId?: number;
   childCategoryId?: number;
   notes?: string;
+  isRefund?: boolean;
 }
 
 export function useCreateTransaction() {
