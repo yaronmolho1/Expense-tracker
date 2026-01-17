@@ -32,7 +32,7 @@ describe('Business Filters - Combined Integration', () => {
       const toStr = dateTo.toISOString().split('T')[0];
 
       const response = await fetch(
-        `${BASE_URL}/api/businesses?uncategorized=true&date_from=${fromStr}&date_to=${dateTo}`,
+        `${BASE_URL}/api/businesses?uncategorized=true&date_from=${fromStr}&date_to=${toStr}`,
         {
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -68,7 +68,7 @@ describe('Business Filters - Combined Integration', () => {
       const toStr = dateTo.toISOString().split('T')[0];
 
       const response = await fetch(
-        `${BASE_URL}/api/businesses?uncategorized=true&date_from=${fromStr}&date_to=${dateTo}`,
+        `${BASE_URL}/api/businesses?uncategorized=true&date_from=${fromStr}&date_to=${toStr}`,
         {
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -134,7 +134,7 @@ describe('Business Filters - Combined Integration', () => {
       const toStr = dateTo.toISOString().split('T')[0];
 
       const response = await fetch(
-        `${BASE_URL}/api/businesses?parent_category_ids=${categoryId}&date_from=${fromStr}&date_to=${dateTo}&search=${encodeURIComponent(searchTerm)}`,
+        `${BASE_URL}/api/businesses?parent_category_ids=${categoryId}&date_from=${fromStr}&date_to=${toStr}&search=${encodeURIComponent(searchTerm)}`,
         {
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -188,7 +188,7 @@ describe('Business Filters - Combined Integration', () => {
       const toStr = dateTo.toISOString().split('T')[0];
 
       const response = await fetch(
-        `${BASE_URL}/api/businesses?approved_only=true&date_from=${fromStr}&date_to=${dateTo}`,
+        `${BASE_URL}/api/businesses?approved_only=true&date_from=${fromStr}&date_to=${toStr}`,
         {
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -217,7 +217,7 @@ describe('Business Filters - Combined Integration', () => {
       const toStr = dateTo.toISOString().split('T')[0];
 
       const response = await fetch(
-        `${BASE_URL}/api/businesses?approved_only=false&date_from=${fromStr}&date_to=${dateTo}`,
+        `${BASE_URL}/api/businesses?approved_only=false&date_from=${fromStr}&date_to=${toStr}`,
         {
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -267,7 +267,7 @@ describe('Business Filters - Combined Integration', () => {
       const toStr = dateTo.toISOString().split('T')[0];
 
       const response = await fetch(
-        `${BASE_URL}/api/businesses?parent_category_ids=${categoryId}&approved_only=true&date_from=${fromStr}&date_to=${dateTo}&search=${encodeURIComponent(searchTerm)}`,
+        `${BASE_URL}/api/businesses?parent_category_ids=${categoryId}&approved_only=true&date_from=${fromStr}&date_to=${toStr}&search=${encodeURIComponent(searchTerm)}`,
         {
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -296,7 +296,7 @@ describe('Business Filters - Combined Integration', () => {
       const toStr = dateTo.toISOString().split('T')[0];
 
       const response = await fetch(
-        `${BASE_URL}/api/businesses?uncategorized=true&approved_only=false&date_from=${fromStr}&date_to=${dateTo}`,
+        `${BASE_URL}/api/businesses?uncategorized=true&approved_only=false&date_from=${fromStr}&date_to=${toStr}`,
         {
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -393,7 +393,7 @@ describe('Business Filters - Combined Integration', () => {
       const toStr = dateTo.toISOString().split('T')[0];
 
       const response = await fetch(
-        `${BASE_URL}/api/businesses?date_from=${fromStr}&date_to=${dateTo}&sort=transaction_count`,
+        `${BASE_URL}/api/businesses?date_from=${fromStr}&date_to=${toStr}&sort=transaction_count`,
         {
           headers: {
             'Authorization': `Bearer ${authToken}`,
