@@ -46,8 +46,14 @@ async function loginWithCookies(page: Page) {
 test.describe('Business Management - Combined Filters E2E', () => {
   test.beforeEach(async ({ page }) => {
     await loginWithCookies(page);
-    await page.goto('/manage/subscriptions');
+    await page.goto('/manage/businesses');
     await page.waitForLoadState('networkidle');
+
+    // Wait for the page to finish loading - ensure "Loading..." text is gone
+    await page.waitForFunction(
+      () => !document.body.textContent?.includes('Loading filters...'),
+      { timeout: 10000 }
+    );
   });
 
   test.describe('Filter UI Presence', () => {
