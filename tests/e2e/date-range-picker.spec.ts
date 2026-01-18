@@ -70,7 +70,8 @@ test.describe('DateRangePicker E2E Tests', () => {
   test.describe('Date Selection', () => {
     test('should allow selecting a "From" date', async ({ page }) => {
       // Open the "From Date" picker
-      const fromButton = page.locator('button').filter({ hasText: /Has Transactions From|DD\/MM\/YYYY/ }).first();
+      // Find the "From" date button (first date picker button in the date range section)
+      const fromButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).first();
       await fromButton.click();
 
       // Wait for calendar to appear
@@ -90,14 +91,16 @@ test.describe('DateRangePicker E2E Tests', () => {
 
     test('should allow selecting a "To" date', async ({ page }) => {
       // First set a "From" date
-      const fromButton = page.locator('button').filter({ hasText: /Has Transactions From|DD\/MM\/YYYY/ }).first();
+      // Find the "From" date button (first date picker button in the date range section)
+      const fromButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
       await page.locator('[role="gridcell"]:has-text("10")').first().click();
       await page.waitForTimeout(500);
 
       // Now select "To" date
-      const toButton = page.locator('button').filter({ hasText: /To|DD\/MM\/YYYY/ }).last();
+      // Find the "To" date button (second date picker button in the date range section)
+      const toButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).nth(1);
       await toButton.click();
       await page.waitForSelector('[role="grid"]');
       await page.locator('[role="gridcell"]:has-text("25")').first().click();
@@ -112,7 +115,8 @@ test.describe('DateRangePicker E2E Tests', () => {
   test.describe('Test 2.1: Date Disabling in "To" Picker', () => {
     test('should disable dates before "From Date" in "To" picker', async ({ page }) => {
       // Set "From Date" to the 15th
-      const fromButton = page.locator('button').filter({ hasText: /Has Transactions From|DD\/MM\/YYYY/ }).first();
+      // Find the "From" date button (first date picker button in the date range section)
+      const fromButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
 
@@ -121,7 +125,8 @@ test.describe('DateRangePicker E2E Tests', () => {
       await page.waitForTimeout(500);
 
       // Open "To Date" picker
-      const toButton = page.locator('button').filter({ hasText: /To|DD\/MM\/YYYY/ }).last();
+      // Find the "To" date button (second date picker button in the date range section)
+      const toButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).nth(1);
       await toButton.click();
       await page.waitForSelector('[role="grid"]');
 
@@ -143,7 +148,8 @@ test.describe('DateRangePicker E2E Tests', () => {
   test.describe('Test 2.3: Calendar Opens to Correct Month', () => {
     test('should open "To" calendar to same month as "From" when "To" is empty', async ({ page }) => {
       // Set "From Date" to a specific month (e.g., select a date showing the month)
-      const fromButton = page.locator('button').filter({ hasText: /Has Transactions From|DD\/MM\/YYYY/ }).first();
+      // Find the "From" date button (first date picker button in the date range section)
+      const fromButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
 
@@ -157,7 +163,8 @@ test.describe('DateRangePicker E2E Tests', () => {
       await page.waitForTimeout(500);
 
       // Open "To Date" picker
-      const toButton = page.locator('button').filter({ hasText: /To|DD\/MM\/YYYY/ }).last();
+      // Find the "To" date button (second date picker button in the date range section)
+      const toButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).nth(1);
       await toButton.click();
       await page.waitForSelector('[role="grid"]');
 
@@ -170,13 +177,15 @@ test.describe('DateRangePicker E2E Tests', () => {
   test.describe('Test 2.5: Independent Clearing', () => {
     test('should allow clearing dates independently', async ({ page }) => {
       // Set both dates
-      const fromButton = page.locator('button').filter({ hasText: /Has Transactions From|DD\/MM\/YYYY/ }).first();
+      // Find the "From" date button (first date picker button in the date range section)
+      const fromButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
       await page.locator('[role="gridcell"]:has-text("10")').first().click();
       await page.waitForTimeout(500);
 
-      const toButton = page.locator('button').filter({ hasText: /To|DD\/MM\/YYYY/ }).last();
+      // Find the "To" date button (second date picker button in the date range section)
+      const toButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).nth(1);
       await toButton.click();
       await page.waitForSelector('[role="grid"]');
       await page.locator('[role="gridcell"]:has-text("25")').first().click();
@@ -195,7 +204,8 @@ test.describe('DateRangePicker E2E Tests', () => {
   test.describe('Integration with Business Filters', () => {
     test('should filter businesses by date range', async ({ page }) => {
       // Set a date range
-      const fromButton = page.locator('button').filter({ hasText: /Has Transactions From|DD\/MM\/YYYY/ }).first();
+      // Find the "From" date button (first date picker button in the date range section)
+      const fromButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
       await page.locator('[role="gridcell"]:has-text("1")').first().click();
@@ -212,7 +222,8 @@ test.describe('DateRangePicker E2E Tests', () => {
 
     test('should clear date filters when dates are removed', async ({ page }) => {
       // Set a date
-      const fromButton = page.locator('button').filter({ hasText: /Has Transactions From|DD\/MM\/YYYY/ }).first();
+      // Find the "From" date button (first date picker button in the date range section)
+      const fromButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
       await page.locator('[role="gridcell"]:has-text("10")').first().click();
@@ -231,7 +242,8 @@ test.describe('DateRangePicker E2E Tests', () => {
   test.describe('Display Format', () => {
     test('should display selected dates in DD/MM/YYYY format', async ({ page }) => {
       // Select a date
-      const fromButton = page.locator('button').filter({ hasText: /Has Transactions From|DD\/MM\/YYYY/ }).first();
+      // Find the "From" date button (first date picker button in the date range section)
+      const fromButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
       await page.locator('[role="gridcell"]:has-text("15")').first().click();

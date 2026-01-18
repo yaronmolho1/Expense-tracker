@@ -12,6 +12,9 @@ export default function TimeFlowPage() {
     monthsBack: 6,
     monthsForward: 6,
     cardIds: [] as string[],
+    parentCategoryIds: [] as string[],
+    childCategoryIds: [] as string[],
+    uncategorized: false,
   });
 
   const [selectedCell, setSelectedCell] = useState<{

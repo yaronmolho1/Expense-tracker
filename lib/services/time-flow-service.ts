@@ -204,6 +204,13 @@ export async function queryTimeFlow(
         mainCat.subCategories.forEach((subCat) => {
           if (subCat.subCategoryId === categoryId) {
             subCat.monthlyBudgets[yearMonth] = parseFloat(budget.budgetAmount);
+            // Set budget period and annual amount (only needs to be set once)
+            if (!subCat.budgetPeriod) {
+              subCat.budgetPeriod = budget.budgetPeriod;
+              if (budget.budgetPeriod === 'annual') {
+                subCat.annualBudgetAmount = parseFloat(budget.budgetAmount);
+              }
+            }
           }
         });
       });
