@@ -389,12 +389,12 @@ describe('Time Flow Service', () => {
     it('should set annual budget amount only for annual budgets', () => {
       const annualBudgetData = {
         budgetAmount: '12000',
-        budgetPeriod: 'annual' as const,
+        budgetPeriod: 'annual' as 'annual' | 'monthly',
       };
 
       const monthlyBudgetData = {
         budgetAmount: '1000',
-        budgetPeriod: 'monthly' as const,
+        budgetPeriod: 'monthly' as 'annual' | 'monthly',
       };
 
       // Annual budget should store the amount
