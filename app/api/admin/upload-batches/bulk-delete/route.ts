@@ -1,55 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { uploadBatches, uploadedFiles, transactions } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import logger from '@/lib/logger';
+import { z } from 'zod';
 
-type RouteParams = {
-  params: Promise<{
-    batchId: string;
-  }>;
-};
+const bulkDeleteSchema = z.object({
+  batchIds: z.array(z.number()).min(1, 'At least one batch ID is required'),
+  installmentStrategy: z.enum(['delete_matching', 'delete_all', 'skip']).optional(),
+});
 
 type InstallmentStrategy = 'delete_matching' | 'delete_all' | 'skip';
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function POST(request: NextRequest) {
   try {
-    const { batchId } = await params;
-    const batchIdNum = parseInt(batchId, 10);
+    const body = await request.json();
+    const validation = bulkDeleteSchema.safeParse(body);
 
-    if (isNaN(batchIdNum)) {
-      return NextResponse.json({ error: 'Invalid batch ID' }, { status: 400 });
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Invalid request', details: validation.error.errors },
+        { status: 400 }
+      );
     }
 
-    // Get installmentStrategy from query params
-    const { searchParams } = new URL(request.url);
-    const installmentStrategy = searchParams.get('installmentStrategy') as InstallmentStrategy | null;
+    const { batchIds, installmentStrategy } = validation.data;
 
-    // Check if batch exists
-    const batch = await db.query.uploadBatches.findFirst({
-      where: eq(uploadBatches.id, batchIdNum),
+    // Fetch all batches to verify they exist
+    const batches = await db.query.uploadBatches.findMany({
+      where: inArray(uploadBatches.id, batchIds),
     });
 
-    if (!batch) {
-      return NextResponse.json({ error: 'Batch not found' }, { status: 404 });
+    if (batches.length !== batchIds.length) {
+      return NextResponse.json(
+        { error: 'Some batches not found' },
+        { status: 404 }
+      );
     }
 
-    // Fetch all transactions in this batch with business information
-    const batchTransactions = await db.query.transactions.findMany({
-      where: eq(transactions.uploadBatchId, batchIdNum),
+    // Fetch all transactions across all batches
+    const allBatchTransactions = await db.query.transactions.findMany({
+      where: inArray(transactions.uploadBatchId, batchIds),
       with: {
         business: true,
       },
     });
 
     // Group transactions by installmentGroupId
-    const installmentGroups = new Map<string, typeof batchTransactions>();
-    const oneTimeTransactions: typeof batchTransactions = [];
+    const installmentGroups = new Map<string, typeof allBatchTransactions>();
+    const oneTimeTransactions: typeof allBatchTransactions = [];
 
-    batchTransactions.forEach(tx => {
+    allBatchTransactions.forEach(tx => {
       if (tx.installmentGroupId) {
         const group = installmentGroups.get(tx.installmentGroupId) || [];
         group.push(tx);
@@ -91,70 +92,77 @@ export async function DELETE(
     if (partialInstallments.length > 0 && !installmentStrategy) {
       return NextResponse.json({
         requiresConfirmation: true,
-        batchInfo: {
-          id: batchIdNum,
-          fileCount: batch.fileCount || 0,
-          totalTransactions: batchTransactions.length,
-        },
+        batchInfo: batches.map(b => ({
+          id: b.id,
+          fileCount: b.fileCount || 0,
+          totalTransactions: allBatchTransactions.filter(tx => tx.uploadBatchId === b.id).length,
+        })),
         oneTimeTransactions: oneTimeTransactions.length,
         partialInstallments,
       }, { status: 400 });
     }
 
     // Stage 2: Execute deletion based on strategy
-    let deletedCount = 0;
+    let totalDeletedTransactions = 0;
+    let totalDeletedFiles = 0;
 
     if (!installmentStrategy || installmentStrategy === 'delete_matching') {
-      // Delete only transactions in this batch
+      // Delete only transactions in these batches
       const deleted = await db.delete(transactions)
-        .where(eq(transactions.uploadBatchId, batchIdNum))
+        .where(inArray(transactions.uploadBatchId, batchIds))
         .returning();
-      deletedCount = deleted.length;
+      totalDeletedTransactions = deleted.length;
     } else if (installmentStrategy === 'delete_all') {
       // Delete entire installment groups
       for (const groupId of installmentGroups.keys()) {
         const deleted = await db.delete(transactions)
           .where(eq(transactions.installmentGroupId, groupId))
           .returning();
-        deletedCount += deleted.length;
+        totalDeletedTransactions += deleted.length;
       }
       // Also delete one-time transactions
       for (const tx of oneTimeTransactions) {
         await db.delete(transactions).where(eq(transactions.id, tx.id));
-        deletedCount++;
+        totalDeletedTransactions++;
       }
     } else if (installmentStrategy === 'skip') {
       // Only delete one-time transactions
       for (const tx of oneTimeTransactions) {
         await db.delete(transactions).where(eq(transactions.id, tx.id));
-        deletedCount++;
+        totalDeletedTransactions++;
       }
     }
 
-    // Delete all uploaded files from this batch
+    // Delete all uploaded files from these batches
     const deletedFiles = await db.delete(uploadedFiles)
-      .where(eq(uploadedFiles.uploadBatchId, batchIdNum))
+      .where(inArray(uploadedFiles.uploadBatchId, batchIds))
       .returning();
+    totalDeletedFiles = deletedFiles.length;
 
-    // Delete the batch itself
+    // Delete the batches themselves
     await db.delete(uploadBatches)
-      .where(eq(uploadBatches.id, batchIdNum));
+      .where(inArray(uploadBatches.id, batchIds));
 
     logger.info({
-      batchId: batchIdNum,
-      deletedTransactions: deletedCount,
-      deletedFiles: deletedFiles.length,
+      batchIds,
+      deletedBatches: batchIds.length,
+      deletedTransactions: totalDeletedTransactions,
+      deletedFiles: totalDeletedFiles,
       installmentStrategy,
-    }, 'Batch deleted');
+    }, 'Bulk batch deletion completed');
 
     return NextResponse.json({
       success: true,
-      deletedTransactions: deletedCount,
-      deletedFiles: deletedFiles.length,
+      deletedBatches: batchIds.length,
+      deletedTransactions: totalDeletedTransactions,
+      deletedFiles: totalDeletedFiles,
     });
 
   } catch (error) {
-    logger.error(error, 'Failed to delete batch');
-    return NextResponse.json({ error: 'Failed to delete batch' }, { status: 500 });
+    logger.error(error, 'Failed to bulk delete batches');
+    return NextResponse.json(
+      { error: 'Failed to bulk delete batches' },
+      { status: 500 }
+    );
   }
 }

@@ -20,8 +20,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, AlertTriangle } from "lucide-react";
+import { Trash2, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { BulkDeleteTransactionsDialog } from "./components/bulk-delete-transactions-dialog";
+import { UploadBatchesSection } from "./components/upload-batches-section";
 
 interface TableInfo {
   name: string;
@@ -73,6 +75,8 @@ const TABLES: TableInfo[] = [
 
 export default function DatabaseAdminPage() {
   const [clearing, setClearing] = useState<string | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [uploadHistoryOpen, setUploadHistoryOpen] = useState(false);
 
   const handleClearTable = async (tableName: string) => {
     setClearing(tableName);
@@ -100,7 +104,7 @@ export default function DatabaseAdminPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Database Management</h1>
         <p className="text-muted-foreground">
-          Clear database tables individually.
+          Clear database tables individually and manage bulk deletions.
         </p>
       </div>
 
@@ -114,6 +118,26 @@ export default function DatabaseAdminPage() {
           </p>
         </div>
       </div>
+
+      {/* Bulk Transaction Deletion */}
+      <Card className="mb-6">
+        <CardHeader className="cursor-pointer" onClick={() => setBulkDeleteOpen(!bulkDeleteOpen)}>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Bulk Transaction Deletion</CardTitle>
+              <CardDescription>
+                Delete transactions within a specific date range with filters
+              </CardDescription>
+            </div>
+            {bulkDeleteOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+          </div>
+        </CardHeader>
+        {bulkDeleteOpen && (
+          <CardContent>
+            <BulkDeleteTransactionsDialog />
+          </CardContent>
+        )}
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         {TABLES.map((table) => (
@@ -169,6 +193,26 @@ export default function DatabaseAdminPage() {
           </Card>
         ))}
       </div>
+
+      {/* Upload History - at bottom, collapsible */}
+      <Card className="mt-6">
+        <CardHeader className="cursor-pointer" onClick={() => setUploadHistoryOpen(!uploadHistoryOpen)}>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Upload History</CardTitle>
+              <CardDescription>
+                View and manage file uploads and their associated transactions
+              </CardDescription>
+            </div>
+            {uploadHistoryOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+          </div>
+        </CardHeader>
+        {uploadHistoryOpen && (
+          <CardContent>
+            <UploadBatchesSection />
+          </CardContent>
+        )}
+      </Card>
     </div>
   );
 }
