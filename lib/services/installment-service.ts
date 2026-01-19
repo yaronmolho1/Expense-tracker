@@ -154,15 +154,18 @@ export async function createInstallmentGroup(params: CreateInstallmentGroupParam
     });
   }
 
-  // Batch insert projected payments
+  // Batch insert projected payments and get their IDs
+  let projectedIds: number[] = [];
   if (projectedPayments.length > 0) {
-    await db.insert(transactions).values(projectedPayments);
+    const insertedProjected = await db.insert(transactions).values(projectedPayments).returning();
+    projectedIds = insertedProjected.map(t => t.id);
   }
 
   return {
     groupId,
     firstPaymentId: firstPayment.id,
     projectedCount: projectedPayments.length,
+    allTransactionIds: [firstPayment.id, ...projectedIds], // All IDs created in this group
   };
 }
 
@@ -366,8 +369,9 @@ export async function createInstallmentGroupFromMiddle(params: CreateInstallment
     });
   }
 
-  // Batch insert all payments
-  await db.insert(transactions).values(allPayments);
+  // Batch insert all payments and get their IDs
+  const insertedPayments = await db.insert(transactions).values(allPayments).returning();
+  const allTransactionIds = insertedPayments.map(t => t.id);
 
   return {
     groupId,
@@ -375,6 +379,7 @@ export async function createInstallmentGroupFromMiddle(params: CreateInstallment
     currentPaymentIndex: currentIndex,
     projectedCount: total - currentIndex,
     totalCreated: total,
+    allTransactionIds, // All IDs created in this group (backfilled + current + projected)
   };
 }
 
@@ -418,7 +423,7 @@ export async function findCompletedPayment1(groupId: string) {
 /**
  * Check if this EXACT transaction already exists (for idempotency)
  * Searches by metadata regardless of group ID
- * CRITICAL: Uses Total Deal Sum from file (not calculated) + batch exclusion for twin handling
+ * CRITICAL: Uses Total Deal Sum from file (not calculated) + same-file-same-batch exclusion for twin handling
  */
 export async function findExactDuplicate(params: {
   businessId: number;
@@ -427,12 +432,13 @@ export async function findExactDuplicate(params: {
   installmentTotal: number;
   installmentIndex: number;
   originalAmount: number; // Total deal sum from file (e.g., 3,099)
-  currentBatchId: number; // Exclude transactions from this batch
+  currentSourceFile: string; // Current file being processed
+  currentBatchId: number; // Current batch being processed
   processedIds: Set<number>; // Exclude IDs already processed in this batch
 }) {
   const amountTolerance = params.originalAmount * 0.01;
-  
-  // Build exclusion conditions
+
+  // Build matching conditions
   const conditions = [
     eq(transactions.businessId, params.businessId),
     eq(transactions.cardId, params.cardId),
@@ -442,9 +448,13 @@ export async function findExactDuplicate(params: {
     eq(transactions.status, 'completed'), // Only check completed (ignore projected)
     // CRITICAL: Match on TOTAL DEAL SUM from file (same for all payments in the installment)
     sql`${transactions.originalAmount}::numeric BETWEEN ${params.originalAmount - amountTolerance} AND ${params.originalAmount + amountTolerance}`,
-    // Exclude current batch (allows twin purchases in same file)
-    not(eq(transactions.uploadBatchId, params.currentBatchId))
   ];
+
+  // CRITICAL: Exclude ONLY same file + same batch (allows cross-file in same batch AND same file in different batch)
+  // This prevents twins in same file from matching each other while allowing legitimate updates
+  conditions.push(
+    sql`NOT (${transactions.sourceFile} = ${params.currentSourceFile} AND ${transactions.uploadBatchId} = ${params.currentBatchId})`
+  );
   
   // Exclude already processed IDs in this batch (prevents twin latching)
   if (params.processedIds.size > 0) {
@@ -520,7 +530,7 @@ export async function countGroupsWithBaseId(baseGroupId: string) {
 /**
  * Find orphaned backfilled Payment 1 by metadata (business, card, date, amount)
  * Used to match "Salted Orphans" when real Payment 1 arrives
- * 
+ *
  * The "Salted Orphan" problem:
  * 1. User uploads Payment 2/24 first
  * 2. Twin A creates standard group (baseGroupId)
@@ -530,7 +540,7 @@ export async function countGroupsWithBaseId(baseGroupId: string) {
  * 6. Twin A finds its Payment 1 by hash
  * 7. Twin B cannot find its Payment 1 by hash (salted ID is unpredictable)
  * 8. This function finds Twin B's Payment 1 by matching metadata instead
- * 
+ *
  * Uses Total Deal Sum from file for perfect mathematical matching
  */
 export async function findOrphanedBackfilledPayment1(params: {
@@ -540,12 +550,13 @@ export async function findOrphanedBackfilledPayment1(params: {
   installmentTotal: number;
   originalAmount: number; // Total deal sum from file
   baseGroupId: string; // Exclude this ID from search
-  currentBatchId: number; // Exclude transactions from current batch
+  currentSourceFile: string; // Current file being processed
+  currentBatchId: number; // Current batch being processed
   processedIds: Set<number>; // Exclude IDs already processed in this batch
 }) {
   const amountTolerance = params.originalAmount * 0.01;
-  
-  // Build exclusion conditions
+
+  // Build matching conditions
   const conditions = [
     eq(transactions.businessId, params.businessId),
     eq(transactions.cardId, params.cardId),
@@ -557,9 +568,12 @@ export async function findOrphanedBackfilledPayment1(params: {
     sql`${transactions.originalAmount}::numeric BETWEEN ${params.originalAmount - amountTolerance} AND ${params.originalAmount + amountTolerance}`,
     // ONLY exclude the standard hash we just checked
     not(eq(transactions.installmentGroupId, params.baseGroupId)),
-    // Exclude current batch
-    not(eq(transactions.uploadBatchId, params.currentBatchId))
   ];
+
+  // CRITICAL: Exclude ONLY same file + same batch (allows cross-file in same batch AND same file in different batch)
+  conditions.push(
+    sql`NOT (${transactions.sourceFile} = ${params.currentSourceFile} AND ${transactions.uploadBatchId} = ${params.currentBatchId})`
+  );
   
   // Exclude already processed IDs in this batch (prevents twin latching)
   if (params.processedIds.size > 0) {

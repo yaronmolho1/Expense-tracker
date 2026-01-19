@@ -85,12 +85,13 @@ export function FileUploadZone({ onUploadComplete }: FileUploadZoneProps) {
       }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Upload failed');
+        throw new Error(data.error || data.message || 'Upload failed');
       }
 
       onUploadComplete(data.batch_id);
     } catch (err) {
-      setError('Upload failed. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Upload failed. Please try again.';
+      setError(errorMessage);
       setUploading(false);
     }
   };

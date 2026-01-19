@@ -14,7 +14,7 @@ import { test, expect, Page } from '@playwright/test';
  * Helper function to login with explicit cookie handling
  */
 async function loginWithCookies(page: Page) {
-  await page.goto('/login', { waitUntil: 'networkidle' });
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('input[name="username"]', { timeout: 10000 });
   await page.fill('input[name="username"]', 'gili');
   await page.fill('input[name="password"]', 'y1a3r5o7n');
@@ -38,7 +38,7 @@ async function loginWithCookies(page: Page) {
 
   const currentUrl = page.url();
   if (!currentUrl.includes(':3000/') || currentUrl.includes('/login')) {
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
   }
 
   await expect(page).toHaveURL('/', { timeout: 5000 });
@@ -51,8 +51,7 @@ test.describe('Bulk Delete Transactions', () => {
 
   test.describe('Preview and Cancel Flow', () => {
     test('user can preview deletion and cancel', async ({ page }) => {
-      await page.goto('/admin/database');
-      await page.waitForLoadState('networkidle');
+      await page.goto('/admin/database', { waitUntil: 'domcontentloaded' });
 
       // Open bulk delete dialog
       const deleteButton = page.locator('button:has-text("Delete Transactions Based on Filters")');
@@ -91,7 +90,7 @@ test.describe('Bulk Delete Transactions', () => {
   test.describe('Delete One-time Transactions Only', () => {
     test('user can delete only one-time transactions', async ({ page }) => {
       await page.goto('/admin/database');
-      await page.waitForLoadState('networkidle');
+      
 
       // Open dialog
       await page.click('button:has-text("Delete Transactions Based on Filters")');
@@ -139,7 +138,7 @@ test.describe('Bulk Delete Transactions', () => {
   test.describe('Installment Strategy Selection', () => {
     test('user can select delete entire payment plans strategy', async ({ page }) => {
       await page.goto('/admin/database');
-      await page.waitForLoadState('networkidle');
+      
 
       await page.click('button:has-text("Delete Transactions Based on Filters")');
       await page.waitForSelector('[role="dialog"]');
@@ -176,7 +175,7 @@ test.describe('Bulk Delete Transactions', () => {
 
     test('user can select delete only matching payments strategy', async ({ page }) => {
       await page.goto('/admin/database');
-      await page.waitForLoadState('networkidle');
+      
 
       await page.click('button:has-text("Delete Transactions Based on Filters")');
       await page.waitForSelector('[role="dialog"]');
@@ -204,7 +203,7 @@ test.describe('Bulk Delete Transactions', () => {
   test.describe('Subscription Handling', () => {
     test('user sees warning for affected subscriptions', async ({ page }) => {
       await page.goto('/admin/database');
-      await page.waitForLoadState('networkidle');
+      
 
       await page.click('button:has-text("Delete Transactions Based on Filters")');
       await page.waitForSelector('[role="dialog"]');
@@ -250,7 +249,7 @@ test.describe('Bulk Delete Transactions', () => {
       });
 
       await page.goto('/admin/database');
-      await page.waitForLoadState('networkidle');
+      
 
       await page.click('button:has-text("Delete Transactions Based on Filters")');
       await page.waitForSelector('[role="dialog"]');
@@ -270,7 +269,7 @@ test.describe('Bulk Delete Transactions', () => {
   test.describe('Delete Button State', () => {
     test('delete button is disabled when all checkboxes unchecked', async ({ page }) => {
       await page.goto('/admin/database');
-      await page.waitForLoadState('networkidle');
+      
 
       await page.click('button:has-text("Delete Transactions Based on Filters")');
       await page.waitForSelector('[role="dialog"]');
@@ -287,7 +286,6 @@ test.describe('Bulk Delete Transactions', () => {
 
       for (let i = 0; i < count; i++) {
         await checkboxes.nth(0).click(); // Always click first since list shrinks
-        await page.waitForTimeout(100); // Small delay for UI update
       }
 
       // Verify delete button shows 0 and is disabled
@@ -300,7 +298,7 @@ test.describe('Bulk Delete Transactions', () => {
   test.describe('Visual Elements', () => {
     test('displays transaction count correctly', async ({ page }) => {
       await page.goto('/admin/database');
-      await page.waitForLoadState('networkidle');
+      
 
       await page.click('button:has-text("Delete Transactions Based on Filters")');
       await page.waitForSelector('[role="dialog"]');
@@ -320,7 +318,7 @@ test.describe('Bulk Delete Transactions', () => {
 
     test('displays warning icons for partial groups', async ({ page }) => {
       await page.goto('/admin/database');
-      await page.waitForLoadState('networkidle');
+      
 
       await page.click('button:has-text("Delete Transactions Based on Filters")');
       await page.waitForSelector('[role="dialog"]');

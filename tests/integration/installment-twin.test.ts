@@ -206,6 +206,7 @@ describe('Installment Twin & Backfill Logic', () => {
         installmentTotal,
         originalAmount: totalPaymentSum,
         baseGroupId, // Exclude standard hash
+        currentSourceFile: 'different-file.xlsx', // Different file
         currentBatchId: testBatchId + 1, // Different batch
         processedIds: new Set(),
       });
@@ -408,6 +409,7 @@ describe('Installment Twin & Backfill Logic', () => {
         installmentTotal,
         originalAmount: totalPaymentSum,
         baseGroupId,
+        currentSourceFile: 'file2.xlsx',
         currentBatchId: newBatchId,
         processedIds: new Set(),
       });
@@ -579,6 +581,7 @@ describe('Installment Twin & Backfill Logic', () => {
         installmentTotal,
         installmentIndex: 1,
         originalAmount: totalPaymentSum,
+        currentSourceFile: 'different-file.xlsx', // Different file
         currentBatchId: testBatchId + 1, // Different batch
         processedIds: new Set(),
       });

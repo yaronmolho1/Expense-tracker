@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { uploadBatches, uploadedFiles } from '@/lib/db/schema';
 import { enqueueJob } from '@/lib/workers/pg-boss-client';
 import { detectCard } from '@/lib/services/card-detection-service';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import logger from '@/lib/logger';
 
@@ -262,6 +262,35 @@ export async function POST(request: NextRequest) {
     // Create upload directory
     const uploadDir = join(process.cwd(), 'uploads', `batch_${batch.id}`);
     await mkdir(uploadDir, { recursive: true });
+
+    // Check for duplicate filenames within the current upload request
+    const sanitizedFilenames = new Set<string>();
+    for (const { originalName, sanitizedName } of sanitizedFiles) {
+      if (sanitizedFilenames.has(sanitizedName)) {
+        return NextResponse.json(
+          { error: `File "${originalName}" has already been uploaded in this batch` },
+          { status: 400 }
+        );
+      }
+      sanitizedFilenames.add(sanitizedName);
+    }
+
+    // Check for duplicate filenames already in the database for this batch
+    for (const { file, originalName, sanitizedName } of sanitizedFiles) {
+      const existingFile = await db.query.uploadedFiles.findFirst({
+        where: and(
+          eq(uploadedFiles.uploadBatchId, batch.id),
+          eq(uploadedFiles.filename, sanitizedName)
+        )
+      });
+
+      if (existingFile) {
+        return NextResponse.json(
+          { error: `File "${originalName}" has already been uploaded in this batch` },
+          { status: 400 }
+        );
+      }
+    }
 
     // Track files requiring user approval
     const filesNeedingApproval: Array<{
