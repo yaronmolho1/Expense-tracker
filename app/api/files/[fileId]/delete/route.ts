@@ -88,13 +88,13 @@ export async function DELETE(
       if (allInGroup.length > fileTxs.length || fileTxs.length < installmentTotal) {
         partialInstallments.push({
           groupId,
-          businessName: fileTxs[0]?.business?.displayName || 'Unknown',
+          businessName: (fileTxs[0]?.business as any)?.displayName || 'Unknown',
           inFile: fileTxs.length,
           total: installmentTotal,
           allPayments: allInGroup.map(tx => ({
             index: tx.installmentIndex || 0,
-            amount: tx.amount,
-            date: tx.transactionDate.toISOString(),
+            amount: parseFloat(tx.chargedAmountIls || '0'),
+            date: tx.dealDate,
             status: (tx.sourceFile === file.filename && tx.uploadBatchId === file.uploadBatchId) ? 'in_this_file' : 'completed',
             inThisFile: (tx.sourceFile === file.filename && tx.uploadBatchId === file.uploadBatchId),
           })),

@@ -73,7 +73,7 @@ export async function DELETE(
       if (allInGroup.length > batchTxs.length || batchTxs.length < installmentTotal) {
         partialInstallments.push({
           groupId,
-          businessName: batchTxs[0]?.business?.displayName || batchTxs[0]?.business?.name || 'Unknown',
+          businessName: (batchTxs[0]?.business as any)?.displayName || 'Unknown',
           inBatch: batchTxs.length,
           total: installmentTotal,
           allPayments: allInGroup.map(tx => ({

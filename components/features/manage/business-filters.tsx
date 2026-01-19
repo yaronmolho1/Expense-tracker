@@ -16,7 +16,7 @@ import { useFilterOptions } from '@/hooks/use-filter-options';
 import { useMemo } from 'react';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { SortPopover, type SortOption } from '@/components/ui/sort-popover';
-import { Search, Filter as FilterIcon, X, Tag } from 'lucide-react';
+import { Search, Filter as FilterIcon, X } from 'lucide-react';
 import { FILTER_STYLES } from '@/lib/constants/filter-styles';
 import { cn } from '@/lib/utils';
 

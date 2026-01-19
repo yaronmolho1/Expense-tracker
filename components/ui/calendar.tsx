@@ -84,11 +84,11 @@ function Calendar({
 
   // Sync month when switching from year view to month view
   React.useEffect(() => {
-    if (navView === "months" && props.selected) {
-      const selectedDate = props.selected as Date
+    if (navView === "months" && (props as any).selected) {
+      const selectedDate = (props as any).selected as Date
       setMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1))
     }
-  }, [navView, props.selected])
+  }, [navView, (props as any).selected])
 
   const { onNextClick, onPrevClick, startMonth, endMonth } = props
 
