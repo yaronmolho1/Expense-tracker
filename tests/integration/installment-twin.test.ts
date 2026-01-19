@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { db } from '@/lib/db';
-import { transactions, businesses, cards, uploadBatches } from '@/lib/db/schema';
+import { transactions, businesses, cards, uploadBatches, subscriptions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import {
   createInstallmentGroup,
@@ -42,6 +42,7 @@ describe('Installment Twin & Backfill Logic', () => {
     // This prevents data leakage from failed tests or previous runs
     // Delete in correct Foreign Key order: children first, then parents
     await db.delete(transactions).execute();
+    await db.delete(subscriptions).execute(); // Must delete before cards/businesses
     await db.delete(uploadBatches).execute();
     await db.delete(cards).execute();
     await db.delete(businesses).execute();
