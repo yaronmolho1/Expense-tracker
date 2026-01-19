@@ -43,8 +43,8 @@ describe('Installment Twin & Backfill Logic', () => {
     // Delete in correct Foreign Key order: children first, then parents
     await db.delete(transactions).execute();
     await db.delete(uploadBatches).execute();
-    await db.delete(businesses).execute();
     await db.delete(cards).execute();
+    await db.delete(businesses).execute();
 
     // Create test business with unique name to avoid conflicts
     const uniqueSuffix = Date.now();
@@ -73,12 +73,20 @@ describe('Installment Twin & Backfill Logic', () => {
   });
 
   afterEach(async () => {
-    // Cleanup is handled by transaction rollback in vitest-hooks.ts
-    // But we'll clean up explicitly for clarity
-    await db.delete(transactions).where(eq(transactions.businessId, testBusinessId));
-    await db.delete(businesses).where(eq(businesses.id, testBusinessId));
-    await db.delete(cards).where(eq(cards.id, testCardId));
-    await db.delete(uploadBatches).where(eq(uploadBatches.id, testBatchId));
+    // Cleanup in correct Foreign Key order: children first, then parents
+    // This prevents "violates foreign key constraint" errors
+    if (testBusinessId) {
+      await db.delete(transactions).where(eq(transactions.businessId, testBusinessId));
+    }
+    if (testBatchId) {
+      await db.delete(uploadBatches).where(eq(uploadBatches.id, testBatchId));
+    }
+    if (testCardId) {
+      await db.delete(cards).where(eq(cards.id, testCardId));
+    }
+    if (testBusinessId) {
+      await db.delete(businesses).where(eq(businesses.id, testBusinessId));
+    }
   });
 
   describe('Twin Purchase Detection', () => {
