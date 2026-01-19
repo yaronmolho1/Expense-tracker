@@ -1,11 +1,15 @@
 'use client';
 
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { useFilterOptions } from '@/hooks/use-filter-options';
 import { useMemo } from 'react';
+import { Filter as FilterIcon, X, CreditCard, Calendar } from 'lucide-react';
+import { FILTER_STYLES } from '@/lib/constants/filter-styles';
+import { cn } from '@/lib/utils';
 
 interface TimeFlowFiltersProps {
   filters: {
@@ -21,6 +25,17 @@ interface TimeFlowFiltersProps {
 
 export function TimeFlowFilters({ filters, onFilterChange }: TimeFlowFiltersProps) {
   const { data: filterOptions, isLoading } = useFilterOptions();
+
+  // Calculate active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    // Don't count monthsBack/monthsForward as they have default values
+    if (filters.cardIds?.length) count += filters.cardIds.length;
+    if (filters.parentCategoryIds?.length) count += filters.parentCategoryIds.length;
+    if (filters.childCategoryIds?.length) count += filters.childCategoryIds.length;
+    if (filters.uncategorized) count++;
+    return count;
+  }, [filters]);
 
   // Get child categories grouped by parent
   const groupedChildCategories = useMemo(() => {
@@ -57,80 +72,72 @@ export function TimeFlowFilters({ filters, onFilterChange }: TimeFlowFiltersProp
 
   if (isLoading) {
     return (
-      <Card className="p-4 mb-6">
-        <div className="text-sm text-muted-foreground">Loading filters...</div>
+      <Card className={FILTER_STYLES.card.default}>
+        <CardContent className={FILTER_STYLES.content}>
+          <div className="text-sm text-muted-foreground">Loading filters...</div>
+        </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="p-4 mb-6">
-      <div className="space-y-4">
-        {/* Row 1: Months Back, Months Forward, Card, Clear Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Months Back */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Months Back</label>
-            <Input
-              type="number"
-              min="1"
-              max="24"
-              value={filters.monthsBack}
-              onChange={(e) =>
-                onFilterChange({ ...filters, monthsBack: parseInt(e.target.value) || 6 })
-              }
-            />
-          </div>
-
-          {/* Months Forward */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Months Forward</label>
-            <Input
-              type="number"
-              min="0"
-              max="24"
-              value={filters.monthsForward}
-              onChange={(e) =>
-                onFilterChange({ ...filters, monthsForward: parseInt(e.target.value) || 6 })
-              }
-            />
-          </div>
-
-          {/* Card Filter */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Card</label>
-            <MultiSelect
-              options={filterOptions?.cards.map((card) => ({
-                value: card.value.toString(),
-                label: card.label,
-              })) || []}
-              selected={filters.cardIds || []}
-              onChange={(selected) =>
-                onFilterChange({ ...filters, cardIds: selected })
-              }
-              placeholder="All cards"
-              emptyMessage="No cards found."
-            />
-          </div>
-
-          {/* Clear Filters */}
-          <div className="flex items-end">
-            <Button
-              variant="outline"
-              onClick={handleClearFilters}
-              className="w-full"
-            >
-              Clear Filters
-            </Button>
+    <Card className={cn(
+      FILTER_STYLES.card.default,
+      activeFilterCount > 0 && FILTER_STYLES.card.active
+    )}>
+      <CardHeader className={FILTER_STYLES.header}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FilterIcon className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filters</span>
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className={FILTER_STYLES.badge}>
+                {activeFilterCount}
+              </Badge>
+            )}
           </div>
         </div>
+      </CardHeader>
 
-        {/* Row 2: Main Category, Sub Category */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Main Category */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Main Category</label>
+      <CardContent className={FILTER_STYLES.content}>
+        <div className={FILTER_STYLES.spacing}>
+          {/* Row 1: Months Back, Months Forward */}
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${FILTER_STYLES.gridGap}`}>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+              <Input
+                type="number"
+                min="1"
+                max="24"
+                value={filters.monthsBack}
+                onChange={(e) =>
+                  onFilterChange({ ...filters, monthsBack: parseInt(e.target.value) || 6 })
+                }
+                placeholder="Months back"
+                className="pl-10"
+              />
+            </div>
+
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+              <Input
+                type="number"
+                min="0"
+                max="24"
+                value={filters.monthsForward}
+                onChange={(e) =>
+                  onFilterChange({ ...filters, monthsForward: parseInt(e.target.value) || 6 })
+                }
+                placeholder="Months forward"
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Main Category, Sub Category */}
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${FILTER_STYLES.gridGap}`}>
             <MultiSelect
+              icon={<FilterIcon className="h-4 w-4" />}
               options={[
                 ...(filterOptions?.categories.parents.map((cat) => ({
                   value: cat.value.toString(),
@@ -159,12 +166,9 @@ export function TimeFlowFilters({ filters, onFilterChange }: TimeFlowFiltersProp
               placeholder="All categories"
               emptyMessage="No categories found."
             />
-          </div>
 
-          {/* Sub Category */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Sub Category</label>
             <MultiSelect
+              icon={<FilterIcon className="h-4 w-4" />}
               groupedOptions={groupedChildCategories}
               selected={filters.childCategoryIds || []}
               onChange={(selected) =>
@@ -175,8 +179,35 @@ export function TimeFlowFilters({ filters, onFilterChange }: TimeFlowFiltersProp
               disabled={groupedChildCategories.length === 0 || filters.uncategorized}
             />
           </div>
+
+          {/* Row 3: Card */}
+          <div className={`grid grid-cols-1 ${FILTER_STYLES.gridGap}`}>
+            <MultiSelect
+              icon={<CreditCard className="h-4 w-4" />}
+              options={filterOptions?.cards.map((card) => ({
+                value: card.value.toString(),
+                label: card.label,
+              })) || []}
+              selected={filters.cardIds || []}
+              onChange={(selected) =>
+                onFilterChange({ ...filters, cardIds: selected })
+              }
+              placeholder="All cards"
+              emptyMessage="No cards found."
+            />
+          </div>
         </div>
-      </div>
+
+        {/* Clear All - only when filters active */}
+        {activeFilterCount > 0 && (
+          <div className={`flex justify-end ${FILTER_STYLES.clearButton}`}>
+            <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+              <X className="h-3 w-3 mr-1" />
+              Clear All
+            </Button>
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 }

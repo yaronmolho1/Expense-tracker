@@ -2,8 +2,9 @@ import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { POST } from '@/app/api/admin/transactions/bulk-delete/route';
 import { db } from '@/lib/db';
-import { transactions, subscriptions, businesses, cards } from '@/lib/db/schema';
+import { transactions, subscriptions, businesses, cards, uploadBatches } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
+import crypto from 'crypto';
 
 /**
  * Integration tests for bulk delete API route
@@ -15,9 +16,69 @@ import { eq, sql } from 'drizzle-orm';
  * - Test data seeded before each test
  */
 
+function createTransactionHash(businessId: number, dealDate: string, amount: string, index = 0): string {
+  return crypto
+    .createHash('sha256')
+    .update(`${businessId}-${dealDate}-${amount}-${index}-${Date.now()}`)
+    .digest('hex');
+}
+
+interface CreateTransactionParams {
+  businessId: number;
+  cardId: number;
+  uploadBatchId: number;
+  dealDate: string;
+  amount: string;
+  transactionType?: 'one_time' | 'installment' | 'subscription';
+  installmentGroupId?: string;
+  installmentIndex?: number;
+  installmentTotal?: number;
+  subscriptionId?: number;
+  status?: 'completed' | 'projected' | 'cancelled';
+  index?: number;
+}
+
+function createTransaction(params: CreateTransactionParams) {
+  const {
+    businessId,
+    cardId,
+    uploadBatchId,
+    dealDate,
+    amount,
+    transactionType = 'one_time',
+    installmentGroupId,
+    installmentIndex,
+    installmentTotal,
+    subscriptionId,
+    status = 'completed',
+    index = 0,
+  } = params;
+
+  return {
+    transactionHash: createTransactionHash(businessId, dealDate, amount, index),
+    businessId,
+    cardId,
+    dealDate,
+    originalAmount: amount,
+    originalCurrency: 'ILS',
+    chargedAmountIls: amount,
+    transactionType,
+    paymentType: installmentGroupId ? 'installments' : 'one_time',
+    status,
+    sourceFile: 'test-data.csv',
+    uploadBatchId,
+    installmentGroupId,
+    installmentIndex,
+    installmentTotal,
+    installmentAmount: installmentGroupId ? amount : undefined,
+    subscriptionId,
+  };
+}
+
 describe('Bulk Delete Integration Tests', () => {
   let testBusiness: any;
   let testCard: any;
+  let testBatch: any;
 
   beforeEach(async () => {
     // Clean up test data
@@ -25,12 +86,13 @@ describe('Bulk Delete Integration Tests', () => {
     await db.delete(subscriptions).execute();
     await db.delete(businesses).execute();
     await db.delete(cards).execute();
+    await db.delete(uploadBatches).execute();
 
     // Create test business and card
     [testBusiness] = await db
       .insert(businesses)
       .values({
-        name: 'Test Business',
+        normalizedName: 'test-business',
         displayName: 'Test Business',
       })
       .returning();
@@ -38,10 +100,18 @@ describe('Bulk Delete Integration Tests', () => {
     [testCard] = await db
       .insert(cards)
       .values({
-        last4: '1234',
+        last4Digits: '1234',
         nickname: 'Test Card',
-        institutionId: 1,
-        institutionName: 'Test Bank',
+        fileFormatHandler: 'test-handler',
+        owner: 'test-owner',
+      })
+      .returning();
+
+    [testBatch] = await db
+      .insert(uploadBatches)
+      .values({
+        fileCount: 1,
+        status: 'completed',
       })
       .returning();
   });
@@ -52,37 +122,45 @@ describe('Bulk Delete Integration Tests', () => {
     await db.delete(subscriptions).execute();
     await db.delete(businesses).execute();
     await db.delete(cards).execute();
+    await db.delete(uploadBatches).execute();
   });
 
   describe('End-to-End Preview Flow', () => {
     test('full preview flow with real database', async () => {
       // Seed test data
       await db.insert(transactions).values([
-        {
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2024-06-01',
-          chargedAmountIls: '100.00',
-          transactionType: 'one_time',
-        },
-        {
+          amount: '100.00',
+          index: 0,
+        }),
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2024-07-01',
+          amount: '50.00',
+          transactionType: 'installment',
           installmentGroupId: 'group1',
           installmentIndex: 1,
-          installmentCount: 2,
-          chargedAmountIls: '50.00',
-        },
-        {
+          installmentTotal: 2,
+          index: 1,
+        }),
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2024-08-01',
+          amount: '50.00',
+          transactionType: 'installment',
           installmentGroupId: 'group1',
           installmentIndex: 2,
-          installmentCount: 2,
-          chargedAmountIls: '50.00',
-        },
+          installmentTotal: 2,
+          index: 2,
+        }),
       ]);
 
       const req = new NextRequest('http://localhost/api/admin/transactions/bulk-delete', {

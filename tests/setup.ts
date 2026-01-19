@@ -1,6 +1,6 @@
 /**
  * Vitest Setup File for UNIT TESTS ONLY
- * 
+ *
  * Runs before all tests to set up the environment.
  * IMPORTANT: Set env vars at top level (before imports) so modules can read them.
  */
@@ -15,6 +15,7 @@ process.env.AUTH_PASSWORD_HASH_BASE64 = process.env.AUTH_PASSWORD_HASH_BASE64 ||
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/testdb';
 
 import { beforeAll, afterAll } from 'vitest';
+import '@testing-library/jest-dom';
 
 beforeAll(async () => {
   // Additional setup if needed

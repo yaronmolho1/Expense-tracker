@@ -1,8 +1,9 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -14,7 +15,10 @@ import {
 import { useFilterOptions } from '@/hooks/use-filter-options';
 import { useMemo } from 'react';
 import { MultiSelect } from '@/components/ui/multi-select';
-import { Search, Filter } from 'lucide-react';
+import { SortPopover, type SortOption } from '@/components/ui/sort-popover';
+import { Search, Filter as FilterIcon, X, Tag } from 'lucide-react';
+import { FILTER_STYLES } from '@/lib/constants/filter-styles';
+import { cn } from '@/lib/utils';
 
 type SortField = 'name' | 'transaction_count' | 'total_spent' | 'last_used_date' | 'primary_category';
 type SortDirection = 'asc' | 'desc';
@@ -37,6 +41,32 @@ interface BusinessFiltersProps {
 
 export function BusinessFilters({ filters, onFilterChange }: BusinessFiltersProps) {
   const { data: filterOptions, isLoading } = useFilterOptions();
+
+  // Calculate active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.search) count++;
+    if (filters.approvalFilter && filters.approvalFilter !== 'all') count++;
+    if (filters.parentCategoryIds?.length) count += filters.parentCategoryIds.length;
+    if (filters.childCategoryIds?.length) count += filters.childCategoryIds.length;
+    if (filters.dateFrom || filters.dateTo) count++;
+    if (filters.uncategorized) count++;
+    return count;
+  }, [filters]);
+
+  // Sort options for popover
+  const sortOptions: SortOption[] = [
+    { value: 'name:asc', label: 'Name (A-Z)' },
+    { value: 'name:desc', label: 'Name (Z-A)' },
+    { value: 'transaction_count:desc', label: 'Transactions (High-Low)' },
+    { value: 'transaction_count:asc', label: 'Transactions (Low-High)' },
+    { value: 'total_spent:desc', label: 'Total Spent (High-Low)' },
+    { value: 'total_spent:asc', label: 'Total Spent (Low-High)' },
+    { value: 'last_used_date:desc', label: 'Last Used (Recent First)' },
+    { value: 'last_used_date:asc', label: 'Last Used (Oldest First)' },
+    { value: 'primary_category:asc', label: 'Category (A-Z)' },
+    { value: 'primary_category:desc', label: 'Category (Z-A)' },
+  ];
 
   // Get child categories grouped by parent (EXACT logic from transaction-filters.tsx lines 38-57)
   const groupedChildCategories = useMemo(() => {
@@ -76,22 +106,50 @@ export function BusinessFilters({ filters, onFilterChange }: BusinessFiltersProp
 
   if (isLoading) {
     return (
-      <Card className="p-4 mb-6">
-        <div className="text-sm text-muted-foreground">Loading filters...</div>
+      <Card className={FILTER_STYLES.card.default}>
+        <CardContent className={FILTER_STYLES.content}>
+          <div className="text-sm text-muted-foreground">Loading filters...</div>
+        </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="p-4 mb-6">
-      <div className="space-y-4">
-        {/* Row 1: Search, Approval Status, Sort */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Search Input */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Search</label>
+    <Card className={cn(
+      FILTER_STYLES.card.default,
+      activeFilterCount > 0 && FILTER_STYLES.card.active
+    )}>
+      <CardHeader className={FILTER_STYLES.header}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FilterIcon className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filters</span>
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className={FILTER_STYLES.badge}>
+                {activeFilterCount}
+              </Badge>
+            )}
+          </div>
+          <SortPopover
+            value={`${filters.sortField}:${filters.sortDirection}`}
+            options={sortOptions}
+            onChange={(value) => {
+              const [field, dir] = value.split(':');
+              onFilterChange({
+                sortField: field as SortField,
+                sortDirection: dir as SortDirection
+              });
+            }}
+          />
+        </div>
+      </CardHeader>
+
+      <CardContent className={FILTER_STYLES.content}>
+        <div className={FILTER_STYLES.spacing}>
+          {/* Row 1: Search, Approval Status */}
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${FILTER_STYLES.gridGap}`}>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
               <Input
                 placeholder="Search businesses..."
                 value={filters.search}
@@ -99,17 +157,13 @@ export function BusinessFilters({ filters, onFilterChange }: BusinessFiltersProp
                 className="pl-10"
               />
             </div>
-          </div>
 
-          {/* Approval Status */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Approval Status</label>
             <Select
               value={filters.approvalFilter}
               onValueChange={(v: ApprovalFilter) => onFilterChange({ approvalFilter: v })}
             >
               <SelectTrigger>
-                <Filter className="h-4 w-4 mr-2" />
+                <FilterIcon className="h-4 w-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -121,42 +175,10 @@ export function BusinessFilters({ filters, onFilterChange }: BusinessFiltersProp
             </Select>
           </div>
 
-          {/* Sort */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Sort By</label>
-            <Select
-              value={`${filters.sortField}:${filters.sortDirection}`}
-              onValueChange={(v) => {
-                const [field, dir] = v.split(':');
-                onFilterChange({
-                  sortField: field as SortField,
-                  sortDirection: dir as SortDirection
-                });
-              }}
-            >
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name:asc">Name (A-Z)</SelectItem>
-                <SelectItem value="name:desc">Name (Z-A)</SelectItem>
-                <SelectItem value="transaction_count:desc">Transactions (High-Low)</SelectItem>
-                <SelectItem value="transaction_count:asc">Transactions (Low-High)</SelectItem>
-                <SelectItem value="total_spent:desc">Total Spent (High-Low)</SelectItem>
-                <SelectItem value="total_spent:asc">Total Spent (Low-High)</SelectItem>
-                <SelectItem value="last_used_date:desc">Last Used (Recent First)</SelectItem>
-                <SelectItem value="last_used_date:asc">Last Used (Oldest First)</SelectItem>
-                <SelectItem value="primary_category:asc">Category (A-Z)</SelectItem>
-                <SelectItem value="primary_category:desc">Category (Z-A)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Row 2: Category Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Main Category - EXACT logic from transaction-filters.tsx lines 106-137 */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Main Category</label>
+          {/* Row 2: Main Category, Sub Category */}
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${FILTER_STYLES.gridGap}`}>
             <MultiSelect
+              icon={<FilterIcon className="h-4 w-4" />}
               options={[
                 ...(filterOptions?.categories.parents.map((cat) => ({
                   value: cat.value.toString(),
@@ -183,12 +205,9 @@ export function BusinessFilters({ filters, onFilterChange }: BusinessFiltersProp
               placeholder="All categories"
               emptyMessage="No categories found."
             />
-          </div>
 
-          {/* Sub Category - EXACT logic from transaction-filters.tsx lines 139-152 */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Sub Category</label>
             <MultiSelect
+              icon={<FilterIcon className="h-4 w-4" />}
               groupedOptions={groupedChildCategories}
               selected={filters.childCategoryIds || []}
               onChange={(selected) =>
@@ -199,37 +218,30 @@ export function BusinessFilters({ filters, onFilterChange }: BusinessFiltersProp
               disabled={groupedChildCategories.length === 0 || filters.uncategorized}
             />
           </div>
+
+          {/* Row 3: Date Range */}
+          <DateRangePicker
+            fromValue={filters.dateFrom}
+            toValue={filters.dateTo}
+            onFromChange={(date) => onFilterChange({ dateFrom: date })}
+            onToChange={(date) => onFilterChange({ dateTo: date })}
+            fromLabel="From"
+            toLabel="To"
+            fromPlaceholder="DD/MM/YYYY"
+            toPlaceholder="DD/MM/YYYY"
+          />
         </div>
 
-        {/* Row 3: Date Range & Actions */}
-        <div className="grid grid-cols-1 gap-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              <DateRangePicker
-                fromValue={filters.dateFrom}
-                toValue={filters.dateTo}
-                onFromChange={(date) => onFilterChange({ dateFrom: date })}
-                onToChange={(date) => onFilterChange({ dateTo: date })}
-                fromLabel="Has Transactions From"
-                toLabel="To"
-                fromPlaceholder="DD/MM/YYYY"
-                toPlaceholder="DD/MM/YYYY"
-              />
-            </div>
-
-            {/* Clear Filters */}
-            <div className="flex items-end">
-              <Button
-                variant="outline"
-                onClick={handleClearFilters}
-                className="w-full"
-              >
-                Clear Filters
-              </Button>
-            </div>
+        {/* Clear All - only when filters active */}
+        {activeFilterCount > 0 && (
+          <div className={`flex justify-end ${FILTER_STYLES.clearButton}`}>
+            <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+              <X className="h-3 w-3 mr-1" />
+              Clear All
+            </Button>
           </div>
-        </div>
-      </div>
+        )}
+      </CardContent>
     </Card>
   );
 }

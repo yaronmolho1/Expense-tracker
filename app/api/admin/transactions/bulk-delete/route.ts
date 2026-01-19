@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Invalid request', details: validation.error.errors },
+        { error: 'Invalid request', details: validation.error.issues },
         { status: 400 }
       );
     }
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       if (allInGroup.length > inRangeTxs.length) {
         partialInstallments.push({
           groupId,
-          businessName: inRangeTxs[0]?.business?.displayName || inRangeTxs[0]?.business?.name || 'Unknown',
+          businessName: (inRangeTxs[0]?.business as any)?.displayName || 'Unknown',
           inBatch: inRangeTxs.length,
           total: allInGroup.length,
           allPayments: allInGroup.map(tx => ({
@@ -158,8 +158,8 @@ export async function POST(request: NextRequest) {
 
       affectedSubscriptions.push({
         id: subId,
-        name: sub.name || sub.business?.displayName || 'Unknown',
-        businessName: sub.business?.displayName || 'Unknown',
+        name: sub.name || (sub.business as any)?.displayName || 'Unknown',
+        businessName: (sub.business as any)?.displayName || 'Unknown',
         transactionsInRange: txsInRange.length,
         earliestDate: earliestDate.toISOString(),
         latestDate: latestDate.toISOString(),

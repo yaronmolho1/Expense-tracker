@@ -88,10 +88,10 @@ export function DateRangePicker({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       {/* From Date */}
       <div>
-        <label className="text-sm font-medium mb-2 block">{fromLabel}</label>
+        <label className="text-xs font-medium mb-1.5 block text-muted-foreground">{fromLabel}</label>
         <Popover modal={true}>
           <PopoverTrigger asChild>
             <Button
@@ -128,7 +128,7 @@ export function DateRangePicker({
 
       {/* To Date */}
       <div>
-        <label className="text-sm font-medium mb-2 block">{toLabel}</label>
+        <label className="text-xs font-medium mb-1.5 block text-muted-foreground">{toLabel}</label>
         <Popover modal={true}>
           <PopoverTrigger asChild>
             <Button
