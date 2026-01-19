@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { EnhancedDeleteConfirmDialog } from '@/app/(dashboard)/admin/database/components/enhanced-delete-confirm-dialog';
@@ -39,7 +42,7 @@ describe('EnhancedDeleteConfirmDialog', () => {
         />
       );
 
-      expect(screen.getByText(/Delete \d+ Transaction/)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Delete \d+ Transaction/i })).toBeInTheDocument();
     });
 
     test('displays summary information correctly', () => {
@@ -260,7 +263,7 @@ describe('EnhancedDeleteConfirmDialog', () => {
       );
 
       // Should count: 50 (one-time) + 10 + 8 (all payments in partial groups) = 68
-      expect(screen.getByText(/Delete 68 Transaction/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Delete 68 Transaction/i })).toBeInTheDocument();
     });
 
     test('calculates count based on delete_matching_only strategy', () => {
@@ -297,7 +300,7 @@ describe('EnhancedDeleteConfirmDialog', () => {
       );
 
       // Should count: 50 (one-time) + 30 (installmentCount from summary) = 80
-      expect(screen.getByText(/Delete 80 Transaction/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Delete 80 Transaction/i })).toBeInTheDocument();
     });
 
     test('excludes installments when skip_all strategy selected', () => {
@@ -321,7 +324,7 @@ describe('EnhancedDeleteConfirmDialog', () => {
       );
 
       // Should count: 50 (one-time only)
-      expect(screen.getByText(/Delete 50 Transaction/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Delete 50 Transaction/i })).toBeInTheDocument();
     });
   });
 

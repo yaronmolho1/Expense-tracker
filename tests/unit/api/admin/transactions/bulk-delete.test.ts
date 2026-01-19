@@ -36,10 +36,14 @@ describe('Bulk Delete API Route', () => {
   });
 
   describe('Schema Validation', () => {
-    test('rejects invalid request with missing required fields', async () => {
+    test('rejects invalid request with wrong types', async () => {
       const req = new NextRequest('http://localhost/api/admin/transactions/bulk-delete', {
         method: 'POST',
-        body: JSON.stringify({ invalid: 'data' }),
+        body: JSON.stringify({
+          dateFrom: '2024-01-01',
+          includeOneTime: 'not-a-boolean', // Should be boolean
+          installmentStrategy: 'invalid_strategy' // Should be valid enum
+        }),
       });
       const res = await POST(req);
       expect(res.status).toBe(400);
