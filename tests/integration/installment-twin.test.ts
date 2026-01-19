@@ -27,7 +27,7 @@ describe('Installment Twin & Backfill Logic', () => {
   let testBusinessId: number;
   let testCardId: number;
   let testBatchId: number;
-  const businessNormalizedName = 'test-business-twin';
+  let businessNormalizedName: string; // Now dynamic per test
   const dealDate = '2024-01-15';
   const totalPaymentSum = 3099; // Total deal sum from file
   const regularPayment = 129; // Regular payment amount (Payment 2-24)
@@ -38,18 +38,28 @@ describe('Installment Twin & Backfill Logic', () => {
   // But chargedAmountIls should be payment1Amount
 
   beforeEach(async () => {
-    // Create test business
+    // CRITICAL: Clean up ALL test data before each test to ensure isolation
+    // This prevents data leakage from failed tests or previous runs
+    // Delete in correct Foreign Key order: children first, then parents
+    await db.delete(transactions).execute();
+    await db.delete(uploadBatches).execute();
+    await db.delete(businesses).execute();
+    await db.delete(cards).execute();
+
+    // Create test business with unique name to avoid conflicts
+    const uniqueSuffix = Date.now();
+    businessNormalizedName = `test-business-twin-${uniqueSuffix}`;
     const [business] = await db.insert(businesses).values({
-      displayName: 'Test Business Twin',
+      displayName: `Test Business Twin ${uniqueSuffix}`,
       normalizedName: businessNormalizedName,
     }).returning();
     testBusinessId = business.id;
 
     // Create test card
     const [card] = await db.insert(cards).values({
-      last4Digits: '9999',
+      last4Digits: `${uniqueSuffix % 10000}`.padStart(4, '0'),
       fileFormatHandler: 'visa',
-      owner: 'test-user',
+      owner: `test-user-${uniqueSuffix}`,
     }).returning();
     testCardId = card.id;
 
