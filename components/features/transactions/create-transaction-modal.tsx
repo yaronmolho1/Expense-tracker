@@ -156,9 +156,9 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6 px-1">
           {/* Business Selection */}
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="business">Business *</Label>
             <Popover open={businessOpen} onOpenChange={setBusinessOpen}>
               <PopoverTrigger asChild>
@@ -166,7 +166,7 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
                   variant="outline"
                   role="combobox"
                   aria-expanded={businessOpen}
-                  className="w-full justify-between"
+                  className="w-full justify-between h-10"
                 >
                   {businessDisplayValue || 'Select business...'}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -231,7 +231,7 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
           </div>
 
           {/* Deal Date */}
-          <div>
+          <div className="space-y-2">
             <Label>Deal Date (First Payment) *</Label>
             <DatePicker
               value={formData.dealDate}
@@ -240,8 +240,8 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
           </div>
 
           {/* Amount & Currency */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="amount">
                 {formData.paymentType === 'installments' ? 'Total Deal Amount *' : 'Amount *'}
               </Label>
@@ -254,15 +254,16 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
                   setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })
                 }
                 required
+                className="h-10"
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="currency">Currency</Label>
               <Select
                 value={formData.currency}
                 onValueChange={(value) => setFormData({ ...formData, currency: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -275,21 +276,21 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
           </div>
 
           {/* Card & Payment Type */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="card">Card *</Label>
               {cardsLoading ? (
-                <div className="text-sm text-muted-foreground">Loading cards...</div>
+                <div className="text-sm text-muted-foreground py-2">Loading cards...</div>
               ) : cardsError ? (
-                <div className="text-sm text-red-500">Error loading cards: {cardsError.message}</div>
+                <div className="text-sm text-red-500 py-2">Error loading cards: {cardsError.message}</div>
               ) : !cardsData?.cards || cardsData.cards.length === 0 ? (
-                <div className="text-sm text-yellow-600">No cards found. Please add a card first.</div>
+                <div className="text-sm text-yellow-600 py-2">No cards found. Please add a card first.</div>
               ) : (
                 <Select
                   value={formData.cardId?.toString()}
                   onValueChange={(value) => setFormData({ ...formData, cardId: parseInt(value) })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select card..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -302,7 +303,7 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
                 </Select>
               )}
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="paymentType">Payment Type</Label>
               <Select
                 value={formData.isRefund ? 'refund' : formData.paymentType}
@@ -314,7 +315,7 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
                   }
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -328,7 +329,7 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
 
           {/* Installment Fields (conditional) */}
           {formData.paymentType === 'installments' && (
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="installmentTotal">Number of Payments *</Label>
               <Input
                 id="installmentTotal"
@@ -339,16 +340,17 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
                   setFormData({ ...formData, installmentTotal: parseInt(e.target.value) || 1 })
                 }
                 placeholder="e.g., 10 payments"
+                className="h-10"
               />
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground mt-1.5">
                 Amount will be divided equally across all payments
               </p>
             </div>
           )}
 
           {/* Category Selection */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="primaryCategory">Main Category</Label>
               <Select
                 value={formData.primaryCategoryId?.toString() || ''}
@@ -360,7 +362,7 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
                   })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-10">
                   <SelectValue placeholder="Optional" />
                 </SelectTrigger>
                 <SelectContent>
@@ -372,7 +374,7 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="childCategory">Sub Category</Label>
               <Select
                 value={formData.childCategoryId?.toString() || ''}
@@ -381,7 +383,7 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
                 }
                 disabled={!formData.primaryCategoryId}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-10">
                   <SelectValue placeholder={formData.primaryCategoryId ? "Optional" : "Select main first"} />
                 </SelectTrigger>
                 <SelectContent>
@@ -395,11 +397,11 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+          <DialogFooter className="gap-2 sm:gap-0 pt-4">
+            <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button type="submit" disabled={createTransaction.isPending}>
+            <Button type="submit" disabled={createTransaction.isPending} className="w-full sm:w-auto">
               {createTransaction.isPending ? 'Creating...' : 'Create Transaction'}
             </Button>
           </DialogFooter>

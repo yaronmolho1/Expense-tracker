@@ -7,19 +7,20 @@ export async function POST(request: NextRequest) {
     const { tableName } = await request.json();
 
     // Validate table name (whitelist for security)
-    const allowedTables = [
-      'transactions',
-      'businesses',
-      'cards',
-      'upload_batches',
-      'uploaded_files',
-      'subscriptions',
-      'business_merge_suggestions',
-      'subscription_suggestions',
-      'processing_logs',
-    ];
+    const allowedTables: Record<string, string> = {
+      'Transactions': 'transactions',
+      'Businesses': 'businesses',
+      'Cards': 'cards',
+      'Upload_batches': 'upload_batches',
+      'Uploaded_files': 'uploaded_files',
+      'Subscriptions': 'subscriptions',
+      'Business_merge_suggestions': 'business_merge_suggestions',
+      'Subscription_suggestions': 'subscription_suggestions',
+      'Processing_logs': 'processing_logs',
+    };
 
-    if (!allowedTables.includes(tableName)) {
+    const dbTableName = allowedTables[tableName];
+    if (!dbTableName) {
       return NextResponse.json(
         { error: 'Invalid table name' },
         { status: 400 }
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Clear the table
-    await db.execute(sql.raw(`TRUNCATE ${tableName} CASCADE;`));
+    await db.execute(sql.raw(`TRUNCATE ${dbTableName} CASCADE;`));
 
     return NextResponse.json({
       success: true,

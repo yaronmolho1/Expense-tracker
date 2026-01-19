@@ -374,7 +374,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                       },
                       customGroupId: actualGroupId, // Use custom groupId for twin
                     });
-                    
+
                     newTransactions += parsedTx.installmentTotal!;
                     totalTransactions += parsedTx.installmentTotal!;
                     totalAmountIls += finalAmountIls;
@@ -387,7 +387,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                     installmentIndex: parsedTx.installmentIndex,
                     installmentTotal: parsedTx.installmentTotal,
                   }, 'Creating first installment group from payment 1');
-                  
+
                   await createInstallmentGroup({
                     firstTransactionData: {
                       businessId: business.id,
@@ -407,7 +407,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                       amount: finalAmountIls,
                     },
                   });
-                  
+
                   newTransactions += parsedTx.installmentTotal!;
                   totalTransactions += parsedTx.installmentTotal!;
                   totalAmountIls += finalAmountIls;
@@ -474,7 +474,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                   installmentIndex: parsedTx.installmentIndex,
                   installmentTotal: parsedTx.installmentTotal,
                 }, 'No bucket match - creating installment group with backfill');
-                
+
                 await createInstallmentGroupFromMiddle({
                   firstTransactionData: {
                     businessId: business.id,
@@ -494,7 +494,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                     amount: finalAmountIls,
                   },
                 });
-                
+
                 newTransactions += parsedTx.installmentTotal!;
                 totalTransactions += parsedTx.installmentTotal!;
                 totalAmountIls += finalAmountIls;

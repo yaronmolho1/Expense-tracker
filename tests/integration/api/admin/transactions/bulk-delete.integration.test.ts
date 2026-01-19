@@ -193,27 +193,33 @@ describe('Bulk Delete Integration Tests', () => {
       const [tx1, tx2, tx3] = await db
         .insert(transactions)
         .values([
-          {
+          createTransaction({
             businessId: testBusiness.id,
             cardId: testCard.id,
+            uploadBatchId: testBatch.id,
             dealDate: '2024-06-01',
-            chargedAmountIls: '100.00',
+            amount: '100.00',
             transactionType: 'one_time',
-          },
-          {
+            index: 0,
+          }),
+          createTransaction({
             businessId: testBusiness.id,
             cardId: testCard.id,
+            uploadBatchId: testBatch.id,
             dealDate: '2024-07-01',
-            chargedAmountIls: '200.00',
+            amount: '200.00',
             transactionType: 'one_time',
-          },
-          {
+            index: 1,
+          }),
+          createTransaction({
             businessId: testBusiness.id,
             cardId: testCard.id,
+            uploadBatchId: testBatch.id,
             dealDate: '2025-01-01',
-            chargedAmountIls: '300.00',
+            amount: '300.00',
             transactionType: 'one_time',
-          },
+            index: 2,
+          }),
         ])
         .returning();
 
@@ -247,42 +253,54 @@ describe('Bulk Delete Integration Tests', () => {
       const groupId = 'test-group-123';
 
       await db.insert(transactions).values([
-        {
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2024-06-01',
+          amount: '100.00',
+          transactionType: 'installment',
           installmentGroupId: groupId,
           installmentIndex: 1,
-          installmentCount: 4,
-          chargedAmountIls: '100.00',
-        },
-        {
+          installmentTotal: 4,
+          index: 0,
+        }),
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2024-07-01',
+          amount: '100.00',
+          transactionType: 'installment',
           installmentGroupId: groupId,
           installmentIndex: 2,
-          installmentCount: 4,
-          chargedAmountIls: '100.00',
-        },
-        {
+          installmentTotal: 4,
+          index: 1,
+        }),
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2025-01-01',
+          amount: '100.00',
+          transactionType: 'installment',
           installmentGroupId: groupId,
           installmentIndex: 3,
-          installmentCount: 4,
-          chargedAmountIls: '100.00',
-        },
-        {
+          installmentTotal: 4,
+          index: 2,
+        }),
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2025-02-01',
+          amount: '100.00',
+          transactionType: 'installment',
           installmentGroupId: groupId,
           installmentIndex: 4,
-          installmentCount: 4,
-          chargedAmountIls: '100.00',
-        },
+          installmentTotal: 4,
+          index: 3,
+        }),
       ]);
 
       const req = new NextRequest('http://localhost/api/admin/transactions/bulk-delete', {
@@ -313,33 +331,42 @@ describe('Bulk Delete Integration Tests', () => {
       const groupId = 'test-group-456';
 
       await db.insert(transactions).values([
-        {
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2024-06-01',
+          amount: '100.00',
+          transactionType: 'installment',
           installmentGroupId: groupId,
           installmentIndex: 1,
-          installmentCount: 4,
-          chargedAmountIls: '100.00',
-        },
-        {
+          installmentTotal: 4,
+          index: 0,
+        }),
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2024-07-01',
+          amount: '100.00',
+          transactionType: 'installment',
           installmentGroupId: groupId,
           installmentIndex: 2,
-          installmentCount: 4,
-          chargedAmountIls: '100.00',
-        },
-        {
+          installmentTotal: 4,
+          index: 1,
+        }),
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2025-01-01',
+          amount: '100.00',
+          transactionType: 'installment',
           installmentGroupId: groupId,
           installmentIndex: 3,
-          installmentCount: 4,
-          chargedAmountIls: '100.00',
-        },
+          installmentTotal: 4,
+          index: 2,
+        }),
       ]);
 
       const req = new NextRequest('http://localhost/api/admin/transactions/bulk-delete', {
@@ -385,38 +412,46 @@ describe('Bulk Delete Integration Tests', () => {
 
       // Create subscription transactions
       await db.insert(transactions).values([
-        {
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           subscriptionId: sub.id,
           dealDate: '2024-06-01',
-          chargedAmountIls: '9.99',
+          amount: '9.99',
           transactionType: 'subscription',
-        },
-        {
+          index: 0,
+        }),
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           subscriptionId: sub.id,
           dealDate: '2024-07-01',
-          chargedAmountIls: '9.99',
+          amount: '9.99',
           transactionType: 'subscription',
-        },
-        {
+          index: 1,
+        }),
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           subscriptionId: sub.id,
           dealDate: '2024-08-01',
-          chargedAmountIls: '9.99',
+          amount: '9.99',
           transactionType: 'subscription',
-        },
-        {
+          index: 2,
+        }),
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           subscriptionId: sub.id,
           dealDate: '2025-01-01',
-          chargedAmountIls: '9.99',
+          amount: '9.99',
           transactionType: 'subscription',
-        },
+          index: 3,
+        }),
       ]);
 
       const req = new NextRequest('http://localhost/api/admin/transactions/bulk-delete', {
@@ -459,42 +494,48 @@ describe('Bulk Delete Integration Tests', () => {
       const [card2] = await db
         .insert(cards)
         .values({
-          last4: '5678',
+          last4Digits: '5678',
           nickname: 'Card 2',
-          institutionId: 1,
-          institutionName: 'Test Bank',
+          fileFormatHandler: 'test-handler',
+          owner: 'test-owner',
         })
         .returning();
 
       const [card3] = await db
         .insert(cards)
         .values({
-          last4: '9012',
+          last4Digits: '9012',
           nickname: 'Card 3',
-          institutionId: 1,
-          institutionName: 'Test Bank',
+          fileFormatHandler: 'test-handler',
+          owner: 'test-owner',
         })
         .returning();
 
       await db.insert(transactions).values([
-        {
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2024-06-01',
-          chargedAmountIls: '100.00',
-        },
-        {
+          amount: '100.00',
+          index: 0,
+        }),
+        createTransaction({
           businessId: testBusiness.id,
           cardId: card2.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2024-06-01',
-          chargedAmountIls: '200.00',
-        },
-        {
+          amount: '200.00',
+          index: 1,
+        }),
+        createTransaction({
           businessId: testBusiness.id,
           cardId: card3.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2024-06-01',
-          chargedAmountIls: '300.00',
-        },
+          amount: '300.00',
+          index: 2,
+        }),
       ]);
 
       const req = new NextRequest('http://localhost/api/admin/transactions/bulk-delete', {
@@ -530,41 +571,51 @@ describe('Bulk Delete Integration Tests', () => {
       // Insert mixed transactions
       await db.insert(transactions).values([
         // One-time
-        {
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2024-06-01',
-          chargedAmountIls: '100.00',
+          amount: '100.00',
           transactionType: 'one_time',
-        },
+          index: 0,
+        }),
         // Installment group
-        {
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2024-07-01',
+          amount: '50.00',
+          transactionType: 'installment',
           installmentGroupId: 'group1',
           installmentIndex: 1,
-          installmentCount: 2,
-          chargedAmountIls: '50.00',
-        },
-        {
+          installmentTotal: 2,
+          index: 1,
+        }),
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           dealDate: '2024-08-01',
+          amount: '50.00',
+          transactionType: 'installment',
           installmentGroupId: 'group1',
           installmentIndex: 2,
-          installmentCount: 2,
-          chargedAmountIls: '50.00',
-        },
+          installmentTotal: 2,
+          index: 2,
+        }),
         // Subscription
-        {
+        createTransaction({
           businessId: testBusiness.id,
           cardId: testCard.id,
+          uploadBatchId: testBatch.id,
           subscriptionId: sub.id,
           dealDate: '2024-09-01',
-          chargedAmountIls: '12.99',
+          amount: '12.99',
           transactionType: 'subscription',
-        },
+          index: 3,
+        }),
       ]);
 
       const req = new NextRequest('http://localhost/api/admin/transactions/bulk-delete', {

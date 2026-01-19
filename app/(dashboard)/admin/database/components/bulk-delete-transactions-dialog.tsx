@@ -136,7 +136,7 @@ export function BulkDeleteTransactionsDialog() {
         <DialogTrigger asChild>
           <Button variant="destructive">
             <Trash2 className="h-4 w-4 mr-2" />
-            Delete Transactions Based on Filters
+            Delete transactions
           </Button>
         </DialogTrigger>
         <DialogContent className="max-w-2xl">

@@ -12,12 +12,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -27,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, MoreVertical, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Plus, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { type Transaction, useDeleteTransaction } from '@/hooks/use-transactions';
 import { TransactionDetailModal } from './transaction-detail-modal';
 import { InlineCategoryEditor } from './inline-category-editor';
@@ -146,10 +140,10 @@ export function TransactionTable({
 
     return (
       <TableHead
-        className={`cursor-pointer select-none hover:bg-muted/50 ${className || ''}`}
+        className={`cursor-pointer select-none hover:bg-muted/50 text-center ${className || ''}`}
         onClick={() => handleSort(field)}
       >
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-center gap-1">
           {children}
           {isActive ? (
             isAsc ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
@@ -183,15 +177,15 @@ export function TransactionTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50px]"></TableHead>
+              <TableHead className="w-[50px] text-center"></TableHead>
               <SortableHeader field="bank_charge_date">Date</SortableHeader>
               <SortableHeader field="business_name">Business</SortableHeader>
-              <TableHead>Category</TableHead>
-              <TableHead>Card</TableHead>
-              <SortableHeader field="charged_amount_ils" className="text-right">Amount</SortableHeader>
-              <TableHead>Type</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
+              <TableHead className="text-center">Category</TableHead>
+              <TableHead className="text-center">Card</TableHead>
+              <SortableHeader field="charged_amount_ils">Amount</SortableHeader>
+              <TableHead className="text-center">Type</TableHead>
+              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="w-[50px] text-center"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -204,7 +198,7 @@ export function TransactionTable({
                   className={hasDetails ? 'cursor-pointer hover:bg-gray-50' : ''}
                   onClick={() => hasDetails && handleRowClick(transaction)}
                 >
-                  <TableCell>
+                  <TableCell className="text-center">
                     {hasDetails && (
                       <Button
                         size="sm"
@@ -219,10 +213,10 @@ export function TransactionTable({
                       </Button>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     {formatDate(transaction.bank_charge_date || transaction.deal_date)}
                   </TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell className="text-center font-medium">
                     {transaction.business_name}
                     {transaction.is_refund && (
                       <Badge variant="outline" className="ml-2">
@@ -230,7 +224,7 @@ export function TransactionTable({
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                     <InlineCategoryEditor
                       businessId={transaction.business_id}
                       businessName={transaction.business_name}
@@ -238,12 +232,12 @@ export function TransactionTable({
                       currentChildCategory={transaction.category.child}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <div className="text-sm">
                       {transaction.card.nickname || `•••• ${transaction.card.last_4}`}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right font-mono">
+                  <TableCell className="text-center font-mono">
                     <span className={transaction.is_refund ? 'text-green-600' : ''}>
                       {formatCurrency(transaction.is_refund ? -transaction.charged_amount_ils : transaction.charged_amount_ils)}
                     </span>
@@ -253,7 +247,7 @@ export function TransactionTable({
                       </div>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     {transaction.installment_info ? (
                       <Badge variant="secondary">
                         {transaction.installment_info.index}/{transaction.installment_info.total}
@@ -264,29 +258,21 @@ export function TransactionTable({
                       <span className="text-muted-foreground">One-time</span>
                     )}
                   </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                     <InlineStatusEditor
                       transactionId={transaction.id}
                       currentStatus={transaction.status as 'completed' | 'projected' | 'cancelled'}
                     />
                   </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setTransactionToDelete(transaction)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                  <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setTransactionToDelete(transaction)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               );

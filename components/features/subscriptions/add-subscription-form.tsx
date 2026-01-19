@@ -457,11 +457,11 @@ export function AddSubscriptionForm({ onSubmit, onCancel, isSubmitting, initialD
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2 justify-end pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+      <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-4">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting} className="w-full sm:w-auto">
           Cancel
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
           {isSubmitting ? 'Creating...' : 'Create Subscription'}
         </Button>
       </div>

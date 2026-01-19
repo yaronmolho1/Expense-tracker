@@ -7,7 +7,8 @@
       "Bash(npm install:*)",
       "Bash(npm run test:unit:*)",
       "Bash(npm run type-check:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

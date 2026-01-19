@@ -33,11 +33,6 @@ interface TableInfo {
 
 const TABLES: TableInfo[] = [
   {
-    name: "Transactions",
-    description: "All transaction records",
-    warning: "This will delete all transaction data!",
-  },
-  {
     name: "Businesses",
     description: "Business records",
     warning: "This will cascade delete all related transactions.",
@@ -124,7 +119,7 @@ export default function DatabaseAdminPage() {
         <CardHeader className="cursor-pointer" onClick={() => setBulkDeleteOpen(!bulkDeleteOpen)}>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Bulk Transaction Deletion</CardTitle>
+              <CardTitle>Delete Specific Transactions</CardTitle>
               <CardDescription>
                 Delete transactions within a specific date range with filters
               </CardDescription>
@@ -133,8 +128,74 @@ export default function DatabaseAdminPage() {
           </div>
         </CardHeader>
         {bulkDeleteOpen && (
-          <CardContent>
+          <CardContent className="space-y-6">
             <BulkDeleteTransactionsDialog />
+
+            <div className="border-t pt-6">
+              <h4 className="text-sm font-semibold mb-2">Delete All Transactions</h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                Permanently delete all transactions from the database
+              </p>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={clearing === "Transactions"}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {clearing === "Transactions" ? "Clearing..." : "Delete All Transactions"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-red-600" />
+                      Confirm Delete All Transactions
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete <strong>ALL transactions</strong>?
+                      <span className="block mt-2 text-red-600 font-semibold">
+                        ⚠️ This will permanently delete every transaction in the database.
+                      </span>
+                      <span className="block mt-2">
+                        This action cannot be undone.
+                      </span>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleClearTable("Transactions")}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Yes, Delete All Transactions
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Upload History */}
+      <Card className="mb-6">
+        <CardHeader className="cursor-pointer" onClick={() => setUploadHistoryOpen(!uploadHistoryOpen)}>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Upload History</CardTitle>
+              <CardDescription>
+                View and manage file uploads and their associated transactions
+              </CardDescription>
+            </div>
+            {uploadHistoryOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+          </div>
+        </CardHeader>
+        {uploadHistoryOpen && (
+          <CardContent>
+            <UploadBatchesSection />
           </CardContent>
         )}
       </Card>
@@ -142,11 +203,11 @@ export default function DatabaseAdminPage() {
       <div className="grid gap-4 md:grid-cols-2">
         {TABLES.map((table) => (
           <Card key={table.name}>
-            <CardHeader>
+            <CardHeader className="text-center">
               <CardTitle className="text-lg">{table.name}</CardTitle>
               <CardDescription>{table.description}</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -193,26 +254,6 @@ export default function DatabaseAdminPage() {
           </Card>
         ))}
       </div>
-
-      {/* Upload History - at bottom, collapsible */}
-      <Card className="mt-6">
-        <CardHeader className="cursor-pointer" onClick={() => setUploadHistoryOpen(!uploadHistoryOpen)}>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Upload History</CardTitle>
-              <CardDescription>
-                View and manage file uploads and their associated transactions
-              </CardDescription>
-            </div>
-            {uploadHistoryOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-          </div>
-        </CardHeader>
-        {uploadHistoryOpen && (
-          <CardContent>
-            <UploadBatchesSection />
-          </CardContent>
-        )}
-      </Card>
     </div>
   );
 }

@@ -420,7 +420,7 @@ describe('Bulk Delete API Route', () => {
       ];
 
       vi.mocked(db.query.transactions.findMany).mockResolvedValue(mockTxs as any);
-      vi.mocked(db.query.subscriptions.findFirst).mockResolvedValue(null);
+      vi.mocked(db.query.subscriptions.findFirst).mockResolvedValue(undefined);
 
       const req = new NextRequest('http://localhost/api/admin/transactions/bulk-delete', {
         method: 'POST',

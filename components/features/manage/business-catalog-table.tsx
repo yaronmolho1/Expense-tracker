@@ -25,7 +25,12 @@ type SortField = 'name' | 'total_spent' | 'transaction_count' | 'last_used_date'
 type SortDirection = 'asc' | 'desc';
 type ApprovalFilter = 'all' | 'approved' | 'unapproved' | 'uncategorized';
 
-export function BusinessCatalogTable() {
+interface BusinessCatalogTableProps {
+  showManualMerge?: boolean;
+  onManualMergeClose?: () => void;
+}
+
+export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: BusinessCatalogTableProps = {}) {
   // NEW: Single filter state object
   const [filters, setFilters] = useState({
     search: '',
@@ -39,8 +44,6 @@ export function BusinessCatalogTable() {
     uncategorized: false,
   });
 
-  // Manual merge state
-  const [showMergeDialog, setShowMergeDialog] = useState(false);
 
   // NEW: Bulk category dialog state
   const [showBulkCategoryDialog, setShowBulkCategoryDialog] = useState(false);
@@ -149,7 +152,7 @@ export function BusinessCatalogTable() {
       toast.error('Please select at least 2 businesses to merge');
       return;
     }
-    setShowMergeDialog(true);
+    // Dialog is controlled by parent component via props
   };
 
   const handleBulkSetCategory = () => {
@@ -208,16 +211,8 @@ export function BusinessCatalogTable() {
       {/* NEW: Filters Component */}
       <BusinessFiltersComponent filters={filters} onFilterChange={handleFilterChange} />
 
-      {/* Manual Merge Button */}
-      <div className="flex justify-end">
-        <Button onClick={() => setShowMergeDialog(true)} variant="default">
-          <GitMerge className="h-4 w-4 mr-2" />
-          Manual Merge
-        </Button>
-      </div>
-
       {/* Table (sortable headers removed, sort now in filter dropdown) */}
-      <div className="border rounded-lg">
+      <div className="border rounded-lg mt-6">
         <Table>
           <TableHeader>
             <TableRow>
@@ -228,12 +223,12 @@ export function BusinessCatalogTable() {
                   disabled={!data || data.businesses.length === 0}
                 />
               </TableHead>
-              <SortableHeader field="name" className="w-[300px]">Business Name</SortableHeader>
-              <SortableHeader field="primary_category">Category</SortableHeader>
-              <SortableHeader field="transaction_count" className="w-[100px] text-center">Transactions</SortableHeader>
-              <SortableHeader field="total_spent" className="w-[120px] text-right">Total Spent</SortableHeader>
-              <SortableHeader field="last_used_date" className="w-[120px]">Last Used</SortableHeader>
-              <TableHead className="w-[80px] text-center">Approved</TableHead>
+              <SortableHeader field="name" className="w-[330px]">Business Name</SortableHeader>
+              <SortableHeader field="primary_category" className="w-[140px]">Category</SortableHeader>
+              <SortableHeader field="transaction_count" className="w-[120px] text-center">Transactions</SortableHeader>
+              <SortableHeader field="total_spent" className="w-[140px] text-right">Total Spent</SortableHeader>
+              <SortableHeader field="last_used_date" className="w-[120px] ml-6">Last Used</SortableHeader>
+              <TableHead className="w-[100px] text-center">Approved</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -322,9 +317,9 @@ export function BusinessCatalogTable() {
                     {business.transaction_count}
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    ₪{business.total_spent.toLocaleString('en-IL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    <span className="text-xs">₪</span>{business.total_spent.toLocaleString('en-IL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="text-sm text-muted-foreground ml-6">
                     {business.last_used_date
                       ? new Date(business.last_used_date).toLocaleDateString('en-GB', {
                           day: '2-digit',
@@ -356,8 +351,12 @@ export function BusinessCatalogTable() {
 
       {/* Manual Merge Dialog */}
       <ManualMergeDialog
-        open={showMergeDialog}
-        onOpenChange={setShowMergeDialog}
+        open={showManualMerge || false}
+        onOpenChange={(open) => {
+          if (!open && onManualMergeClose) {
+            onManualMergeClose();
+          }
+        }}
         preselectedBusinessIds={Array.from(selectedBusinessIds)}
         onSuccess={handleBulkMergeSuccess}
       />
