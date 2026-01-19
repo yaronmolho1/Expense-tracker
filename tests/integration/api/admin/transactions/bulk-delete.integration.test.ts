@@ -81,14 +81,9 @@ describe('Bulk Delete Integration Tests', () => {
   let testBatch: any;
 
   beforeEach(async () => {
-    // CRITICAL: Clean up ALL test data before each test to ensure isolation
-    // This prevents data leakage from failed tests or previous runs
-    // Delete in correct Foreign Key order: children first, then parents
-    await db.delete(transactions).execute();
-    await db.delete(subscriptions).execute();
-    await db.delete(uploadBatches).execute();
-    await db.delete(businesses).execute();
-    await db.delete(cards).execute();
+    // NOTE: Global cleanup is NOT needed here because vitest-hooks.ts
+    // provides transaction-based isolation (auto-rollback after each test).
+    // Each test runs in its own transaction, preventing data leakage.
 
     // Create unique test data for this test run
     // Use timestamp to ensure uniqueness across parallel test runs

@@ -38,14 +38,9 @@ describe('Installment Twin & Backfill Logic', () => {
   // But chargedAmountIls should be payment1Amount
 
   beforeEach(async () => {
-    // CRITICAL: Clean up ALL test data before each test to ensure isolation
-    // This prevents data leakage from failed tests or previous runs
-    // Delete in correct Foreign Key order: children first, then parents
-    await db.delete(transactions).execute();
-    await db.delete(subscriptions).execute(); // Must delete before cards/businesses
-    await db.delete(uploadBatches).execute();
-    await db.delete(cards).execute();
-    await db.delete(businesses).execute();
+    // NOTE: Global cleanup is NOT needed here because vitest-hooks.ts
+    // provides transaction-based isolation (auto-rollback after each test).
+    // Each test runs in its own transaction, preventing data leakage.
 
     // Create test business with unique name to avoid conflicts
     const uniqueSuffix = Date.now();
