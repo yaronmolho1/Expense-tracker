@@ -81,29 +81,26 @@ describe('Bulk Delete Integration Tests', () => {
   let testBatch: any;
 
   beforeEach(async () => {
-    // Clean up test data
-    await db.delete(transactions).execute();
-    await db.delete(subscriptions).execute();
-    await db.delete(businesses).execute();
-    await db.delete(cards).execute();
-    await db.delete(uploadBatches).execute();
+    // Create unique test data for this test run
+    // Use timestamp to ensure uniqueness across parallel test runs
+    const uniqueSuffix = Date.now();
 
     // Create test business and card
     [testBusiness] = await db
       .insert(businesses)
       .values({
-        normalizedName: 'test-business',
-        displayName: 'Test Business',
+        normalizedName: `test-business-${uniqueSuffix}`,
+        displayName: `Test Business ${uniqueSuffix}`,
       })
       .returning();
 
     [testCard] = await db
       .insert(cards)
       .values({
-        last4Digits: '1234',
-        nickname: 'Test Card',
+        last4Digits: `${uniqueSuffix % 10000}`.padStart(4, '0'),
+        nickname: `Test Card ${uniqueSuffix}`,
         fileFormatHandler: 'test-handler',
-        owner: 'test-owner',
+        owner: `test-owner-${uniqueSuffix}`,
       })
       .returning();
 
@@ -117,12 +114,27 @@ describe('Bulk Delete Integration Tests', () => {
   });
 
   afterEach(async () => {
-    // Clean up test data
-    await db.delete(transactions).execute();
-    await db.delete(subscriptions).execute();
-    await db.delete(businesses).execute();
-    await db.delete(cards).execute();
-    await db.delete(uploadBatches).execute();
+    // Clean up test data in correct order (children first, then parents)
+    // Delete transactions first (child of businesses, cards, subscriptions, batches)
+    if (testBusiness?.id) {
+      await db.delete(transactions).where(eq(transactions.businessId, testBusiness.id)).execute();
+    }
+
+    // Delete subscriptions (child of businesses and cards)
+    if (testBusiness?.id) {
+      await db.delete(subscriptions).where(eq(subscriptions.businessId, testBusiness.id)).execute();
+    }
+
+    // Now safe to delete parents
+    if (testBusiness?.id) {
+      await db.delete(businesses).where(eq(businesses.id, testBusiness.id)).execute();
+    }
+    if (testCard?.id) {
+      await db.delete(cards).where(eq(cards.id, testCard.id)).execute();
+    }
+    if (testBatch?.id) {
+      await db.delete(uploadBatches).where(eq(uploadBatches.id, testBatch.id)).execute();
+    }
   });
 
   describe('End-to-End Preview Flow', () => {
@@ -491,13 +503,14 @@ describe('Bulk Delete Integration Tests', () => {
 
   describe('Card Filtering', () => {
     test('filters transactions by card IDs', async () => {
+      const uniqueSuffix = Date.now();
       const [card2] = await db
         .insert(cards)
         .values({
           last4Digits: '5678',
-          nickname: 'Card 2',
+          nickname: `Card 2 ${uniqueSuffix}`,
           fileFormatHandler: 'test-handler',
-          owner: 'test-owner',
+          owner: `test-owner-${uniqueSuffix}`,
         })
         .returning();
 
@@ -505,9 +518,9 @@ describe('Bulk Delete Integration Tests', () => {
         .insert(cards)
         .values({
           last4Digits: '9012',
-          nickname: 'Card 3',
+          nickname: `Card 3 ${uniqueSuffix}`,
           fileFormatHandler: 'test-handler',
-          owner: 'test-owner',
+          owner: `test-owner-${uniqueSuffix}`,
         })
         .returning();
 
@@ -550,6 +563,12 @@ describe('Bulk Delete Integration Tests', () => {
       const data = await res.json();
 
       expect(data.summary.totalInRange).toBe(2); // Card 3 excluded
+
+      // Clean up extra cards created in this test
+      await db.delete(transactions).where(eq(transactions.cardId, card2.id)).execute();
+      await db.delete(transactions).where(eq(transactions.cardId, card3.id)).execute();
+      await db.delete(cards).where(eq(cards.id, card2.id)).execute();
+      await db.delete(cards).where(eq(cards.id, card3.id)).execute();
     });
   });
 
