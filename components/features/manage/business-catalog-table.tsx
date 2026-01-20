@@ -47,6 +47,7 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
 
   // NEW: Bulk category dialog state
   const [showBulkCategoryDialog, setShowBulkCategoryDialog] = useState(false);
+  const [showManualMergeDialog, setShowManualMergeDialog] = useState(false);
 
   // Display name editing state
   const [editingBusinessId, setEditingBusinessId] = useState<number | null>(null);
@@ -152,7 +153,7 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
       toast.error('Please select at least 2 businesses to merge');
       return;
     }
-    // Dialog is controlled by parent component via props
+    setShowManualMergeDialog(true);
   };
 
   const handleBulkSetCategory = () => {
@@ -351,10 +352,13 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
 
       {/* Manual Merge Dialog */}
       <ManualMergeDialog
-        open={showManualMerge || false}
+        open={showManualMerge || showManualMergeDialog}
         onOpenChange={(open) => {
-          if (!open && onManualMergeClose) {
-            onManualMergeClose();
+          if (!open) {
+            setShowManualMergeDialog(false);
+            if (onManualMergeClose) {
+              onManualMergeClose();
+            }
           }
         }}
         preselectedBusinessIds={Array.from(selectedBusinessIds)}

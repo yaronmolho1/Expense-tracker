@@ -18,13 +18,14 @@ import { Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCards } from '@/hooks/use-cards';
 import { EnhancedDeleteConfirmDialog } from './enhanced-delete-confirm-dialog';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 
 export function BulkDeleteTransactionsDialog() {
   const [open, setOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
+  const [selectedFileIds, setSelectedFileIds] = useState<number[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [warnings, setWarnings] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -41,6 +42,18 @@ export function BulkDeleteTransactionsDialog() {
   const { data: cards = [] } = useCards('default-user');
   const queryClient = useQueryClient();
 
+  // Fetch uploaded files
+  const { data: filesData } = useQuery({
+    queryKey: ['uploaded-files'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/uploaded-files');
+      if (!response.ok) throw new Error('Failed to fetch files');
+      return response.json();
+    },
+  });
+
+  const uploadedFiles = filesData?.files || [];
+
   const handlePreview = async () => {
     setDeleting(true);
 
@@ -52,6 +65,7 @@ export function BulkDeleteTransactionsDialog() {
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
           cardIds: selectedCards.length > 0 ? selectedCards : undefined,
+          fileIds: selectedFileIds.length > 0 ? selectedFileIds : undefined,
           // Don't pass strategies in preview - let API return all data
         }),
       });
@@ -85,6 +99,7 @@ export function BulkDeleteTransactionsDialog() {
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
           cardIds: selectedCards.length > 0 ? selectedCards : undefined,
+          fileIds: selectedFileIds.length > 0 ? selectedFileIds : undefined,
           includeOneTime,
           includeInstallments,
           includeSubscriptions,
@@ -109,6 +124,7 @@ export function BulkDeleteTransactionsDialog() {
         setDateFrom('');
         setDateTo('');
         setSelectedCards([]);
+        setSelectedFileIds([]);
         setIncludeOneTime(true);
         setIncludeInstallments(true);
         setIncludeSubscriptions(true);
@@ -168,13 +184,27 @@ export function BulkDeleteTransactionsDialog() {
             <div>
               <Label>Cards (Optional)</Label>
               <MultiSelect
-                options={cards.map(c => ({
+                options={(cards || []).map(c => ({
                   value: c.id.toString(),
                   label: c.nickname || `•••• ${c.last4}`,
                 }))}
                 selected={selectedCards.map(String)}
                 onChange={(values) => setSelectedCards(values.map(Number))}
                 placeholder="All cards"
+              />
+            </div>
+
+            {/* File Filter */}
+            <div>
+              <Label>Uploaded Files (Optional)</Label>
+              <MultiSelect
+                options={(uploadedFiles || []).map((file: any) => ({
+                  value: file.id.toString(),
+                  label: file.filename,
+                }))}
+                selected={selectedFileIds.map(String)}
+                onChange={(values) => setSelectedFileIds(values.map(Number))}
+                placeholder="All files"
               />
             </div>
 
@@ -199,7 +229,7 @@ export function BulkDeleteTransactionsDialog() {
             </Button>
             <Button
               onClick={handlePreview}
-              disabled={deleting || (!dateFrom && !dateTo && selectedCards.length === 0)}
+              disabled={deleting || (!dateFrom && !dateTo && selectedCards.length === 0 && selectedFileIds.length === 0)}
             >
               {deleting ? 'Loading...' : 'Preview Deletion'}
             </Button>

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { useFilterOptions } from '@/hooks/use-filter-options';
 import { useMemo } from 'react';
@@ -103,34 +104,42 @@ export function TimeFlowFilters({ filters, onFilterChange }: TimeFlowFiltersProp
         <div className={FILTER_STYLES.spacing}>
           {/* Row 1: Months Back, Months Forward */}
           <div className={`grid grid-cols-1 md:grid-cols-2 ${FILTER_STYLES.gridGap}`}>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-              <Input
-                type="number"
-                min="1"
-                max="24"
-                value={filters.monthsBack}
-                onChange={(e) =>
-                  onFilterChange({ ...filters, monthsBack: parseInt(e.target.value) || 6 })
-                }
-                placeholder="Months back"
-                className="pl-10"
-              />
+            <div className="space-y-2">
+              <Label htmlFor="months-back">Months Back</Label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                <Input
+                  id="months-back"
+                  type="number"
+                  min="1"
+                  max="24"
+                  value={filters.monthsBack}
+                  onChange={(e) =>
+                    onFilterChange({ ...filters, monthsBack: parseInt(e.target.value) || 6 })
+                  }
+                  placeholder="Months back"
+                  className="pl-10"
+                />
+              </div>
             </div>
 
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-              <Input
-                type="number"
-                min="0"
-                max="24"
-                value={filters.monthsForward}
-                onChange={(e) =>
-                  onFilterChange({ ...filters, monthsForward: parseInt(e.target.value) || 6 })
-                }
-                placeholder="Months forward"
-                className="pl-10"
-              />
+            <div className="space-y-2">
+              <Label htmlFor="months-forward">Months Forward</Label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                <Input
+                  id="months-forward"
+                  type="number"
+                  min="0"
+                  max="24"
+                  value={filters.monthsForward}
+                  onChange={(e) =>
+                    onFilterChange({ ...filters, monthsForward: parseInt(e.target.value) || 6 })
+                  }
+                  placeholder="Months forward"
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
 

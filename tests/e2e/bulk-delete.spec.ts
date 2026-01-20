@@ -33,8 +33,10 @@ async function clickCalendarCell(page: Page, dayText: string) {
     await cell.dispatchEvent('click');
   }
 
-  // Wait for calendar to close after click
-  await page.locator('[role="grid"]').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+  // CRITICAL: Wait for calendar popover to fully close
+  // The calendar must close before any other interactions or the overlay blocks clicks
+  await page.waitForTimeout(500); // Give the popover animation time to complete
+  await page.locator('[role="grid"]').waitFor({ state: 'detached', timeout: 5000 });
 }
 
 test.describe('Bulk Delete Transactions', () => {

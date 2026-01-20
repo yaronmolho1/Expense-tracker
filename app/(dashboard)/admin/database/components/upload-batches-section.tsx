@@ -53,6 +53,8 @@ export function UploadBatchesSection() {
   const [installmentStrategy, setInstallmentStrategy] = useState<InstallmentStrategy>('delete_matching');
   const [batchIdsToDelete, setBatchIdsToDelete] = useState<number[]>([]);
   const [fileToDelete, setFileToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
+  const [fileIdsToDelete, setFileIdsToDelete] = useState<number[]>([]);
 
   const queryClient = useQueryClient();
 
@@ -116,6 +118,31 @@ export function UploadBatchesSection() {
     setSelectedBatches(newSelected);
   };
 
+  const handleFileSelect = (fileId: number, checked: boolean) => {
+    const newSelected = new Set(selectedFiles);
+    if (checked) {
+      newSelected.add(fileId);
+    } else {
+      newSelected.delete(fileId);
+    }
+    setSelectedFiles(newSelected);
+  };
+
+  const handleSelectAllFilesInBatch = (batchId: number, checked: boolean) => {
+    const batch = batches.find(b => b.id === batchId);
+    if (!batch) return;
+
+    const newSelected = new Set(selectedFiles);
+    batch.files.forEach(file => {
+      if (checked) {
+        newSelected.add(file.id);
+      } else {
+        newSelected.delete(file.id);
+      }
+    });
+    setSelectedFiles(newSelected);
+  };
+
   const toggleExpand = (batchId: number) => {
     const newExpanded = new Set(expandedBatches);
     if (newExpanded.has(batchId)) {
@@ -167,6 +194,40 @@ export function UploadBatchesSection() {
     }
   };
 
+  const handleBulkDeleteFiles = async () => {
+    if (selectedFiles.size === 0) {
+      toast.error('Please select at least one file to delete');
+      return;
+    }
+
+    const fileIds = Array.from(selectedFiles);
+    setFileIdsToDelete(fileIds);
+
+    try {
+      const response = await fetch('/api/admin/files/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileIds }),
+      });
+
+      const result = await response.json();
+
+      if (result.requiresConfirmation) {
+        setWarnings(result);
+        setDeleteConfirmOpen(true);
+      } else if (result.success) {
+        toast.success(`Deleted ${fileIds.length} file(s) and ${result.deletedTransactions} transaction(s)`);
+        queryClient.invalidateQueries({ queryKey: ['upload-batches'] });
+        queryClient.invalidateQueries({ queryKey: ['transactions'] });
+        setSelectedFiles(new Set());
+      } else {
+        toast.error(result.error || 'Failed to delete files');
+      }
+    } catch (error) {
+      toast.error('Failed to delete files');
+    }
+  };
+
   const handleFileDelete = async (fileId: number, filename: string) => {
     try {
       const response = await fetch(`/api/files/${fileId}/delete`, {
@@ -193,29 +254,58 @@ export function UploadBatchesSection() {
   };
 
   const handleConfirmedFileDelete = async () => {
-    if (!fileToDelete) return;
+    if (!fileToDelete && fileIdsToDelete.length === 0) return;
 
     try {
-      const response = await fetch(`/api/files/${fileToDelete.id}/delete?installmentStrategy=${installmentStrategy}`, {
-        method: 'DELETE',
-      });
+      if (fileIdsToDelete.length > 0) {
+        // Bulk delete files
+        const response = await fetch('/api/admin/files/bulk-delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileIds: fileIdsToDelete,
+            installmentStrategy
+          }),
+        });
 
-      const result = await response.json();
+        const result = await response.json();
 
-      if (result.success) {
-        toast.success(`Deleted ${fileToDelete.name} and ${result.deletedTransactions} transaction(s)`);
-        setDeleteConfirmOpen(false);
-        setFileToDelete(null);
-        queryClient.invalidateQueries({ queryKey: ['upload-batches'] });
-        queryClient.invalidateQueries({ queryKey: ['transactions'] });
-        queryClient.invalidateQueries({ queryKey: ['businesses'] });
-        queryClient.invalidateQueries({ queryKey: ['time-flow'] });
-        setInstallmentStrategy('delete_matching');
-      } else {
-        toast.error(result.error || 'Failed to delete file');
+        if (result.success) {
+          toast.success(`Deleted ${fileIdsToDelete.length} file(s) and ${result.deletedTransactions} transaction(s)`);
+          setDeleteConfirmOpen(false);
+          setFileIdsToDelete([]);
+          setSelectedFiles(new Set());
+          queryClient.invalidateQueries({ queryKey: ['upload-batches'] });
+          queryClient.invalidateQueries({ queryKey: ['transactions'] });
+          queryClient.invalidateQueries({ queryKey: ['businesses'] });
+          queryClient.invalidateQueries({ queryKey: ['time-flow'] });
+          setInstallmentStrategy('delete_matching');
+        } else {
+          toast.error(result.error || 'Failed to delete files');
+        }
+      } else if (fileToDelete) {
+        // Single file delete
+        const response = await fetch(`/api/files/${fileToDelete.id}/delete?installmentStrategy=${installmentStrategy}`, {
+          method: 'DELETE',
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          toast.success(`Deleted ${fileToDelete.name} and ${result.deletedTransactions} transaction(s)`);
+          setDeleteConfirmOpen(false);
+          setFileToDelete(null);
+          queryClient.invalidateQueries({ queryKey: ['upload-batches'] });
+          queryClient.invalidateQueries({ queryKey: ['transactions'] });
+          queryClient.invalidateQueries({ queryKey: ['businesses'] });
+          queryClient.invalidateQueries({ queryKey: ['time-flow'] });
+          setInstallmentStrategy('delete_matching');
+        } else {
+          toast.error(result.error || 'Failed to delete file');
+        }
       }
     } catch (error) {
-      toast.error('Failed to delete file');
+      toast.error('Failed to delete file(s)');
     }
   };
 
@@ -266,20 +356,36 @@ export function UploadBatchesSection() {
         </CardHeader>
         <CardContent>
           <div className="flex justify-between mb-4">
-            <div className="text-sm text-muted-foreground">
-              {selectedBatches.size} batch(es) selected
+            <div className="text-sm text-muted-foreground space-y-1">
+              <div>{selectedBatches.size} batch(es) selected</div>
+              {selectedFiles.size > 0 && (
+                <div>{selectedFiles.size} file(s) selected</div>
+              )}
             </div>
-            {selectedBatches.size > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => handleDeleteClick(Array.from(selectedBatches))}
-                disabled={deleteMutation.isPending}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete {selectedBatches.size} Batch(es)
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {selectedFiles.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDeleteFiles}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete {selectedFiles.size} File(s)
+                </Button>
+              )}
+              {selectedBatches.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteClick(Array.from(selectedBatches))}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete {selectedBatches.size} Batch(es)
+                </Button>
+              )}
+            </div>
           </div>
 
           <Table>
@@ -355,9 +461,26 @@ export function UploadBatchesSection() {
                     <TableRow>
                       <TableCell colSpan={6} className="bg-muted/50">
                         <div className="p-4 space-y-2">
+                          {/* Select all files in batch */}
+                          <div className="flex items-center gap-2 mb-2 pb-2 border-b">
+                            <Checkbox
+                              checked={batch.files.every(f => selectedFiles.has(f.id))}
+                              onCheckedChange={(checked) => handleSelectAllFilesInBatch(batch.id, !!checked)}
+                              className="border-2"
+                            />
+                            <span className="text-sm font-medium text-muted-foreground">
+                              Select all files in this batch
+                            </span>
+                          </div>
+
                           {batch.files.map(file => (
                             <div key={file.id} className="flex justify-between items-center text-sm p-2 rounded hover:bg-muted/70">
                               <div className="flex items-center gap-3">
+                                <Checkbox
+                                  checked={selectedFiles.has(file.id)}
+                                  onCheckedChange={(checked) => handleFileSelect(file.id, !!checked)}
+                                  className="border-2"
+                                />
                                 <FileText className="h-4 w-4 text-muted-foreground" />
                                 <span className="font-medium">{file.filename}</span>
                                 {file.cardLast4 && (
@@ -396,13 +519,21 @@ export function UploadBatchesSection() {
           warnings={warnings}
           strategy={installmentStrategy}
           onStrategyChange={setInstallmentStrategy}
-          onConfirm={fileToDelete ? handleConfirmedFileDelete : handleConfirmedDelete}
+          onConfirm={fileToDelete || fileIdsToDelete.length > 0 ? handleConfirmedFileDelete : handleConfirmedDelete}
           title={
-            fileToDelete
+            fileIdsToDelete.length > 0
+              ? `Delete ${fileIdsToDelete.length} file${fileIdsToDelete.length !== 1 ? 's' : ''}?`
+              : fileToDelete
               ? `Delete file ${fileToDelete.name}?`
               : `Delete ${batchIdsToDelete.length} Upload Batch${batchIdsToDelete.length !== 1 ? 'es' : ''}?`
           }
-          confirmButtonText={fileToDelete ? 'Delete File' : 'Delete Batches'}
+          confirmButtonText={
+            fileIdsToDelete.length > 0
+              ? 'Delete Files'
+              : fileToDelete
+              ? 'Delete File'
+              : 'Delete Batches'
+          }
         />
       )}
     </>
