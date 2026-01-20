@@ -1,11 +1,11 @@
 # Docker Compose for Production Environment
 #
-# Usage: docker compose -f docker-compose.production.yml --env-file .env.production up -d
+# Usage: docker compose -f docker-compose.production.yml --env-file .env up -d
 
 services:
   db:
     env_file:
-      - .env.production
+      - .env
     image: postgres:16-alpine
     container_name: expense-tracker-db
     environment:
@@ -28,7 +28,7 @@ services:
 
   app:
     env_file:
-      - .env.production
+      - .env
     build:
       context: .
       dockerfile: Dockerfile.production
@@ -61,7 +61,7 @@ services:
 
   worker:
     env_file:
-      - .env.production
+      - .env
     build:
       context: .
       dockerfile: Dockerfile.worker
