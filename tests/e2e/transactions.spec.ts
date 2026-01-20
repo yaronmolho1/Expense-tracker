@@ -80,7 +80,6 @@ test.describe('Transactions', () => {
 
 test.describe('Transaction Filters', () => {
   test.beforeEach(async ({ page }) => {
-    await loginWithCookies(page);
     await page.goto('/transactions', { waitUntil: 'networkidle' });
   });
 

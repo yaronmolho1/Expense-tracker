@@ -57,7 +57,6 @@ test.describe('File Upload', () => {
 
 test.describe('File Upload - Card Detection', () => {
   test.beforeEach(async ({ page }) => {
-    await loginWithCookies(page);
     await page.goto('/upload', { waitUntil: 'domcontentloaded' });
   });
 

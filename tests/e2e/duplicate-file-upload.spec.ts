@@ -102,7 +102,6 @@ test.describe('Duplicate File Upload Prevention', () => {
 
 test.describe('Duplicate File Upload - Edge Cases', () => {
   test.beforeEach(async ({ page }) => {
-    await loginWithCookies(page);
     await page.goto('/upload', { waitUntil: 'domcontentloaded' });
   });
 
@@ -143,7 +142,6 @@ test.describe('Duplicate File Upload - Edge Cases', () => {
 
 test.describe('Duplicate File Upload - UI Feedback', () => {
   test.beforeEach(async ({ page }) => {
-    await loginWithCookies(page);
     await page.goto('/upload', { waitUntil: 'domcontentloaded' });
   });
 
