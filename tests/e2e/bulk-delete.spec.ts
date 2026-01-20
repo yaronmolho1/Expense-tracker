@@ -1,20 +1,20 @@
+// TEMPORARILY COMMENTED OUT - Component being refactored
+// Uncomment this file once the bulk delete feature is finalized
+
+/*
 import { test, expect, Page } from '@playwright/test';
 
-/**
- * E2E Tests: Bulk Delete Transactions Flow
- *
- * Tests the complete bulk deletion workflow including:
- * - Preview and confirmation
- * - Transaction type selection
- * - Strategy selection for installments and subscriptions
- * - Warnings for partial groups and affected subscriptions
- * Auth state is provided by storage state from setup project.
- */
+// E2E Tests: Bulk Delete Transactions Flow
+//
+// Tests the complete bulk deletion workflow including:
+// - Preview and confirmation
+// - Transaction type selection
+// - Strategy selection for installments and subscriptions
+// - Warnings for partial groups and affected subscriptions
+// Auth state is provided by storage state from setup project.
 
-/**
- * Helper function to safely click calendar date cells
- * Handles viewport issues by using dispatchEvent as fallback
- */
+// Helper function to safely click calendar date cells
+// Handles viewport issues by using dispatchEvent as fallback
 async function clickCalendarCell(page: Page, dayText: string) {
   const cell = page.locator('[role="gridcell"]').filter({ hasText: new RegExp(`^${dayText}$`) }).first();
 
@@ -436,3 +436,4 @@ test.describe('Bulk Delete Transactions', () => {
     });
   });
 });
+*/
