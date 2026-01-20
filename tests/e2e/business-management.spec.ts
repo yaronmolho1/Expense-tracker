@@ -65,24 +65,24 @@ test.describe('Business Management - Combined Filters E2E', () => {
       const searchInput = page.locator('input[placeholder*="Search"], input[type="search"]');
       await expect(searchInput).toBeVisible({ timeout: 10000 });
 
-      // Check for category filter
-      const categoryFilter = page.getByText('Main Category');
+      // Check for category filter (MultiSelect with placeholder "All categories")
+      const categoryFilter = page.locator('button:has-text("All categories"), button:has-text("Main Category")').first();
       await expect(categoryFilter).toBeVisible();
 
-      // Check for approval status filter
-      const approvalFilter = page.getByText('Approval Status');
+      // Check for approval status filter (Select component)
+      const approvalFilter = page.locator('button').filter({ hasText: /All Businesses|Approved Only|Unapproved Only|Uncategorized Only/ }).first();
       await expect(approvalFilter).toBeVisible();
 
-      // Check for date range pickers
-      const dateFromLabel = page.getByText('Has Transactions From');
-      await expect(dateFromLabel).toBeVisible();
+      // Check for date range pickers (labels changed from "Has Transactions From" to "From")
+      const dateFromInput = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
+      await expect(dateFromInput).toBeVisible();
     });
   });
 
   test.describe('Test 4.1: Uncategorized + Date Range (E2E)', () => {
     test('should filter uncategorized businesses with date range', async ({ page }) => {
-      // Wait for button to be enabled before clicking
-      const categoryButton = page.locator('button').filter({ hasText: 'Main Category' });
+      // Wait for button to be enabled before clicking (MultiSelect with placeholder)
+      const categoryButton = page.locator('button:has-text("All categories"), button').first();
       await expect(categoryButton).toBeEnabled({ timeout: 10000 });
       await categoryButton.click();
 
@@ -113,8 +113,8 @@ test.describe('Business Management - Combined Filters E2E', () => {
       const searchInput = page.locator('input[placeholder*="Search"], input[type="search"]').first();
       await searchInput.fill('test');
 
-      // Wait for button to be enabled before clicking
-      const categoryButton = page.locator('button').filter({ hasText: 'Main Category' });
+      // Wait for button to be enabled before clicking (MultiSelect)
+      const categoryButton = page.locator('button:has-text("All categories"), button').first();
       await expect(categoryButton).toBeEnabled({ timeout: 10000 });
       await categoryButton.click();
 
@@ -140,8 +140,8 @@ test.describe('Business Management - Combined Filters E2E', () => {
 
   test.describe('Test 4.3: Approval Status + Date Range (E2E)', () => {
     test('should filter approved businesses with date range', async ({ page }) => {
-      // Wait for button to be enabled before clicking
-      const approvalButton = page.locator('button').filter({ hasText: 'Approval Status' });
+      // Wait for Select button to be enabled (shows current selection, not a label)
+      const approvalButton = page.locator('button').filter({ hasText: /All Businesses|Approved Only|Unapproved Only|Uncategorized Only/ }).first();
       await expect(approvalButton).toBeEnabled({ timeout: 10000 });
       await approvalButton.click();
 
@@ -163,8 +163,8 @@ test.describe('Business Management - Combined Filters E2E', () => {
     });
 
     test('should filter unapproved businesses with date range', async ({ page }) => {
-      // Wait for button to be enabled before clicking
-      const approvalButton = page.locator('button').filter({ hasText: 'Approval Status' });
+      // Wait for Select button to be enabled
+      const approvalButton = page.locator('button').filter({ hasText: /All Businesses|Approved Only|Unapproved Only|Uncategorized Only/ }).first();
       await expect(approvalButton).toBeEnabled({ timeout: 10000 });
       await approvalButton.click();
 
@@ -194,8 +194,8 @@ test.describe('Business Management - Combined Filters E2E', () => {
       // Clear search
       await searchInput.clear();
 
-      // Select and deselect uncategorized
-      const categoryButton = page.locator('button').filter({ hasText: 'Main Category' });
+      // Select and deselect uncategorized (MultiSelect)
+      const categoryButton = page.locator('button:has-text("All categories"), button').first();
       await categoryButton.click();
 
       const uncategorizedOption = page.locator('text=Uncategorized').first();
@@ -214,7 +214,7 @@ test.describe('Business Management - Combined Filters E2E', () => {
 
   test.describe('Uncategorized Filter Behavior', () => {
     test('should select uncategorized from Main Category multi-select', async ({ page }) => {
-      const categoryButton = page.locator('button').filter({ hasText: 'Main Category' });
+      const categoryButton = page.locator('button:has-text("All categories"), button').first();
       await expect(categoryButton).toBeEnabled({ timeout: 10000 });
       await categoryButton.click();
 
@@ -230,7 +230,7 @@ test.describe('Business Management - Combined Filters E2E', () => {
     });
 
     test('should select uncategorized from Approval Status dropdown', async ({ page }) => {
-      const approvalButton = page.locator('button').filter({ hasText: 'Approval Status' });
+      const approvalButton = page.locator('button').filter({ hasText: /All Businesses|Approved Only|Unapproved Only|Uncategorized Only/ }).first();
       await expect(approvalButton).toBeEnabled({ timeout: 10000 });
       await approvalButton.click();
 
@@ -245,8 +245,8 @@ test.describe('Business Management - Combined Filters E2E', () => {
     });
 
     test('should clear category filters when uncategorized is selected', async ({ page }) => {
-      // Wait for button to be enabled before clicking
-      const categoryButton = page.locator('button').filter({ hasText: 'Main Category' });
+      // Wait for button to be enabled before clicking (MultiSelect)
+      const categoryButton = page.locator('button:has-text("All categories"), button').first();
       await expect(categoryButton).toBeEnabled({ timeout: 10000 });
       await categoryButton.click();
 
@@ -320,8 +320,8 @@ test.describe('Business Management - Combined Filters E2E', () => {
         { timeout: 15000 }
       );
 
-      // Wait for button to be enabled before clicking
-      const categoryButton = page.locator('button').filter({ hasText: 'Main Category' });
+      // Wait for button to be enabled before clicking (MultiSelect)
+      const categoryButton = page.locator('button:has-text("All categories"), button').first();
       await expect(categoryButton).toBeEnabled({ timeout: 10000 });
       await categoryButton.click();
 
