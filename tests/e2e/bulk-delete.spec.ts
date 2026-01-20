@@ -21,7 +21,7 @@ async function loginWithCookies(page: Page) {
 
   const responsePromise = page.waitForResponse(
     (resp) => resp.url().includes('/api/auth/login') && resp.status() === 200,
-    { timeout: 30000 } // Increased for CI environment (bcrypt is CPU-intensive)
+    { timeout: 5000 }
   );
 
   await page.click('button[type="submit"]');

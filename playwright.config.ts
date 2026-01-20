@@ -52,11 +52,11 @@ export default defineConfig({
     // Video on failure
     video: 'retain-on-failure',
 
-    // Increase navigation timeout to handle slow server responses
-    navigationTimeout: 30 * 1000,
+    // Navigation timeout
+    navigationTimeout: 15 * 1000,
 
-    // Increase action timeout for slow operations (especially in CI)
-    actionTimeout: process.env.CI ? 20 * 1000 : 15 * 1000,
+    // Action timeout
+    actionTimeout: 10 * 1000,
   },
 
   // Configure projects for major browsers
