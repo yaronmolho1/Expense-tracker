@@ -33,10 +33,10 @@ async function clickCalendarCell(page: Page, dayText: string) {
     await cell.dispatchEvent('click');
   }
 
-  // CRITICAL: Wait for calendar popover to fully close
-  // The calendar must close before any other interactions or the overlay blocks clicks
-  await page.waitForTimeout(500); // Give the popover animation time to complete
-  await page.locator('[role="grid"]').waitFor({ state: 'detached', timeout: 5000 });
+  // CRITICAL: Wait for the popover overlay to completely disappear
+  // The modal overlay ([data-slot="dialog-overlay"]) blocks all interactions until it's gone
+  // This is the KEY fix - without this, the overlay blocks subsequent clicks
+  await page.locator('[data-slot="dialog-overlay"]').waitFor({ state: 'hidden', timeout: 5000 });
 }
 
 test.describe('Bulk Delete Transactions', () => {

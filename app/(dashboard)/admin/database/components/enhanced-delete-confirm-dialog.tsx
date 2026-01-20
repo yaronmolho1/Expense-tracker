@@ -83,7 +83,7 @@ export function EnhancedDeleteConfirmDialog(props: EnhancedDeleteConfirmDialogPr
 
   // Calculate selected count based on strategies
   const calculateInstallmentCount = () => {
-    if (!includeInstallments) return 0;
+    if (!includeInstallments || props.installmentStrategy === 'skip_all') return 0;
 
     if (props.installmentStrategy === 'delete_all_matching_groups') {
       // Count all payments in affected groups
@@ -91,13 +91,19 @@ export function EnhancedDeleteConfirmDialog(props: EnhancedDeleteConfirmDialogPr
     } else if (props.installmentStrategy === 'delete_matching_only') {
       return warnings.summary.installmentCount;
     }
-    return 0; // skip_all
+    return 0;
   };
 
   const selectedCount =
     (includeOneTime ? warnings.summary.oneTimeCount : 0) +
     calculateInstallmentCount() +
     (includeSubscriptions && props.subscriptionStrategy !== 'skip' ? warnings.summary.subscriptionCount : 0);
+
+  // Check if any category is actually selected for deletion (not just checked but with a valid strategy)
+  const hasValidSelection =
+    includeOneTime ||
+    (includeInstallments && props.installmentStrategy !== 'skip_all') ||
+    (includeSubscriptions && props.subscriptionStrategy !== 'skip');
 
   return (
     <AlertDialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -363,7 +369,7 @@ export function EnhancedDeleteConfirmDialog(props: EnhancedDeleteConfirmDialogPr
           <AlertDialogAction
             onClick={props.onConfirm}
             className="bg-destructive hover:bg-destructive/90"
-            disabled={selectedCount === 0}
+            disabled={!hasValidSelection || selectedCount === 0}
           >
             Delete {selectedCount} {selectedCount === 1 ? 'Transaction' : 'Transactions'}
           </AlertDialogAction>
