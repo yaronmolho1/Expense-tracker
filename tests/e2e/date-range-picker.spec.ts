@@ -4,6 +4,7 @@ import { test, expect, Page } from '@playwright/test';
  * E2E Tests: DateRangePicker Component
  *
  * Tests user interactions with the smart date range picker in the business filters.
+ * Auth state is provided by storage state from setup project.
  *
  * HIGH PRIORITY - Test 2: Smart Validation (E2E)
  * End-to-end validation of date range picker behavior.
@@ -19,58 +20,25 @@ async function clickCalendarCell(page: Page, dayText: string) {
   // Wait for element to be attached and visible
   await cell.waitFor({ state: 'visible', timeout: 5000 });
 
-  // Wait for any animations or layout shifts to complete
-  await page.waitForTimeout(300);
+  // Wait for calendar to be stable (removed hard waits)
+  await page.locator('[role="grid"]').waitFor({ state: 'visible', timeout: 3000 });
 
   try {
     // First attempt: scroll into view and click
     await cell.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(100);
     await cell.click({ timeout: 2000 });
   } catch (error) {
     // Fallback: Use dispatchEvent to bypass viewport checks
     // This is acceptable for internal admin tools where strict user simulation is secondary to stability
     await cell.dispatchEvent('click');
   }
-}
 
-/**
- * Helper function to login with explicit cookie handling
- */
-async function loginWithCookies(page: Page) {
-  await page.goto('/login', { waitUntil: 'networkidle' });
-  await page.waitForSelector('input[name="username"]', { timeout: 10000 });
-  await page.fill('input[name="username"]', 'gili');
-  await page.fill('input[name="password"]', 'y1a3r5o7n');
-
-  const responsePromise = page.waitForResponse(
-    resp => resp.url().includes('/api/auth/login') && resp.status() === 200,
-    { timeout: 5000 }
-  );
-
-  await page.click('button[type="submit"]');
-  await responsePromise;
-
-  await page.waitForURL('/', { timeout: 10000 }).catch(() => {});
-
-  const cookies = await page.context().cookies();
-  const authCookie = cookies.find(c => c.name === 'auth_token');
-
-  if (!authCookie) {
-    throw new Error('Auth cookie not set after login');
-  }
-
-  const currentUrl = page.url();
-  if (!currentUrl.includes(':3000/') || currentUrl.includes('/login')) {
-    await page.goto('/', { waitUntil: 'networkidle' });
-  }
-
-  await expect(page).toHaveURL('/', { timeout: 5000 });
+  // Wait for calendar to close after selection
+  await page.locator('[role="grid"]').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
 }
 
 test.describe('DateRangePicker E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
-    await loginWithCookies(page);
     await page.goto('/manage/businesses');
     await page.waitForLoadState('networkidle');
 

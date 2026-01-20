@@ -69,10 +69,10 @@ export default defineConfig({
     // Main tests - depend on setup and use stored auth state
     {
       name: 'chromium',
-      use: { 
+      use: {
         ...devices['Desktop Chrome'],
         // Use stored auth state (comment out to disable optimization)
-        // storageState: 'playwright/.auth/user.json',
+        storageState: 'playwright/.auth/user.json',
       },
       dependencies: ['setup'],
     },
@@ -99,7 +99,8 @@ export default defineConfig({
       JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
       // Auth credentials (from docker-compose or .env)
       AUTH_USERNAME: process.env.AUTH_USERNAME || 'gili',
-      AUTH_PASSWORD_HASH_BASE64: process.env.AUTH_PASSWORD_HASH_BASE64 || 'JDJiJDEyJGRxREtvMVUvOTVGVWRCVi5qLjdSZi5JOVltMzhGTDdzRVdYVHZDazlYUm5EcFhvNEdRbFRh',
+      // Updated hash with 4 rounds for test performance (y1a3r5o7n)
+      AUTH_PASSWORD_HASH_BASE64: process.env.AUTH_PASSWORD_HASH_BASE64 || 'JDJiJDA0JHY1dGhHMHJnN2FNUi9JR0FlcHd0RC5EbExCLnNtNndHTm1uLjM1STJiVWQ5bk11bzE0bmJL',
       // Optional: Anthropic API key
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
       NODE_ENV: 'test',

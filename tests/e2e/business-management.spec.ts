@@ -4,6 +4,7 @@ import { test, expect, Page } from '@playwright/test';
  * E2E Tests: Business Management - Combined Filters
  *
  * Tests the full filter pipeline from frontend to API to database.
+ * Auth state is provided by storage state from setup project.
  *
  * MEDIUM PRIORITY - Test 4: Combined Filters (E2E)
  * End-to-end testing of multiple filters working together.
@@ -19,57 +20,24 @@ async function clickCalendarCell(page: Page, dayText: string) {
   // Wait for element to be attached and visible
   await cell.waitFor({ state: 'visible', timeout: 5000 });
 
-  // Wait for any animations or layout shifts to complete
-  await page.waitForTimeout(300);
+  // Wait for calendar to settle (removed hard wait, added state check)
+  await page.locator('[role="grid"]').waitFor({ state: 'visible', timeout: 3000 });
 
   try {
     // First attempt: scroll into view and click
     await cell.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(100);
     await cell.click({ timeout: 2000 });
   } catch (error) {
     // Fallback: Use dispatchEvent to bypass viewport checks
     await cell.dispatchEvent('click');
   }
-}
 
-/**
- * Helper function to login with explicit cookie handling
- */
-async function loginWithCookies(page: Page) {
-  await page.goto('/login', { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('input[name="username"]', { timeout: 10000 });
-  await page.fill('input[name="username"]', 'gili');
-  await page.fill('input[name="password"]', 'y1a3r5o7n');
-
-  const responsePromise = page.waitForResponse(
-    resp => resp.url().includes('/api/auth/login') && resp.status() === 200,
-    { timeout: 15000 }
-  );
-
-  await page.click('button[type="submit"]');
-  await responsePromise;
-
-  await page.waitForURL('/', { timeout: 10000 }).catch(() => {});
-
-  const cookies = await page.context().cookies();
-  const authCookie = cookies.find(c => c.name === 'auth_token');
-
-  if (!authCookie) {
-    throw new Error('Auth cookie not set after login');
-  }
-
-  const currentUrl = page.url();
-  if (!currentUrl.includes(':3000/') || currentUrl.includes('/login')) {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-  }
-
-  await expect(page).toHaveURL('/', { timeout: 5000 });
+  // Wait for calendar to close after click
+  await page.locator('[role="grid"]').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
 }
 
 test.describe('Business Management - Combined Filters E2E', () => {
   test.beforeEach(async ({ page }) => {
-    await loginWithCookies(page);
     await page.goto('/manage/businesses', { waitUntil: 'domcontentloaded' });
 
     // Wait for the page to finish loading - ensure "Loading..." text is gone

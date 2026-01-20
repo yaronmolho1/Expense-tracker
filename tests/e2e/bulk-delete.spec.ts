@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 /**
  * E2E Tests: Bulk Delete Transactions Flow
@@ -8,46 +8,10 @@ import { test, expect, Page } from '@playwright/test';
  * - Transaction type selection
  * - Strategy selection for installments and subscriptions
  * - Warnings for partial groups and affected subscriptions
+ * Auth state is provided by storage state from setup project.
  */
-
-/**
- * Helper function to login with explicit cookie handling
- */
-async function loginWithCookies(page: Page) {
-  await page.goto('/login', { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('input[name="username"]', { timeout: 10000 });
-  await page.fill('input[name="username"]', 'gili');
-  await page.fill('input[name="password"]', 'y1a3r5o7n');
-
-  const responsePromise = page.waitForResponse(
-    (resp) => resp.url().includes('/api/auth/login') && resp.status() === 200,
-    { timeout: 5000 }
-  );
-
-  await page.click('button[type="submit"]');
-  await responsePromise;
-
-  await page.waitForURL('/', { timeout: 10000 }).catch(() => {});
-
-  const cookies = await page.context().cookies();
-  const authCookie = cookies.find((c) => c.name === 'auth_token');
-
-  if (!authCookie) {
-    throw new Error('Auth cookie not set after login');
-  }
-
-  const currentUrl = page.url();
-  if (!currentUrl.includes(':3000/') || currentUrl.includes('/login')) {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-  }
-
-  await expect(page).toHaveURL('/', { timeout: 5000 });
-}
 
 test.describe('Bulk Delete Transactions', () => {
-  test.beforeEach(async ({ page }) => {
-    await loginWithCookies(page);
-  });
 
   test.describe('Preview and Cancel Flow', () => {
     test('user can preview deletion and cancel', async ({ page }) => {
