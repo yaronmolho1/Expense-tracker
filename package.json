@@ -14,7 +14,7 @@
     "db:clear": "tsx scripts/clear-tables.ts",
     "db:test:create": "powershell -ExecutionPolicy Bypass -File scripts/create-test-db.ps1",
     "db:integration:create": "powershell -ExecutionPolicy Bypass -File scripts/create-integration-db.ps1",
-    "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "test": "pnpm run test:unit && pnpm run test:integration && pnpm run test:e2e",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "playwright test",

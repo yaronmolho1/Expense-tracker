@@ -34,19 +34,35 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       
       - name: Install wait-on globally
-        run: npm install -g wait-on
+        run: pnpm add -g wait-on
       
       - name: TypeScript type check
-        run: npm run type-check
+        run: pnpm run type-check
       
       - name: Run unit tests
-        run: npm run test:unit
+        run: pnpm run test:unit
         env:
           JWT_SECRET: test-secret-key-for-ci
           AUTH_USERNAME: testuser
@@ -62,7 +78,7 @@ jobs:
           PGPASSWORD: testpass
       
       - name: Run integration tests
-        run: npm run test:integration
+        run: pnpm run test:integration
         env:
           DATABASE_URL: postgresql://expenseuser:testpass@localhost:5432/expense_tracker_integration
           PGUSER: expenseuser
@@ -72,7 +88,7 @@ jobs:
           AUTH_PASSWORD_HASH_BASE64: JDJiJDEyJHRlc3Q=
       
       - name: Install Playwright browsers
-        run: npx playwright install chromium --with-deps
+        run: pnpm exec playwright install chromium --with-deps
       
       - name: Setup E2E test database
         run: |
@@ -84,7 +100,7 @@ jobs:
           PGPASSWORD: testpass
       
       - name: Run E2E tests
-        run: npm run test:e2e
+        run: pnpm run test:e2e
         env:
           DATABASE_URL: postgresql://expenseuser:testpass@localhost:5432/expense_tracker_test
           TEST_DATABASE_URL: postgresql://expenseuser:testpass@localhost:5432/expense_tracker_test
@@ -122,13 +138,29 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       
       - name: Run linter
-        run: npm run lint || true
+        run: pnpm run lint || true
 
   build:
     runs-on: ubuntu-latest
@@ -141,13 +173,29 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       
       - name: Build application
-        run: npm run build
+        run: pnpm run build
         env:
           DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
           JWT_SECRET: build-time-secret
