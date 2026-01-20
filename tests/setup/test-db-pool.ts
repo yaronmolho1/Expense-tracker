@@ -13,25 +13,24 @@ import * as schema from '@/lib/db/schema';
 const TEST_DB_URL = process.env.DATABASE_URL || 
   'postgresql://expenseuser:expensepass@localhost:5432/expense_tracker_integration';
 
-// Single connection for all tests
-let connection: ReturnType<typeof postgres> | null = null;
-let db: ReturnType<typeof drizzle> | null = null;
-
 /**
  * Get database connection (singleton)
+ * Uses the same global singleton as lib/db/index.ts
  */
 export function getTestDb() {
-  if (!connection) {
-    connection = postgres(TEST_DB_URL, {
+  // Use the same global client as lib/db to ensure transaction isolation works
+  if (!(global as any).__testDbClient) {
+    (global as any).__testDbClient = postgres(TEST_DB_URL, {
       max: 1, // Single connection for tests
       idle_timeout: 0,
       connect_timeout: 10,
     });
-    
-    db = drizzle(connection, { schema });
   }
-  
-  return { connection: connection!, db: db! };
+
+  const connection = (global as any).__testDbClient;
+  const db = drizzle(connection, { schema });
+
+  return { connection, db };
 }
 
 /**
@@ -58,10 +57,9 @@ export async function beginTestTransaction() {
  * Close database connection
  */
 export async function closeTestDb() {
-  if (connection) {
-    await connection.end();
-    connection = null;
-    db = null;
+  if ((global as any).__testDbClient) {
+    await (global as any).__testDbClient.end();
+    delete (global as any).__testDbClient;
   }
 }
 
