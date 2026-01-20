@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 
 /**
  * E2E Tests: Bulk Delete Transactions Flow
@@ -10,6 +10,32 @@ import { test, expect } from '@playwright/test';
  * - Warnings for partial groups and affected subscriptions
  * Auth state is provided by storage state from setup project.
  */
+
+/**
+ * Helper function to safely click calendar date cells
+ * Handles viewport issues by using dispatchEvent as fallback
+ */
+async function clickCalendarCell(page: Page, dayText: string) {
+  const cell = page.locator('[role="gridcell"]').filter({ hasText: new RegExp(`^${dayText}$`) }).first();
+
+  // Wait for element to be attached and visible
+  await cell.waitFor({ state: 'visible', timeout: 5000 });
+
+  // Wait for calendar to settle
+  await page.locator('[role="grid"]').waitFor({ state: 'visible', timeout: 3000 });
+
+  try {
+    // First attempt: scroll into view and click
+    await cell.scrollIntoViewIfNeeded();
+    await cell.click({ timeout: 2000 });
+  } catch (error) {
+    // Fallback: Use dispatchEvent to bypass viewport checks
+    await cell.dispatchEvent('click');
+  }
+
+  // Wait for calendar to close after click
+  await page.locator('[role="grid"]').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+}
 
 test.describe('Bulk Delete Transactions', () => {
   // Add beforeEach to ensure page loads properly
@@ -32,12 +58,16 @@ test.describe('Bulk Delete Transactions', () => {
       // Wait for dialog to open
       await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
 
-      // Set date range
-      const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
-      const toDateInput = page.locator('input[name="to-date"], input[placeholder*="To"]').first();
+      // Set date range using calendar popover
+      // Click "From Date" button to open calendar
+      const fromDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
+      await fromDateButton.click();
+      await clickCalendarCell(page, '1'); // Select day 1
 
-      await fromDateInput.fill('2024-01-01');
-      await toDateInput.fill('2024-12-31');
+      // Click "To Date" button to open calendar
+      const toDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).last();
+      await toDateButton.click();
+      await clickCalendarCell(page, '31'); // Select day 31
 
       // Click preview
       const previewButton = page.locator('button:has-text("Preview Deletion")');
@@ -67,12 +97,14 @@ test.describe('Bulk Delete Transactions', () => {
       await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
-      // Set date range
-      const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
-      const toDateInput = page.locator('input[name="to-date"], input[placeholder*="To"]').first();
+      // Set date range using calendar popover
+      const fromDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
+      await fromDateButton.click();
+      await clickCalendarCell(page, '1');
 
-      await fromDateInput.fill('2024-01-01');
-      await toDateInput.fill('2024-12-31');
+      const toDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).last();
+      await toDateButton.click();
+      await clickCalendarCell(page, '31');
 
       // Click preview
       await page.click('button:has-text("Preview Deletion")');
@@ -115,11 +147,13 @@ test.describe('Bulk Delete Transactions', () => {
       await page.waitForSelector('[role="dialog"]');
 
       // Set a narrow date range to create partial groups
-      const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
-      const toDateInput = page.locator('input[name="to-date"], input[placeholder*="To"]').first();
+      const fromDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
+      await fromDateButton.click();
+      await clickCalendarCell(page, '1');
 
-      await fromDateInput.fill('2024-06-01');
-      await toDateInput.fill('2024-06-30');
+      const toDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).last();
+      await toDateButton.click();
+      await clickCalendarCell(page, '30');
 
       await page.click('button:has-text("Preview Deletion")');
 
@@ -151,11 +185,13 @@ test.describe('Bulk Delete Transactions', () => {
       await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
-      const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
-      const toDateInput = page.locator('input[name="to-date"], input[placeholder*="To"]').first();
+      const fromDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
+      await fromDateButton.click();
+      await clickCalendarCell(page, '1');
 
-      await fromDateInput.fill('2024-01-01');
-      await toDateInput.fill('2024-12-31');
+      const toDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).last();
+      await toDateButton.click();
+      await clickCalendarCell(page, '31');
 
       await page.click('button:has-text("Preview Deletion")');
       await page.waitForSelector('text=/Delete \\d+ Transaction/i', { timeout: 10000 });
@@ -179,8 +215,9 @@ test.describe('Bulk Delete Transactions', () => {
       await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
-      const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
-      await fromDateInput.fill('2024-01-01');
+      const fromDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
+      await fromDateButton.click();
+      await clickCalendarCell(page, '1');
 
       await page.click('button:has-text("Preview Deletion")');
       await page.waitForSelector('text=/Delete \\d+ Transaction/i', { timeout: 10000 });
@@ -225,8 +262,9 @@ test.describe('Bulk Delete Transactions', () => {
       await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
-      const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
-      await fromDateInput.fill('2024-01-01');
+      const fromDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
+      await fromDateButton.click();
+      await clickCalendarCell(page, '1');
 
       await page.click('button:has-text("Preview Deletion")');
 
@@ -245,8 +283,9 @@ test.describe('Bulk Delete Transactions', () => {
       await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
-      const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
-      await fromDateInput.fill('2024-01-01');
+      const fromDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
+      await fromDateButton.click();
+      await clickCalendarCell(page, '1');
 
       await page.click('button:has-text("Preview Deletion")');
       await page.waitForSelector('text=/Delete \\d+ Transaction/i', { timeout: 10000 });
@@ -274,8 +313,9 @@ test.describe('Bulk Delete Transactions', () => {
       await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
-      const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
-      await fromDateInput.fill('2024-01-01');
+      const fromDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
+      await fromDateButton.click();
+      await clickCalendarCell(page, '1');
 
       await page.click('button:has-text("Preview Deletion")');
       await page.waitForSelector('text=/Delete \\d+ Transaction/i', { timeout: 10000 });
@@ -294,8 +334,9 @@ test.describe('Bulk Delete Transactions', () => {
       await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
-      const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
-      await fromDateInput.fill('2024-06-01');
+      const fromDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
+      await fromDateButton.click();
+      await clickCalendarCell(page, '1');
 
       await page.click('button:has-text("Preview Deletion")');
       await page.waitForSelector('text=/Delete \\d+ Transaction/i', { timeout: 10000 });
