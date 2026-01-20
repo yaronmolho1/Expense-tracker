@@ -38,11 +38,8 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
-# Install all dependencies (tsx is in devDependencies but needed for runtime)
+# Install all dependencies including devDependencies (tsx is in devDependencies but needed for runtime)
 RUN pnpm install --frozen-lockfile
-
-# Install tsx globally (needed to run TypeScript worker script)
-RUN pnpm add -g tsx@^4.21.0
 
 # Copy application code (needed for worker script and lib files)
 COPY --from=builder --chown=worker:nodejs /app/scripts ./scripts
@@ -53,5 +50,5 @@ COPY --from=builder --chown=worker:nodejs /app/node_modules ./node_modules
 # Switch to non-root user
 USER worker
 
-# Start the worker
-CMD ["tsx", "scripts/worker.ts"]
+# Start the worker using pnpm to run tsx (from node_modules)
+CMD ["pnpm", "exec", "tsx", "scripts/worker.ts"]

@@ -17,7 +17,7 @@ sleep 2
 
 # Run database migrations (don't fail if migrations fail)
 echo "🔄 Running database migrations..."
-if tsx ./scripts/migrate.ts; then
+if pnpm exec tsx ./scripts/migrate.ts; then
   echo "✅ Migrations completed successfully"
 else
   EXIT_CODE=$?
@@ -26,7 +26,7 @@ else
   echo "   - Migrations are already applied"
   echo "   - Database is not ready yet (will retry on next startup)"
   echo "   The application will start anyway - migrations can be run manually if needed:"
-  echo "   docker compose exec app tsx scripts/migrate.ts"
+  echo "   docker compose exec app pnpm exec tsx scripts/migrate.ts"
 fi
 
 # Start the application (this should always run)

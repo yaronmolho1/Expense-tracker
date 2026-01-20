@@ -1,6 +1,6 @@
 # Docker Compose for Production Environment
-# 
-# Usage: docker compose -f docker-compose.production.yml up -d
+#
+# Usage: docker compose -f docker-compose.production.yml --env-file .env.production up -d
 
 services:
   db:

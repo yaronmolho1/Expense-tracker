@@ -62,14 +62,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 # These are needed by migrate.ts script but not included in standalone build
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/tsx ./node_modules/tsx
 
 # Copy entrypoint script
 COPY --from=builder --chown=nextjs:nodejs /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
-# Install pnpm and tsx globally for running TypeScript migration script
+# Install pnpm for running tsx from node_modules
 # Must be done as root before switching to non-root user
-RUN corepack enable && corepack prepare pnpm@latest --activate && \
-    pnpm add -g tsx@^4.21.0
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Create uploads directory with proper permissions
 RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
