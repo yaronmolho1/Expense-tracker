@@ -1,55 +1,12 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { loginViaUI } from './helpers/auth-helpers';
 
 /**
  * E2E Tests: Authentication Flow
- * 
+ *
  * Tests the complete authentication flow including login, logout,
  * and protected route access.
  */
-
-/**
- * Helper function to login with explicit cookie handling
- * This ensures cookies are properly set before navigation
- */
-async function loginWithCookies(page: Page) {
-  await page.goto('/login', { waitUntil: 'networkidle' });
-  await page.waitForSelector('input[name="username"]', { timeout: 10000 });
-  await page.fill('input[name="username"]', 'gili');
-  await page.fill('input[name="password"]', 'y1a3r5o7n');
-  
-  // Intercept the login response BEFORE clicking submit
-  const responsePromise = page.waitForResponse(
-    resp => resp.url().includes('/api/auth/login') && resp.status() === 200,
-    { timeout: 15000 }
-  );
-  
-  // Click submit button
-  await page.click('button[type="submit"]');
-  
-  // Wait for successful response
-  await responsePromise;
-  
-  // Wait for redirect/navigation to complete
-  await page.waitForURL('/', { timeout: 10000 }).catch(() => {
-    // If direct navigation doesn't happen, manually navigate
-  });
-  
-  // Ensure we're on dashboard by checking cookies
-  const cookies = await page.context().cookies();
-  const authCookie = cookies.find(c => c.name === 'auth_token');
-  
-  if (!authCookie) {
-    throw new Error('Auth cookie not set after login');
-  }
-  
-  // If not already on dashboard, navigate there
-  const currentUrl = page.url();
-  if (!currentUrl.includes(':3000/') || currentUrl.includes('/login')) {
-    await page.goto('/', { waitUntil: 'networkidle' });
-  }
-  
-  await expect(page).toHaveURL('/', { timeout: 5000 });
-}
 
 test.describe('Authentication', () => {
   test.beforeEach(async ({ page }) => {
@@ -85,7 +42,7 @@ test.describe('Authentication', () => {
   });
 
   test('should login successfully with correct credentials', async ({ page }) => {
-    await loginWithCookies(page);
+    await loginViaUI(page);
     
     // Should see dashboard content (main page loaded, not login)
     await expect(page.locator('input[name="username"]')).not.toBeVisible();
@@ -93,7 +50,7 @@ test.describe('Authentication', () => {
 
   test('should persist authentication after page refresh', async ({ page }) => {
     // Login first
-    await loginWithCookies(page);
+    await loginViaUI(page);
     
     // Refresh the page
     await page.reload({ waitUntil: 'networkidle' });
@@ -106,7 +63,7 @@ test.describe('Authentication', () => {
 
   test('should logout successfully', async ({ page }) => {
     // Login first
-    await loginWithCookies(page);
+    await loginViaUI(page);
     
     // Wait for page to be fully loaded
     await page.waitForLoadState('networkidle');
@@ -142,10 +99,7 @@ test.describe('Authentication', () => {
 
   test('should allow API access with valid token', async ({ page, request }) => {
     // Login to get token
-    await loginWithCookies(page);
-    
-    // Wait a bit for token to be stored
-    await page.waitForTimeout(1000);
+    await loginViaUI(page);
     
     // Get token from localStorage
     const token = await page.evaluate(() => localStorage.getItem('auth_token'));

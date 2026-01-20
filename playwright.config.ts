@@ -39,21 +39,24 @@ export default defineConfig({
     // Base URL to use in actions like `await page.goto('/')`
     // Use IPv4 explicitly to avoid IPv6 connection issues
     baseURL: 'http://127.0.0.1:3000',
-    
+
+    // Set consistent viewport size for local and CI environments
+    viewport: { width: 1280, height: 720 },
+
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
-    
+
     // Screenshot on failure
     screenshot: 'only-on-failure',
-    
+
     // Video on failure
     video: 'retain-on-failure',
-    
-    // Increase navigation timeout to handle slow server responses
-    navigationTimeout: 30 * 1000,
-    
-    // Increase action timeout for slow operations
-    actionTimeout: 15 * 1000,
+
+    // Navigation timeout
+    navigationTimeout: 15 * 1000,
+
+    // Action timeout
+    actionTimeout: 10 * 1000,
   },
 
   // Configure projects for major browsers
@@ -61,15 +64,16 @@ export default defineConfig({
     // Setup project - runs first to create auth state
     {
       name: 'setup',
-      testMatch: /.*\.setup\.ts/,
+      testMatch: /.*\.setup\.ts$/,
+      testDir: './tests/setup',
     },
     // Main tests - depend on setup and use stored auth state
     {
       name: 'chromium',
-      use: { 
+      use: {
         ...devices['Desktop Chrome'],
         // Use stored auth state (comment out to disable optimization)
-        // storageState: 'playwright/.auth/user.json',
+        storageState: 'playwright/.auth/user.json',
       },
       dependencies: ['setup'],
     },
@@ -96,7 +100,8 @@ export default defineConfig({
       JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
       // Auth credentials (from docker-compose or .env)
       AUTH_USERNAME: process.env.AUTH_USERNAME || 'gili',
-      AUTH_PASSWORD_HASH_BASE64: process.env.AUTH_PASSWORD_HASH_BASE64 || 'JDJiJDEyJGRxREtvMVUvOTVGVWRCVi5qLjdSZi5JOVltMzhGTDdzRVdYVHZDazlYUm5EcFhvNEdRbFRh',
+      // Updated hash with 4 rounds for test performance (y1a3r5o7n)
+      AUTH_PASSWORD_HASH_BASE64: process.env.AUTH_PASSWORD_HASH_BASE64 || 'JDJiJDA0JHY1dGhHMHJnN2FNUi9JR0FlcHd0RC5EbExCLnNtNndHTm1uLjM1STJiVWQ5bk11bzE0bmJL',
       // Optional: Anthropic API key
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
       NODE_ENV: 'test',

@@ -34,7 +34,7 @@ services:
   worker:
     build: .
     container_name: expense-tracker-worker
-    command: npx tsx scripts/worker.ts
+    command: pnpm exec tsx scripts/worker.ts
     environment:
       DATABASE_URL: postgresql://expenseuser:expensepass@postgres:5432/expense_tracker
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}

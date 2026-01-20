@@ -75,7 +75,7 @@ export function FileUploadZone({ onUploadComplete }: FileUploadZoneProps) {
       if (seen.has(fileWithCard.file.name)) {
         return false; // Skip duplicate
       }
-      seen.set(fileWithCard.file.name);
+      seen.add(fileWithCard.file.name);
       return true; // Keep first occurrence
     });
   };

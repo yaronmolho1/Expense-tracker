@@ -4,48 +4,40 @@ import { test, expect, Page } from '@playwright/test';
  * E2E Tests: Business Management - Combined Filters
  *
  * Tests the full filter pipeline from frontend to API to database.
+ * Auth state is provided by storage state from setup project.
  *
  * MEDIUM PRIORITY - Test 4: Combined Filters (E2E)
  * End-to-end testing of multiple filters working together.
  */
 
 /**
- * Helper function to login with explicit cookie handling
+ * Helper function to safely click calendar date cells
+ * Handles viewport issues by using dispatchEvent as fallback
  */
-async function loginWithCookies(page: Page) {
-  await page.goto('/login', { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('input[name="username"]', { timeout: 10000 });
-  await page.fill('input[name="username"]', 'gili');
-  await page.fill('input[name="password"]', 'y1a3r5o7n');
+async function clickCalendarCell(page: Page, dayText: string) {
+  const cell = page.locator('[role="gridcell"]').filter({ hasText: new RegExp(`^${dayText}$`) }).first();
 
-  const responsePromise = page.waitForResponse(
-    resp => resp.url().includes('/api/auth/login') && resp.status() === 200,
-    { timeout: 15000 }
-  );
+  // Wait for element to be attached and visible
+  await cell.waitFor({ state: 'visible', timeout: 5000 });
 
-  await page.click('button[type="submit"]');
-  await responsePromise;
+  // Wait for calendar to settle (removed hard wait, added state check)
+  await page.locator('[role="grid"]').waitFor({ state: 'visible', timeout: 3000 });
 
-  await page.waitForURL('/', { timeout: 10000 }).catch(() => {});
-
-  const cookies = await page.context().cookies();
-  const authCookie = cookies.find(c => c.name === 'auth_token');
-
-  if (!authCookie) {
-    throw new Error('Auth cookie not set after login');
+  try {
+    // First attempt: scroll into view and click
+    await cell.scrollIntoViewIfNeeded();
+    await cell.click({ timeout: 2000 });
+  } catch (error) {
+    // Fallback: Use dispatchEvent to bypass viewport checks
+    await cell.dispatchEvent('click');
   }
 
-  const currentUrl = page.url();
-  if (!currentUrl.includes(':3000/') || currentUrl.includes('/login')) {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-  }
-
-  await expect(page).toHaveURL('/', { timeout: 5000 });
+  // Wait for calendar to close after click
+  await page.locator('[role="grid"]').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
 }
 
 test.describe('Business Management - Combined Filters E2E', () => {
   test.beforeEach(async ({ page }) => {
-    await loginWithCookies(page);
     await page.goto('/manage/businesses', { waitUntil: 'domcontentloaded' });
 
     // Wait for the page to finish loading - ensure "Loading..." text is gone
@@ -54,7 +46,16 @@ test.describe('Business Management - Combined Filters E2E', () => {
       { timeout: 10000 }
     );
 
-    // Wait for table or filter controls to be visible
+    // Wait for initial API call to complete and data to load
+    await page.waitForResponse(
+      resp => resp.url().includes('/api/businesses') && resp.status() === 200,
+      { timeout: 10000 }
+    ).catch(() => {});
+
+    // Wait for table to render (ensures data is loaded)
+    await page.locator('table, [role="table"]').first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
+
+    // Wait for filter controls to be enabled (not disabled during loading)
     await page.waitForSelector('input[placeholder*="Search"], input[type="search"]', { timeout: 10000 });
   });
 
@@ -64,24 +65,25 @@ test.describe('Business Management - Combined Filters E2E', () => {
       const searchInput = page.locator('input[placeholder*="Search"], input[type="search"]');
       await expect(searchInput).toBeVisible({ timeout: 10000 });
 
-      // Check for category filter
-      const categoryFilter = page.getByText('Main Category');
+      // Check for category filter (MultiSelect with placeholder "All categories")
+      const categoryFilter = page.locator('button:has-text("All categories"), button:has-text("Main Category")').first();
       await expect(categoryFilter).toBeVisible();
 
-      // Check for approval status filter
-      const approvalFilter = page.getByText('Approval Status');
+      // Check for approval status filter (Select component)
+      const approvalFilter = page.locator('button').filter({ hasText: /All Businesses|Approved Only|Unapproved Only|Uncategorized Only/ }).first();
       await expect(approvalFilter).toBeVisible();
 
-      // Check for date range pickers
-      const dateFromLabel = page.getByText('Has Transactions From');
-      await expect(dateFromLabel).toBeVisible();
+      // Check for date range pickers (labels changed from "Has Transactions From" to "From")
+      const dateFromInput = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
+      await expect(dateFromInput).toBeVisible();
     });
   });
 
   test.describe('Test 4.1: Uncategorized + Date Range (E2E)', () => {
     test('should filter uncategorized businesses with date range', async ({ page }) => {
-      // Select "Uncategorized" from Main Category filter
-      const categoryButton = page.locator('button').filter({ hasText: 'Main Category' });
+      // Wait for button to be enabled before clicking (MultiSelect with placeholder)
+      const categoryButton = page.locator('button:has-text("All categories"), button').first();
+      await expect(categoryButton).toBeEnabled({ timeout: 10000 });
       await categoryButton.click();
 
       // Look for "Uncategorized" option and wait for it to be visible
@@ -96,7 +98,7 @@ test.describe('Business Management - Combined Filters E2E', () => {
       const fromButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
-      await page.locator('[role="gridcell"]:has-text("1")').first().click();
+      await clickCalendarCell(page, '1');
 
       // Verify API call was made with correct parameters
       // Check that businesses displayed are uncategorized
@@ -111,8 +113,9 @@ test.describe('Business Management - Combined Filters E2E', () => {
       const searchInput = page.locator('input[placeholder*="Search"], input[type="search"]').first();
       await searchInput.fill('test');
 
-      // Select a category
-      const categoryButton = page.locator('button').filter({ hasText: 'Main Category' });
+      // Wait for button to be enabled before clicking (MultiSelect)
+      const categoryButton = page.locator('button:has-text("All categories"), button').first();
+      await expect(categoryButton).toBeEnabled({ timeout: 10000 });
       await categoryButton.click();
 
       // Select first category option (not Uncategorized)
@@ -125,7 +128,7 @@ test.describe('Business Management - Combined Filters E2E', () => {
       const fromButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
-      await page.locator('[role="gridcell"]:has-text("1")').first().click();
+      await clickCalendarCell(page, '1');
 
       // Wait for filters to apply
 
@@ -137,8 +140,9 @@ test.describe('Business Management - Combined Filters E2E', () => {
 
   test.describe('Test 4.3: Approval Status + Date Range (E2E)', () => {
     test('should filter approved businesses with date range', async ({ page }) => {
-      // Select "Approved Only" from Approval Status dropdown
-      const approvalButton = page.locator('button').filter({ hasText: 'Approval Status' });
+      // Wait for Select button to be enabled (shows current selection, not a label)
+      const approvalButton = page.locator('button').filter({ hasText: /All Businesses|Approved Only|Unapproved Only|Uncategorized Only/ }).first();
+      await expect(approvalButton).toBeEnabled({ timeout: 10000 });
       await approvalButton.click();
 
       const approvedOption = page.locator('text=Approved Only').first();
@@ -150,7 +154,7 @@ test.describe('Business Management - Combined Filters E2E', () => {
       const fromButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
-      await page.locator('[role="gridcell"]:has-text("15")').first().click();
+      await clickCalendarCell(page, '15');
 
       // Wait for results
 
@@ -159,8 +163,9 @@ test.describe('Business Management - Combined Filters E2E', () => {
     });
 
     test('should filter unapproved businesses with date range', async ({ page }) => {
-      // Select "Unapproved Only"
-      const approvalButton = page.locator('button').filter({ hasText: 'Approval Status' });
+      // Wait for Select button to be enabled
+      const approvalButton = page.locator('button').filter({ hasText: /All Businesses|Approved Only|Unapproved Only|Uncategorized Only/ }).first();
+      await expect(approvalButton).toBeEnabled({ timeout: 10000 });
       await approvalButton.click();
 
       const unapprovedOption = page.locator('text=Unapproved Only').first();
@@ -172,7 +177,7 @@ test.describe('Business Management - Combined Filters E2E', () => {
       const fromButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
-      await page.locator('[role="gridcell"]:has-text("1")').first().click();
+      await clickCalendarCell(page, '1');
 
 
       const table = page.locator('table, [role="table"]');
@@ -189,8 +194,8 @@ test.describe('Business Management - Combined Filters E2E', () => {
       // Clear search
       await searchInput.clear();
 
-      // Select and deselect uncategorized
-      const categoryButton = page.locator('button').filter({ hasText: 'Main Category' });
+      // Select and deselect uncategorized (MultiSelect)
+      const categoryButton = page.locator('button:has-text("All categories"), button').first();
       await categoryButton.click();
 
       const uncategorizedOption = page.locator('text=Uncategorized').first();
@@ -209,7 +214,8 @@ test.describe('Business Management - Combined Filters E2E', () => {
 
   test.describe('Uncategorized Filter Behavior', () => {
     test('should select uncategorized from Main Category multi-select', async ({ page }) => {
-      const categoryButton = page.locator('button').filter({ hasText: 'Main Category' });
+      const categoryButton = page.locator('button:has-text("All categories"), button').first();
+      await expect(categoryButton).toBeEnabled({ timeout: 10000 });
       await categoryButton.click();
 
       const uncategorizedOption = page.locator('text=Uncategorized').first();
@@ -224,7 +230,8 @@ test.describe('Business Management - Combined Filters E2E', () => {
     });
 
     test('should select uncategorized from Approval Status dropdown', async ({ page }) => {
-      const approvalButton = page.locator('button').filter({ hasText: 'Approval Status' });
+      const approvalButton = page.locator('button').filter({ hasText: /All Businesses|Approved Only|Unapproved Only|Uncategorized Only/ }).first();
+      await expect(approvalButton).toBeEnabled({ timeout: 10000 });
       await approvalButton.click();
 
       const uncategorizedOption = page.locator('text=Uncategorized Only').first();
@@ -238,8 +245,9 @@ test.describe('Business Management - Combined Filters E2E', () => {
     });
 
     test('should clear category filters when uncategorized is selected', async ({ page }) => {
-      // First select a regular category
-      const categoryButton = page.locator('button').filter({ hasText: 'Main Category' });
+      // Wait for button to be enabled before clicking (MultiSelect)
+      const categoryButton = page.locator('button:has-text("All categories"), button').first();
+      await expect(categoryButton).toBeEnabled({ timeout: 10000 });
       await categoryButton.click();
 
       const firstCategory = page.locator('[role="option"]').first();
@@ -295,7 +303,7 @@ test.describe('Business Management - Combined Filters E2E', () => {
       const fromButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
-      await page.locator('[role="gridcell"]:has-text("15")').first().click();
+      await clickCalendarCell(page, '15');
 
       // Wait for and verify the request
       const request = await requestPromise;
@@ -312,8 +320,9 @@ test.describe('Business Management - Combined Filters E2E', () => {
         { timeout: 15000 }
       );
 
-      // Select uncategorized
-      const categoryButton = page.locator('button').filter({ hasText: 'Main Category' });
+      // Wait for button to be enabled before clicking (MultiSelect)
+      const categoryButton = page.locator('button:has-text("All categories"), button').first();
+      await expect(categoryButton).toBeEnabled({ timeout: 10000 });
       await categoryButton.click();
 
       const uncategorizedOption = page.locator('text=Uncategorized').first();

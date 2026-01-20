@@ -168,7 +168,7 @@ export function BulkDeleteTransactionsDialog() {
             <div>
               <Label>Cards (Optional)</Label>
               <MultiSelect
-                options={cards.map(c => ({
+                options={(cards || []).map(c => ({
                   value: c.id.toString(),
                   label: c.nickname || `•••• ${c.last4}`,
                 }))}
