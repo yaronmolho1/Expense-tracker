@@ -50,60 +50,65 @@ export function TransactionDetailModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl">
-            {transaction.business_name}
+          <DialogTitle className="text-xl sm:text-2xl">
+            Transaction Details
           </DialogTitle>
         </DialogHeader>
 
         {/* Transaction Details */}
-        <div className="space-y-6">
+        <div className="space-y-5 px-1">
+          {/* Business Name */}
+          <div className="pb-3 border-b">
+            <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Business</div>
+            <div className="text-lg sm:text-xl font-semibold">{transaction.business_name}</div>
+          </div>
           {/* Basic Info */}
-          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-4 sm:p-5 bg-muted/40 rounded-lg border">
             <div>
-              <div className="text-sm text-gray-500">Amount</div>
-              <div className={`text-xl font-bold ${transaction.is_refund ? 'text-green-600' : ''}`}>
+              <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Amount</div>
+              <div className={`text-lg sm:text-xl font-semibold ${transaction.is_refund ? 'text-green-600' : 'text-foreground'}`}>
                 {formatCurrency(transaction.is_refund ? -transaction.charged_amount_ils : transaction.charged_amount_ils)}
               </div>
             </div>
             <div>
-              <div className="text-sm text-gray-500">Deal Date</div>
-              <div className="text-lg">{formatDate(transaction.deal_date)}</div>
+              <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Deal Date</div>
+              <div className="text-base sm:text-lg">{formatDate(transaction.deal_date)}</div>
             </div>
             <div>
-              <div className="text-sm text-gray-500">Card</div>
-              <div className="text-lg">
+              <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Card</div>
+              <div className="text-base sm:text-lg">
                 {transaction.card.nickname || `****${transaction.card.last_4}`}
               </div>
             </div>
             <div>
-              <div className="text-sm text-gray-500">Status</div>
-              <div className="text-lg capitalize">{transaction.status}</div>
+              <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Status</div>
+              <div className="text-base sm:text-lg capitalize">{transaction.status}</div>
             </div>
             {transaction.original_amount && transaction.original_currency !== 'ILS' && (
               <div>
-                <div className="text-sm text-gray-500">Original Amount</div>
-                <div className="text-lg">
+                <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Original Amount</div>
+                <div className="text-base sm:text-lg">
                   {transaction.is_refund ? '-' : ''}{transaction.original_currency} {transaction.original_amount.toFixed(2)}
                 </div>
               </div>
             )}
             {transaction.bank_charge_date && (
               <div>
-                <div className="text-sm text-gray-500">Charge Date</div>
-                <div className="text-lg">{formatDate(transaction.bank_charge_date)}</div>
+                <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Charge Date</div>
+                <div className="text-base sm:text-lg">{formatDate(transaction.bank_charge_date)}</div>
               </div>
             )}
           </div>
 
           {/* Category Info */}
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <div className="text-sm text-gray-500 mb-1">Category</div>
-            <div className="text-lg">
+          <div className="p-4 sm:p-5 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-100 dark:border-blue-900">
+            <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">Category</div>
+            <div className="text-base sm:text-lg font-medium">
               {transaction.category.primary}
               {transaction.category.child && (
                 <>
                   <br />
-                  <span className="text-gray-500">{transaction.category.child}</span>
+                  <span className="text-sm sm:text-base text-muted-foreground font-normal">{transaction.category.child}</span>
                 </>
               )}
             </div>
@@ -111,14 +116,14 @@ export function TransactionDetailModal({
 
           {/* Subscription Info */}
           {transaction.subscription && (
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <div className="text-sm text-gray-500 mb-1">Subscription</div>
-              <div className="text-lg">
+            <div className="p-4 sm:p-5 bg-purple-50/50 dark:bg-purple-950/20 rounded-lg border border-purple-100 dark:border-purple-900">
+              <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">Subscription</div>
+              <div className="text-base sm:text-lg font-medium">
                 {transaction.business_name}
                 {transaction.subscription.name && (
                   <>
                     <br />
-                    <span className="text-gray-600">{transaction.subscription.name}</span>
+                    <span className="text-sm sm:text-base text-muted-foreground font-normal">{transaction.subscription.name}</span>
                   </>
                 )}
               </div>
@@ -127,11 +132,11 @@ export function TransactionDetailModal({
 
           {/* Installment Timeline */}
           {isInstallment && (
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold mb-4">Installment Timeline</h3>
+            <div className="border-t pt-5">
+              <h3 className="text-base sm:text-lg font-semibold mb-4">Installment Timeline</h3>
               {isLoading ? (
                 <div className="flex justify-center items-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               ) : installmentData?.installments ? (
                 <InstallmentTimeline
@@ -139,7 +144,7 @@ export function TransactionDetailModal({
                   currentTransactionId={transaction.id}
                 />
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-sm sm:text-base text-muted-foreground">
                   Unable to load installment timeline
                 </div>
               )}
@@ -148,8 +153,8 @@ export function TransactionDetailModal({
 
           {/* Refund Badge */}
           {transaction.is_refund && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-              <div className="text-green-700 font-medium">✓ This is a refund transaction</div>
+            <div className="p-3 sm:p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 rounded-lg">
+              <div className="text-sm sm:text-base text-green-700 dark:text-green-400 font-medium">✓ This is a refund transaction</div>
             </div>
           )}
         </div>

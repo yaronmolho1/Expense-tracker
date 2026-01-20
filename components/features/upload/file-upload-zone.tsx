@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, X, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,10 +15,18 @@ interface FileUploadZoneProps {
   onUploadComplete: (batchId: number) => void;
 }
 
+interface DuplicateFile {
+  filename: string;
+  reason: string;
+  firstIndex: number;
+  duplicateIndex: number;
+}
+
 export function FileUploadZone({ onUploadComplete }: FileUploadZoneProps) {
   const [files, setFiles] = useState<FileWithCard[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [duplicateFiles, setDuplicateFiles] = useState<DuplicateFile[]>([]);
   const [validationConflicts, setValidationConflicts] = useState<any>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     message: string;
@@ -33,6 +41,44 @@ export function FileUploadZone({ onUploadComplete }: FileUploadZoneProps) {
     setFiles(prev => [...prev, ...newFiles]);
     setError(null);
   }, []);
+
+  // Real-time duplicate detection
+  useEffect(() => {
+    const findDuplicatesInFileList = (fileList: FileWithCard[]): DuplicateFile[] => {
+      const seen = new Map<string, number>(); // filename -> first index
+      const duplicates: DuplicateFile[] = [];
+
+      fileList.forEach((fileWithCard, index) => {
+        const filename = fileWithCard.file.name;
+        if (seen.has(filename)) {
+          duplicates.push({
+            filename,
+            reason: 'Selected multiple times',
+            firstIndex: seen.get(filename)!,
+            duplicateIndex: index
+          });
+        } else {
+          seen.set(filename, index);
+        }
+      });
+
+      return duplicates;
+    };
+
+    const duplicates = findDuplicatesInFileList(files);
+    setDuplicateFiles(duplicates);
+  }, [files]);
+
+  const removeDuplicateFiles = (fileList: FileWithCard[]): FileWithCard[] => {
+    const seen = new Set<string>();
+    return fileList.filter(fileWithCard => {
+      if (seen.has(fileWithCard.file.name)) {
+        return false; // Skip duplicate
+      }
+      seen.add(fileWithCard.file.name);
+      return true; // Keep first occurrence
+    });
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -85,18 +131,44 @@ export function FileUploadZone({ onUploadComplete }: FileUploadZoneProps) {
       }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Upload failed');
+        throw new Error(data.error || data.message || 'Upload failed');
       }
 
       onUploadComplete(data.batch_id);
     } catch (err) {
-      setError('Upload failed. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Upload failed. Please try again.';
+      setError(errorMessage);
       setUploading(false);
     }
   };
 
   return (
     <div className="space-y-6">
+      {/* Duplicate files alert */}
+      {duplicateFiles.length > 0 && (
+        <div className="p-4 bg-blue-50 border-2 border-blue-400 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-900">
+                {duplicateFiles.length} Duplicate File{duplicateFiles.length > 1 ? 's' : ''} Detected
+              </h3>
+              <p className="text-sm text-blue-800 mt-1">
+                The following files appear multiple times and will be uploaded only once:
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-blue-900">
+                {Array.from(new Set(duplicateFiles.map(d => d.filename))).map(filename => (
+                  <li key={filename} className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
+                    {filename}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Validation conflicts alert */}
       {validationConflicts && (
         <div className="p-4 bg-amber-50 border-2 border-amber-400 rounded-lg">
@@ -322,31 +394,63 @@ export function FileUploadZone({ onUploadComplete }: FileUploadZoneProps) {
       {files.length > 0 && (
         <div className="space-y-4">
           <h3 className="font-semibold">Selected Files ({files.length})</h3>
-          {files.map((fileWithCard, index) => (
-            <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
-              <div className="flex-1">
-                <p className="font-medium">{fileWithCard.file.name}</p>
-                <p className="text-sm text-gray-500">
-                  {(fileWithCard.file.size / 1024).toFixed(1)} KB
-                </p>
-              </div>
+          {files.map((fileWithCard, index) => {
+            const duplicateInfo = duplicateFiles.find(d =>
+              d.duplicateIndex === index || d.firstIndex === index
+            );
+            const isFirstOccurrence = duplicateInfo && duplicateInfo.firstIndex === index;
+            const isDuplicate = duplicateInfo && duplicateInfo.duplicateIndex === index;
 
-              <CardSelector
-                value={fileWithCard.cardId}
-                onChange={(cardId) => updateCardId(index, cardId)}
-                owner="default-user"
-              />
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => removeFile(index)}
-                disabled={uploading}
+            return (
+              <div
+                key={index}
+                className={`flex items-center gap-4 p-4 border rounded-lg transition-all ${
+                  isDuplicate
+                    ? 'border-blue-400 bg-blue-50 opacity-60'
+                    : isFirstOccurrence
+                      ? 'border-blue-400 bg-blue-50'
+                      : 'border-gray-200'
+                }`}
               >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
+                {(isDuplicate || isFirstOccurrence) && (
+                  <AlertTriangle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                )}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{fileWithCard.file.name}</p>
+                    {isDuplicate && (
+                      <span className="text-xs px-2 py-1 bg-blue-200 text-blue-800 rounded-full font-medium">
+                        Duplicate (will be removed)
+                      </span>
+                    )}
+                    {isFirstOccurrence && (
+                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                        Will be kept
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    {(fileWithCard.file.size / 1024).toFixed(1)} KB
+                  </p>
+                </div>
+
+                <CardSelector
+                  value={fileWithCard.cardId}
+                  onChange={(cardId) => updateCardId(index, cardId)}
+                  owner="default-user"
+                />
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeFile(index)}
+                  disabled={uploading}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -360,12 +464,27 @@ export function FileUploadZone({ onUploadComplete }: FileUploadZoneProps) {
       {/* Upload button */}
       {files.length > 0 && (
         <Button
-          onClick={() => handleUpload()}
-          disabled={uploading}
+          onClick={() => {
+            // Auto-remove duplicates before upload
+            if (duplicateFiles.length > 0) {
+              const uniqueFiles = removeDuplicateFiles(files);
+              setFiles(uniqueFiles);
+              // Small delay to show UI update, then upload
+              setTimeout(() => handleUpload(), 100);
+            } else {
+              handleUpload();
+            }
+          }}
+          disabled={uploading || (files.length - duplicateFiles.length === 0)}
           className="w-full"
           size="lg"
         >
-          {uploading ? 'Uploading...' : `Upload ${files.length} file${files.length > 1 ? 's' : ''}`}
+          {uploading
+            ? 'Uploading...'
+            : duplicateFiles.length > 0
+              ? `Continue (${files.length - duplicateFiles.length} unique file${files.length - duplicateFiles.length !== 1 ? 's' : ''})`
+              : `Upload ${files.length} file${files.length > 1 ? 's' : ''}`
+          }
         </Button>
       )}
 

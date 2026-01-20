@@ -8,6 +8,9 @@ const timeFlowQuerySchema = z.object({
   card_ids: z.string().optional(),
   date_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   date_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  parent_category_ids: z.string().optional(),
+  child_category_ids: z.string().optional(),
+  uncategorized: z.enum(['true', 'false']).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -33,9 +36,14 @@ export async function GET(request: NextRequest) {
       card_ids,
       date_from,
       date_to,
+      parent_category_ids,
+      child_category_ids,
+      uncategorized,
     } = validated.data;
 
     const cardIdsArray = card_ids?.split(',').map(Number).filter(Boolean);
+    const parentCategoryIdsArray = parent_category_ids?.split(',').map(Number).filter(Boolean);
+    const childCategoryIdsArray = child_category_ids?.split(',').map(Number).filter(Boolean);
 
     const result = await queryTimeFlow({
       monthsBack: months_back,
@@ -43,6 +51,9 @@ export async function GET(request: NextRequest) {
       cardIds: cardIdsArray,
       dateFrom: date_from,
       dateTo: date_to,
+      parentCategoryIds: parentCategoryIdsArray,
+      childCategoryIds: childCategoryIdsArray,
+      uncategorized: uncategorized === 'true',
     });
 
     return NextResponse.json(result);

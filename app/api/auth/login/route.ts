@@ -9,7 +9,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { generateToken, verifyPassword } from '@/lib/utils/auth';
+import { generateToken } from '@/lib/utils/auth';
+import { verifyPassword } from '@/lib/utils/auth-password';
 import { checkRateLimit, STRICT_RATE_LIMIT } from '@/lib/middleware/rate-limit';
 import { createErrorResponse, createValidationErrorResponse } from '@/lib/utils/error-handler';
 import logger from '@/lib/logger';
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate JWT token
-    const token = generateToken({
+    const token = await generateToken({
       userId: 'default-user', // For now, single user
       email: username,
       // Future: Add tenantId for multi-tenant support

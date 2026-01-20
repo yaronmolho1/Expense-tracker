@@ -14,7 +14,7 @@ describe('API Endpoints', () => {
   
   beforeAll(async () => {
     // Generate a valid token for authenticated requests
-    authToken = generateToken({
+    authToken = await generateToken({
       userId: 'default-user',
       email: 'test@example.com',
     });

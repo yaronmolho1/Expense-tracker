@@ -91,7 +91,7 @@ export default function ManageSubscriptionsPage() {
       // Create subscription
       const result = await createMutation.mutateAsync({
         name: formData.name || undefined,
-        businessId: formData.businessId || 0,
+        businessId: formData.businessId!,
         businessName: formData.businessName,
         cardId: formData.cardId!,
         amount: formData.amount!,
@@ -315,7 +315,7 @@ export default function ManageSubscriptionsPage() {
       // Create subscription using the regular create flow (which handles backfill properly)
       await createMutation.mutateAsync({
         name: formData.name || undefined,
-        businessId: formData.businessId || 0,
+        businessId: formData.businessId!,
         businessName: formData.businessName,
         cardId: formData.cardId!,
         amount: formData.amount!,

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { db } from '@/lib/db';
-import { transactions, businesses, cards, uploadBatches } from '@/lib/db/schema';
+import { transactions, businesses, cards, uploadBatches, subscriptions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import {
   createInstallmentGroup,
@@ -27,7 +27,7 @@ describe('Installment Twin & Backfill Logic', () => {
   let testBusinessId: number;
   let testCardId: number;
   let testBatchId: number;
-  const businessNormalizedName = 'test-business-twin';
+  let businessNormalizedName: string; // Now dynamic per test
   const dealDate = '2024-01-15';
   const totalPaymentSum = 3099; // Total deal sum from file
   const regularPayment = 129; // Regular payment amount (Payment 2-24)
@@ -38,18 +38,24 @@ describe('Installment Twin & Backfill Logic', () => {
   // But chargedAmountIls should be payment1Amount
 
   beforeEach(async () => {
-    // Create test business
+    // NOTE: Global cleanup is NOT needed here because vitest-hooks.ts
+    // provides transaction-based isolation (auto-rollback after each test).
+    // Each test runs in its own transaction, preventing data leakage.
+
+    // Create test business with unique name to avoid conflicts
+    const uniqueSuffix = Date.now();
+    businessNormalizedName = `test-business-twin-${uniqueSuffix}`;
     const [business] = await db.insert(businesses).values({
-      displayName: 'Test Business Twin',
+      displayName: `Test Business Twin ${uniqueSuffix}`,
       normalizedName: businessNormalizedName,
     }).returning();
     testBusinessId = business.id;
 
     // Create test card
     const [card] = await db.insert(cards).values({
-      last4Digits: '9999',
+      last4Digits: `${uniqueSuffix % 10000}`.padStart(4, '0'),
       fileFormatHandler: 'visa',
-      owner: 'test-user',
+      owner: `test-user-${uniqueSuffix}`,
     }).returning();
     testCardId = card.id;
 
@@ -63,12 +69,20 @@ describe('Installment Twin & Backfill Logic', () => {
   });
 
   afterEach(async () => {
-    // Cleanup is handled by transaction rollback in vitest-hooks.ts
-    // But we'll clean up explicitly for clarity
-    await db.delete(transactions).where(eq(transactions.businessId, testBusinessId));
-    await db.delete(businesses).where(eq(businesses.id, testBusinessId));
-    await db.delete(cards).where(eq(cards.id, testCardId));
-    await db.delete(uploadBatches).where(eq(uploadBatches.id, testBatchId));
+    // Cleanup in correct Foreign Key order: children first, then parents
+    // This prevents "violates foreign key constraint" errors
+    if (testBusinessId) {
+      await db.delete(transactions).where(eq(transactions.businessId, testBusinessId));
+    }
+    if (testBatchId) {
+      await db.delete(uploadBatches).where(eq(uploadBatches.id, testBatchId));
+    }
+    if (testCardId) {
+      await db.delete(cards).where(eq(cards.id, testCardId));
+    }
+    if (testBusinessId) {
+      await db.delete(businesses).where(eq(businesses.id, testBusinessId));
+    }
   });
 
   describe('Twin Purchase Detection', () => {
@@ -192,6 +206,7 @@ describe('Installment Twin & Backfill Logic', () => {
         installmentTotal,
         originalAmount: totalPaymentSum,
         baseGroupId, // Exclude standard hash
+        currentSourceFile: 'different-file.xlsx', // Different file
         currentBatchId: testBatchId + 1, // Different batch
         processedIds: new Set(),
       });
@@ -394,6 +409,7 @@ describe('Installment Twin & Backfill Logic', () => {
         installmentTotal,
         originalAmount: totalPaymentSum,
         baseGroupId,
+        currentSourceFile: 'file2.xlsx',
         currentBatchId: newBatchId,
         processedIds: new Set(),
       });
@@ -565,6 +581,7 @@ describe('Installment Twin & Backfill Logic', () => {
         installmentTotal,
         installmentIndex: 1,
         originalAmount: totalPaymentSum,
+        currentSourceFile: 'different-file.xlsx', // Different file
         currentBatchId: testBatchId + 1, // Different batch
         processedIds: new Set(),
       });

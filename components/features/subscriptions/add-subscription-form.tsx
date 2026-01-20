@@ -163,7 +163,8 @@ export function AddSubscriptionForm({ onSubmit, onCancel, isSubmitting, initialD
     // Prepare submission data
     const submitData: SubscriptionFormData = {
       ...formData,
-      businessName: formData.businessId ? '' : businessSearch.trim(),
+      // Send businessName only when creating a new business (no businessId)
+      businessName: formData.businessId ? businessDisplayValue : businessSearch.trim(),
       endDate: formData.noEndDate ? null : formData.endDate,
       backfillTransactionIds: selectedTransactionIds,
     };
@@ -362,6 +363,7 @@ export function AddSubscriptionForm({ onSubmit, onCancel, isSubmitting, initialD
             onChange={(date) => setFormData(prev => ({ ...prev, endDate: date, noEndDate: false }))}
             placeholder="Select end date"
             disabled={formData.noEndDate}
+            disabledDates={(date) => formData.startDate ? date < new Date(formData.startDate) : false}
           />
           <div className="flex items-center space-x-2">
             <Checkbox
@@ -455,11 +457,11 @@ export function AddSubscriptionForm({ onSubmit, onCancel, isSubmitting, initialD
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2 justify-end pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+      <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-4">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting} className="w-full sm:w-auto">
           Cancel
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
           {isSubmitting ? 'Creating...' : 'Create Subscription'}
         </Button>
       </div>

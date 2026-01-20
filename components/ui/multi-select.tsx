@@ -38,6 +38,7 @@ interface MultiSelectProps {
   emptyMessage?: string
   className?: string
   disabled?: boolean
+  icon?: React.ReactNode
 }
 
 export function MultiSelect({
@@ -49,6 +50,7 @@ export function MultiSelect({
   emptyMessage = "No items found.",
   className,
   disabled = false,
+  icon,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -88,23 +90,26 @@ export function MultiSelect({
           disabled={disabled}
           className={cn("w-full justify-between", className)}
         >
-          <div className="flex gap-1 flex-wrap">
-            {selected.length === 0 ? (
-              <span className="text-muted-foreground">{placeholder}</span>
-            ) : (
-              <>
-                {selectedLabels.slice(0, 2).map((label) => (
-                  <Badge key={label} variant="secondary" className="text-xs">
-                    {label}
-                  </Badge>
-                ))}
-                {selectedLabels.length > 2 && (
-                  <Badge variant="secondary" className="text-xs">
-                    +{selectedLabels.length - 2} more
-                  </Badge>
-                )}
-              </>
-            )}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {icon && <span className="shrink-0 text-muted-foreground">{icon}</span>}
+            <div className="flex gap-1 flex-wrap flex-1 min-w-0">
+              {selected.length === 0 ? (
+                <span className="text-muted-foreground">{placeholder}</span>
+              ) : (
+                <>
+                  {selectedLabels.slice(0, 2).map((label) => (
+                    <Badge key={label} variant="secondary" className="text-xs">
+                      {label}
+                    </Badge>
+                  ))}
+                  {selectedLabels.length > 2 && (
+                    <Badge variant="secondary" className="text-xs">
+                      +{selectedLabels.length - 2} more
+                    </Badge>
+                  )}
+                </>
+              )}
+            </div>
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>

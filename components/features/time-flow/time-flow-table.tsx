@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MainCategoryData } from '@/hooks/use-time-flow';
+import { MainCategoryData, SubCategoryData } from '@/hooks/use-time-flow';
 import { ChevronDown, ChevronRight, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 interface TimeFlowTableProps {
   months: string[];
@@ -49,8 +50,21 @@ export function TimeFlowTable({
     }).format(amount);
   };
 
-  const getBudgetColor = (amount: number, budget: number | undefined) => {
+  const getBudgetColor = (subCat: SubCategoryData, month: string) => {
+    // For annual budgets, use year-to-date total vs annual budget
+    if (subCat.budgetPeriod === 'annual' && subCat.annualBudgetAmount) {
+      const year = month.substring(0, 4); // "2025-01" → "2025"
+      const ytdTotal = subCat.yearToDateTotal?.[year] || 0;
+      if (ytdTotal > subCat.annualBudgetAmount) {
+        return 'text-red-600 font-semibold'; // Over annual budget
+      }
+      return 'text-green-600 font-semibold'; // Under/at annual budget
+    }
+
+    // For monthly budgets, use existing logic
+    const budget = subCat.monthlyBudgets[month];
     if (!budget || budget === 0) return 'text-gray-900'; // No budget
+    const amount = subCat.monthlyExpenses[month] || 0;
     if (amount > budget) return 'text-red-600 font-semibold'; // Over budget
     return 'text-green-600 font-semibold'; // Under/at budget
   };
@@ -144,7 +158,14 @@ export function TimeFlowTable({
                     >
                       <td className="px-4 py-2 text-sm text-gray-700 sticky left-0 bg-white z-10 pl-12">
                         <div className="flex items-center justify-between gap-2">
-                          <span>{subCategory.subCategoryName || 'Uncategorized'}</span>
+                          <div className="flex items-center gap-2">
+                            <span>{subCategory.subCategoryName || 'Uncategorized'}</span>
+                            {subCategory.budgetPeriod === 'annual' && (
+                              <Badge variant="outline" className="text-xs">
+                                Ann.
+                              </Badge>
+                            )}
+                          </div>
                           {subCategory.monthlyBudgets?.[firstMonth] && (
                             <span className="flex items-center gap-1 text-xs text-gray-400">
                               <Wallet className="h-3 w-3" />
@@ -155,8 +176,7 @@ export function TimeFlowTable({
                       </td>
                       {months.map((month) => {
                         const amount = subCategory.monthlyExpenses[month] || 0;
-                        const budget = subCategory.monthlyBudgets?.[month];
-                        const colorClass = getBudgetColor(amount, budget);
+                        const colorClass = getBudgetColor(subCategory, month);
 
                         return (
                           <td

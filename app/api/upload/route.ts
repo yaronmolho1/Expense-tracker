@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { uploadBatches, uploadedFiles } from '@/lib/db/schema';
 import { enqueueJob } from '@/lib/workers/pg-boss-client';
 import { detectCard } from '@/lib/services/card-detection-service';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import logger from '@/lib/logger';
 

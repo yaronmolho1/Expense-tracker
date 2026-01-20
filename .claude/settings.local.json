@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(docker compose:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run test:unit:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(find:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

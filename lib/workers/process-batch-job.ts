@@ -256,6 +256,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                   installmentTotal: parsedTx.installmentTotal!,
                   installmentIndex: 1,
                   originalAmount: parsedTx.originalAmount, // Use parsed total deal sum
+                  currentSourceFile: file.filename,
                   currentBatchId: batchId,
                   processedIds: processedTransactionIds,
                 });
@@ -263,6 +264,9 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                 if (exactDuplicate) {
                   // Check if this is a ghost that needs updating
                   if (!exactDuplicate.sourceFile || exactDuplicate.uploadBatchId !== batchId) {
+                    // CRITICAL: Add to processed set IMMEDIATELY to prevent twin race condition
+                    processedTransactionIds.add(exactDuplicate.id);
+
                     // Ghost Payment 1 - update it with real data
                     await db.update(transactions)
                       .set({
@@ -274,9 +278,9 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                         updatedAt: new Date(),
                       })
                       .where(eq(transactions.id, exactDuplicate.id));
-                    
-                    processedTransactionIds.add(exactDuplicate.id);
+
                     updatedTransactions += 1;
+                    totalAmountIls += finalAmountIls;
                     continue;
                   } else {
                     // Real duplicate - skip
@@ -295,6 +299,9 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                   
                   // STEP 3A: Check if existingPayment1 is a Ghost from previous batch
                   if (existingPayment1.uploadBatchId !== batchId) {
+                    // CRITICAL: Add to processed set IMMEDIATELY to prevent twin race condition
+                    processedTransactionIds.add(existingPayment1.id);
+
                     // Ghost Payment 1 - update with real data
                     await db.update(transactions)
                       .set({
@@ -306,8 +313,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                         updatedAt: new Date(),
                       })
                       .where(eq(transactions.id, existingPayment1.id));
-                    
-                    processedTransactionIds.add(existingPayment1.id);
+
                     updatedTransactions += 1;
                     totalAmountIls += finalAmountIls;
                   } else {
@@ -320,11 +326,15 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                       installmentTotal: parsedTx.installmentTotal!,
                       originalAmount: parsedTx.originalAmount, // Use parsed total deal sum
                       baseGroupId: groupId,
+                      currentSourceFile: file.filename,
                       currentBatchId: batchId,
                       processedIds: processedTransactionIds,
                     });
                     
                     if (orphanedPayment1) {
+                      // CRITICAL: Add to processed set IMMEDIATELY to prevent twin race condition
+                      processedTransactionIds.add(orphanedPayment1.id);
+
                       // Orphaned Payment 1 - update with real data
                       await db.update(transactions)
                         .set({
@@ -336,8 +346,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                           updatedAt: new Date(),
                         })
                         .where(eq(transactions.id, orphanedPayment1.id));
-                      
-                      processedTransactionIds.add(orphanedPayment1.id);
+
                       updatedTransactions += 1;
                       totalAmountIls += finalAmountIls;
                     } else {
@@ -354,7 +363,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                       }, 'Creating twin installment group with custom groupId');
                     
                     // Create new installment group for twin with custom groupId
-                    await createInstallmentGroup({
+                    const twinResult = await createInstallmentGroup({
                       firstTransactionData: {
                         businessId: business.id,
                         businessNormalizedName: business.normalizedName,
@@ -374,7 +383,10 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                       },
                       customGroupId: actualGroupId, // Use custom groupId for twin
                     });
-                    
+
+                    // CRITICAL: Track all created transaction IDs to prevent twin latching
+                    twinResult.allTransactionIds?.forEach(id => processedTransactionIds.add(id));
+
                     newTransactions += parsedTx.installmentTotal!;
                     totalTransactions += parsedTx.installmentTotal!;
                     totalAmountIls += finalAmountIls;
@@ -387,8 +399,8 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                     installmentIndex: parsedTx.installmentIndex,
                     installmentTotal: parsedTx.installmentTotal,
                   }, 'Creating first installment group from payment 1');
-                  
-                  await createInstallmentGroup({
+
+                  const result = await createInstallmentGroup({
                     firstTransactionData: {
                       businessId: business.id,
                       businessNormalizedName: business.normalizedName,
@@ -407,7 +419,10 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                       amount: finalAmountIls,
                     },
                   });
-                  
+
+                  // CRITICAL: Track all created transaction IDs to prevent twin latching
+                  result.allTransactionIds?.forEach(id => processedTransactionIds.add(id));
+
                   newTransactions += parsedTx.installmentTotal!;
                   totalTransactions += parsedTx.installmentTotal!;
                   totalAmountIls += finalAmountIls;
@@ -424,6 +439,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                 installmentTotal: parsedTx.installmentTotal!,
                 installmentIndex: parsedTx.installmentIndex!,
                 originalAmount: parsedTx.originalAmount, // Use parsed total deal sum
+                currentSourceFile: file.filename,
                 currentBatchId: batchId,
                 processedIds: processedTransactionIds,
               });
@@ -452,17 +468,18 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                   installmentTotal: parsedTx.installmentTotal,
                   groupId: projectedPayment.installmentGroupId?.slice(0, 16),
                 }, 'Bucket match found - completing projected payment');
-                
+
+                // CRITICAL: Add to processed set IMMEDIATELY to prevent twin latching
+                // Must happen BEFORE completing the payment to avoid race conditions
+                processedTransactionIds.add(projectedPayment.id);
+
                 // CRITICAL: Always overwrite amount (fixes penny rounding)
                 await completeProjectedInstallment(projectedPayment.id, {
                   actualChargeDate: projectedPayment.projectedChargeDate || dealDateStr,
                   chargedAmountIls: finalAmountIls, // Use actual amount from file
                   exchangeRateUsed: finalExchangeRate,
                 });
-                
-                // CRITICAL: Add to processed set to prevent twin latching
-                processedTransactionIds.add(projectedPayment.id);
-                
+
                 updatedTransactions += 1;
                 totalAmountIls += finalAmountIls;
                 
@@ -474,8 +491,8 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                   installmentIndex: parsedTx.installmentIndex,
                   installmentTotal: parsedTx.installmentTotal,
                 }, 'No bucket match - creating installment group with backfill');
-                
-                await createInstallmentGroupFromMiddle({
+
+                const backfillResult = await createInstallmentGroupFromMiddle({
                   firstTransactionData: {
                     businessId: business.id,
                     businessNormalizedName: business.normalizedName,
@@ -494,7 +511,10 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
                     amount: finalAmountIls,
                   },
                 });
-                
+
+                // CRITICAL: Track all created transaction IDs to prevent twin latching
+                backfillResult.allTransactionIds?.forEach(id => processedTransactionIds.add(id));
+
                 newTransactions += parsedTx.installmentTotal!;
                 totalTransactions += parsedTx.installmentTotal!;
                 totalAmountIls += finalAmountIls;

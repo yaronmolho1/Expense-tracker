@@ -1,12 +1,15 @@
 /**
- * Authentication Utilities
- * 
+ * Authentication Utilities (Edge-compatible)
+ *
  * Provides JWT-based authentication with multi-tenant foundation.
  * Designed to support future expansion to multiple users per tenant.
+ * Uses 'jose' library for Edge Runtime compatibility.
+ *
+ * NOTE: Password hashing functions (hashPassword, verifyPassword) are in
+ * '@/lib/utils/auth-password' to keep this file Edge Runtime compatible.
  */
 
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
+import * as jose from 'jose';
 
 // JWT secret from environment (required)
 const JWT_SECRET = process.env.JWT_SECRET || '';
@@ -14,6 +17,28 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 if (!JWT_SECRET) {
   console.warn('JWT_SECRET environment variable is not set - authentication will fail');
+}
+
+// Encode secret for jose
+function getSecretKey(): Uint8Array {
+  return new TextEncoder().encode(JWT_SECRET);
+}
+
+// Parse duration string (e.g., '7d', '1h', '30m') to seconds
+function parseDuration(duration: string): number {
+  const match = duration.match(/^(\d+)([smhd])$/);
+  if (!match) return 7 * 24 * 60 * 60; // Default: 7 days
+
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+
+  switch (unit) {
+    case 's': return value;
+    case 'm': return value * 60;
+    case 'h': return value * 60 * 60;
+    case 'd': return value * 24 * 60 * 60;
+    default: return 7 * 24 * 60 * 60;
+  }
 }
 
 // User payload in JWT token
@@ -35,26 +60,29 @@ export interface AuthUser {
 /**
  * Generate JWT token for user
  */
-export function generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
-  // Type assertion needed due to jsonwebtoken library types
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN,
-  } as jwt.SignOptions) as string;
+export async function generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): Promise<string> {
+  const expiresIn = parseDuration(JWT_EXPIRES_IN);
+
+  return new jose.SignJWT(payload as jose.JWTPayload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime(`${expiresIn}s`)
+    .sign(getSecretKey());
 }
 
 /**
  * Verify and decode JWT token
  * @throws Error if token is invalid or expired
  */
-export function verifyToken(token: string): JWTPayload {
+export async function verifyToken(token: string): Promise<JWTPayload> {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET!) as JWTPayload;
-    return decoded;
+    const { payload } = await jose.jwtVerify(token, getSecretKey());
+    return payload as unknown as JWTPayload;
   } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
+    if (error instanceof jose.errors.JWTExpired) {
       throw new Error('Token expired');
     }
-    if (error instanceof jwt.JsonWebTokenError) {
+    if (error instanceof jose.errors.JWTInvalid || error instanceof jose.errors.JWSSignatureVerificationFailed) {
       throw new Error('Invalid token');
     }
     throw new Error('Token verification failed');
@@ -67,7 +95,7 @@ export function verifyToken(token: string): JWTPayload {
 export function extractToken(request: Request): string | null {
   // Try Authorization header first
   const authHeader = request.headers.get('Authorization');
-  
+
   if (authHeader) {
     // Bearer token format: "Bearer <token>"
     const parts = authHeader.split(' ');
@@ -92,15 +120,15 @@ export function extractToken(request: Request): string | null {
  * Get current authenticated user from request
  * Returns null if not authenticated (for optional auth routes)
  */
-export function getCurrentUser(request: Request): AuthUser | null {
+export async function getCurrentUser(request: Request): Promise<AuthUser | null> {
   const token = extractToken(request);
-  
+
   if (!token) {
     return null;
   }
 
   try {
-    const payload = verifyToken(token);
+    const payload = await verifyToken(token);
     return {
       userId: payload.userId,
       tenantId: payload.tenantId,
@@ -115,9 +143,9 @@ export function getCurrentUser(request: Request): AuthUser | null {
  * Require authentication - throws error if not authenticated
  * Use this in API routes that require auth
  */
-export function requireAuth(request: Request): AuthUser {
-  const user = getCurrentUser(request);
-  
+export async function requireAuth(request: Request): Promise<AuthUser> {
+  const user = await getCurrentUser(request);
+
   if (!user) {
     throw new Error('Unauthorized');
   }
@@ -125,20 +153,8 @@ export function requireAuth(request: Request): AuthUser {
   return user;
 }
 
-/**
- * Hash password with bcrypt
- */
-export async function hashPassword(password: string): Promise<string> {
-  const saltRounds = 12;
-  return bcrypt.hash(password, saltRounds);
-}
-
-/**
- * Verify password against hash
- */
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(password, hash);
-}
+// Password functions moved to '@/lib/utils/auth-password' for Edge Runtime compatibility
+// Import { hashPassword, verifyPassword } from '@/lib/utils/auth-password' in API routes
 
 /**
  * Get default user ID for development/single-user mode
@@ -153,7 +169,7 @@ export function getDefaultUserId(): string {
  * Extract user ID from request (with fallback to default)
  * Use this during migration period to maintain backward compatibility
  */
-export function getUserId(request: Request): string {
-  const user = getCurrentUser(request);
+export async function getUserId(request: Request): Promise<string> {
+  const user = await getCurrentUser(request);
   return user?.userId || getDefaultUserId();
 }

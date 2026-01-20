@@ -14,6 +14,7 @@ process.env.AUTH_USERNAME = process.env.AUTH_USERNAME || 'testuser';
 process.env.AUTH_PASSWORD_HASH_BASE64 = process.env.AUTH_PASSWORD_HASH_BASE64 || Buffer.from('$2b$12$test').toString('base64');
 
 import { beforeAll, afterAll } from 'vitest';
+import '@testing-library/jest-dom';
 import { closeTestDb } from './setup/test-db-pool';
 
 // Import transaction hooks for integration tests

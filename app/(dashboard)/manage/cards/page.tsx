@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Edit, Trash2, Plus, CreditCard } from 'lucide-react';
+import { Edit, Trash2, Plus, CreditCard, FileText, ChevronUp, ChevronDown } from 'lucide-react';
+import { CardUploadsSection } from './components/card-uploads-section';
 
 // Note: OWNER will come from JWT token via API (cards are user-specific)
 const OWNER = 'default-user'; // Backward compatibility - API handles auth
@@ -68,6 +69,7 @@ export default function CardsPage() {
 // ============================================
 
 function CardRow({ card }: { card: Card }) {
+  const [showUploads, setShowUploads] = useState(false);
   const updateMutation = useUpdateCard();
 
   const handleToggleActive = (isActive: boolean) => {
@@ -89,41 +91,59 @@ function CardRow({ card }: { card: Card }) {
 
   return (
     <UICard className={!card.isActive ? 'opacity-60' : ''}>
-      <CardContent className="flex items-center justify-between p-6">
-        <div className="flex items-center gap-4">
-          <CreditCard className="h-8 w-8 text-gray-400" />
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-medium">****{card.last4}</span>
-              {card.nickname && (
-                <span className="text-gray-500">({card.nickname})</span>
-              )}
-              <Badge variant="outline">{formatIssuer(card.issuer)}</Badge>
-              {!card.isActive && (
-                <Badge variant="secondary">Inactive</Badge>
-              )}
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <CreditCard className="h-8 w-8 text-gray-400" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">****{card.last4}</span>
+                {card.nickname && (
+                  <span className="text-gray-500">({card.nickname})</span>
+                )}
+                <Badge variant="outline">{formatIssuer(card.issuer)}</Badge>
+                {!card.isActive && (
+                  <Badge variant="secondary">Inactive</Badge>
+                )}
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                {card.bankOrCompany || 'No bank specified'}
+              </p>
             </div>
-            <p className="text-sm text-gray-500 mt-1">
-              {card.bankOrCompany || 'No bank specified'}
-            </p>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Label htmlFor={`active-${card.id}`} className="text-sm text-gray-600">
+                {card.isActive ? 'Active' : 'Inactive'}
+              </Label>
+              <Switch
+                id={`active-${card.id}`}
+                checked={card.isActive}
+                onCheckedChange={handleToggleActive}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <EditCardDialog card={card} />
+              <DeleteCardButton cardId={card.id} cardName={`****${card.last4}`} />
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Label htmlFor={`active-${card.id}`} className="text-sm text-gray-600">
-              {card.isActive ? 'Active' : 'Inactive'}
-            </Label>
-            <Switch
-              id={`active-${card.id}`}
-              checked={card.isActive}
-              onCheckedChange={handleToggleActive}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <EditCardDialog card={card} />
-            <DeleteCardButton cardId={card.id} cardName={`****${card.last4}`} />
-          </div>
+        {/* Upload History Section */}
+        <div className="mt-4 pt-4 border-t">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full"
+            onClick={() => setShowUploads(!showUploads)}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Upload History
+            {showUploads ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
+          </Button>
+
+          {showUploads && <CardUploadsSection cardId={card.id} />}
         </div>
       </CardContent>
     </UICard>

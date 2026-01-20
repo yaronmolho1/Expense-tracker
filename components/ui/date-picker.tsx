@@ -18,12 +18,18 @@ interface DatePickerProps {
   onChange: (date: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  disabledDates?: (date: Date) => boolean;
 }
 
-export function DatePicker({ value, onChange, placeholder = "DD/MM/YYYY", disabled = false }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = "DD/MM/YYYY", disabled = false, disabledDates }: DatePickerProps) {
   const [date, setDate] = React.useState<Date | undefined>(
     value ? new Date(value) : undefined
   )
+
+  // Sync internal state when value prop changes (e.g., when clearing filters)
+  React.useEffect(() => {
+    setDate(value ? new Date(value) : undefined)
+  }, [value])
 
   const handleSelect = (selectedDate: Date | undefined) => {
     setDate(selectedDate)
@@ -71,6 +77,7 @@ export function DatePicker({ value, onChange, placeholder = "DD/MM/YYYY", disabl
           selected={date}
           onSelect={handleSelect}
           defaultMonth={date}
+          disabled={disabledDates}
           initialFocus
           className="rounded-md border"
         />

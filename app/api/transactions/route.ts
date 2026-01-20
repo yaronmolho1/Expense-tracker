@@ -41,6 +41,7 @@ const createTransactionSchema = z.object({
   primaryCategoryId: z.number().int().positive().optional(),
   childCategoryId: z.number().int().positive().optional(),
   notes: z.string().optional(),
+  isRefund: z.boolean().optional(),
 }).refine((data) => data.businessId || data.businessName, {
   message: 'Either businessId or businessName must be provided',
   path: ['businessId', 'businessName'],
@@ -157,6 +158,7 @@ export async function POST(request: NextRequest) {
       primaryCategoryId,
       childCategoryId,
       notes,
+      isRefund,
     } = validated.data;
 
     // Handle business creation/lookup
@@ -284,7 +286,7 @@ export async function POST(request: NextRequest) {
           installmentGroupId,
           status: (isFuture ? 'projected' : 'completed') as 'projected' | 'completed',
           actualChargeDate: isFuture ? null : paymentDateString,
-          isRefund: false,
+          isRefund: isRefund ?? false,
           sourceFile: 'manual-entry',
           uploadBatchId: manualBatch.id,
         });
@@ -325,7 +327,7 @@ export async function POST(request: NextRequest) {
           installmentGroupId: null,
           status: 'completed' as const,
           actualChargeDate: dealDate,
-          isRefund: false,
+          isRefund: isRefund ?? false,
           sourceFile: 'manual-entry',
           uploadBatchId: manualBatch.id,
         })

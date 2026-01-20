@@ -1,18 +1,16 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { DatePicker } from '@/components/ui/date-picker';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { Badge } from '@/components/ui/badge';
 import { useFilterOptions } from '@/hooks/use-filter-options';
 import { useMemo } from 'react';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { SortPopover, type SortOption } from '@/components/ui/sort-popover';
+import { Filter, X, CreditCard } from 'lucide-react';
+import { FILTER_STYLES } from '@/lib/constants/filter-styles';
+import { cn } from '@/lib/utils';
 
 interface TransactionFiltersProps {
   filters: {
@@ -33,6 +31,31 @@ interface TransactionFiltersProps {
 
 export function TransactionFilters({ filters, onFilterChange }: TransactionFiltersProps) {
   const { data: filterOptions, isLoading } = useFilterOptions();
+
+  // Calculate active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.search) count++;
+    if (filters.businessIds?.length) count += filters.businessIds.length;
+    if (filters.parentCategoryIds?.length) count += filters.parentCategoryIds.length;
+    if (filters.childCategoryIds?.length) count += filters.childCategoryIds.length;
+    if (filters.dateFrom || filters.dateTo) count++;
+    if (filters.cardIds?.length) count += filters.cardIds.length;
+    if (filters.transactionTypes?.length) count += filters.transactionTypes.length;
+    if (filters.statuses?.length) count += filters.statuses.length;
+    if (filters.uncategorized) count++;
+    return count;
+  }, [filters]);
+
+  // Sort options for popover
+  const sortOptions: SortOption[] = [
+    { value: 'bank_charge_date:desc', label: 'Date (Newest first)' },
+    { value: 'bank_charge_date:asc', label: 'Date (Oldest first)' },
+    { value: 'charged_amount_ils:desc', label: 'Amount (High to Low)' },
+    { value: 'charged_amount_ils:asc', label: 'Amount (Low to High)' },
+    { value: 'business_name:asc', label: 'Business (A-Z)' },
+    { value: 'business_name:desc', label: 'Business (Z-A)' },
+  ];
 
   // Get child categories grouped by parent
   const groupedChildCategories = useMemo(() => {
@@ -74,20 +97,42 @@ export function TransactionFilters({ filters, onFilterChange }: TransactionFilte
 
   if (isLoading) {
     return (
-      <Card className="p-4 mb-6">
-        <div className="text-sm text-muted-foreground">Loading filters...</div>
+      <Card className={FILTER_STYLES.card.default}>
+        <CardContent className={FILTER_STYLES.content}>
+          <div className="text-sm text-muted-foreground">Loading filters...</div>
+        </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="p-4 mb-6">
-      <div className="space-y-4">
-        {/* Row 1: Business, Parent Category, Child Category */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Business */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Business</label>
+    <Card className={cn(
+      FILTER_STYLES.card.default,
+      activeFilterCount > 0 && FILTER_STYLES.card.active
+    )}>
+      <CardHeader className={FILTER_STYLES.header}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filters</span>
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className={FILTER_STYLES.badge}>
+                {activeFilterCount}
+              </Badge>
+            )}
+          </div>
+          <SortPopover
+            value={filters.sortBy || 'bank_charge_date:desc'}
+            options={sortOptions}
+            onChange={(value) => onFilterChange({ ...filters, sortBy: value })}
+          />
+        </div>
+      </CardHeader>
+
+      <CardContent className={FILTER_STYLES.content}>
+        <div className={FILTER_STYLES.spacing}>
+          {/* Row 1: Business, Main Category */}
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${FILTER_STYLES.gridGap}`}>
             <MultiSelect
               options={filterOptions?.businesses.map((business) => ({
                 value: business.value.toString(),
@@ -100,12 +145,9 @@ export function TransactionFilters({ filters, onFilterChange }: TransactionFilte
               placeholder="All businesses"
               emptyMessage="No businesses found."
             />
-          </div>
 
-          {/* Parent Category */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Main Category</label>
             <MultiSelect
+              icon={<Filter className="h-4 w-4" />}
               options={[
                 ...(filterOptions?.categories.parents.map((cat) => ({
                   value: cat.value.toString(),
@@ -136,10 +178,10 @@ export function TransactionFilters({ filters, onFilterChange }: TransactionFilte
             />
           </div>
 
-          {/* Child Category */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Sub Category</label>
+          {/* Row 2: Sub Category, Card */}
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${FILTER_STYLES.gridGap}`}>
             <MultiSelect
+              icon={<Filter className="h-4 w-4" />}
               groupedOptions={groupedChildCategories}
               selected={filters.childCategoryIds || []}
               onChange={(selected) =>
@@ -149,35 +191,9 @@ export function TransactionFilters({ filters, onFilterChange }: TransactionFilte
               emptyMessage="No sub-categories found."
               disabled={groupedChildCategories.length === 0 || filters.uncategorized}
             />
-          </div>
-        </div>
 
-        {/* Row 2: Dates, Card, Type, Status */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Date From */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">From Date</label>
-            <DatePicker
-              value={filters.dateFrom}
-              onChange={(date) => onFilterChange({ ...filters, dateFrom: date })}
-              placeholder="DD/MM/YYYY"
-            />
-          </div>
-
-          {/* Date To */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">To Date</label>
-            <DatePicker
-              value={filters.dateTo}
-              onChange={(date) => onFilterChange({ ...filters, dateTo: date })}
-              placeholder="DD/MM/YYYY"
-            />
-          </div>
-
-          {/* Card */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Card</label>
             <MultiSelect
+              icon={<CreditCard className="h-4 w-4" />}
               options={filterOptions?.cards.map((card) => ({
                 value: card.value.toString(),
                 label: card.label,
@@ -191,9 +207,20 @@ export function TransactionFilters({ filters, onFilterChange }: TransactionFilte
             />
           </div>
 
-          {/* Transaction Type */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Type</label>
+          {/* Row 3: Date Range */}
+          <DateRangePicker
+            fromValue={filters.dateFrom}
+            toValue={filters.dateTo}
+            onFromChange={(date) => onFilterChange({ ...filters, dateFrom: date })}
+            onToChange={(date) => onFilterChange({ ...filters, dateTo: date })}
+            fromLabel="From"
+            toLabel="To"
+            fromPlaceholder="DD/MM/YYYY"
+            toPlaceholder="DD/MM/YYYY"
+          />
+
+          {/* Row 4: Transaction Type, Status */}
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${FILTER_STYLES.gridGap}`}>
             <MultiSelect
               options={filterOptions?.transactionTypes.map((type) => ({
                 value: type.value.toString(),
@@ -206,14 +233,7 @@ export function TransactionFilters({ filters, onFilterChange }: TransactionFilte
               placeholder="All types"
               emptyMessage="No types found."
             />
-          </div>
-        </div>
 
-        {/* Row 3: Status, Sort, Clear */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Status */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Status</label>
             <MultiSelect
               options={filterOptions?.statuses.map((status) => ({
                 value: status.value.toString(),
@@ -227,45 +247,18 @@ export function TransactionFilters({ filters, onFilterChange }: TransactionFilte
               emptyMessage="No statuses found."
             />
           </div>
+        </div>
 
-          {/* Sort By */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Sort By</label>
-            <Select
-              value={filters.sortBy || 'bank_charge_date:desc'}
-              onValueChange={(value) =>
-                onFilterChange({ ...filters, sortBy: value })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sort by..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="bank_charge_date:desc">Date (Newest first)</SelectItem>
-                <SelectItem value="bank_charge_date:asc">Date (Oldest first)</SelectItem>
-                <SelectItem value="charged_amount_ils:desc">Amount (High to Low)</SelectItem>
-                <SelectItem value="charged_amount_ils:asc">Amount (Low to High)</SelectItem>
-                <SelectItem value="business_name:asc">Business (A-Z)</SelectItem>
-                <SelectItem value="business_name:desc">Business (Z-A)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Empty spacer */}
-          <div></div>
-
-          {/* Clear Filters */}
-          <div className="flex items-end">
-            <Button
-              variant="outline"
-              onClick={handleClearFilters}
-              className="w-full"
-            >
-              Clear Filters
+        {/* Clear All - only when filters active */}
+        {activeFilterCount > 0 && (
+          <div className={`flex justify-end ${FILTER_STYLES.clearButton}`}>
+            <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+              <X className="h-3 w-3 mr-1" />
+              Clear All
             </Button>
           </div>
-        </div>
-      </div>
+        )}
+      </CardContent>
     </Card>
   );
 }

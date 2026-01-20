@@ -6,7 +6,8 @@ import { TransactionFilters } from '@/components/features/transactions/transacti
 import { TransactionTable } from '@/components/features/transactions/transaction-table';
 import { CreateTransactionModal } from '@/components/features/transactions/create-transaction-modal';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Database } from 'lucide-react';
+import Link from 'next/link';
 
 export default function TransactionsPage() {
   const [filters, setFilters] = useState({
@@ -30,11 +31,11 @@ export default function TransactionsPage() {
   const { data, isLoading, error } = useTransactions(filters);
 
   const handlePageChange = (newPage: number) => {
-    setFilters((prev) => ({ ...prev, page: newPage }));
+    setFilters((prev: typeof filters) => ({ ...prev, page: newPage }));
   };
 
-  const handleFilterChange = (newFilters: any) => {
-    setFilters((prev) => ({ ...prev, ...newFilters, page: 1 })); // Reset to page 1 on filter change
+  const handleFilterChange = (newFilters: Partial<typeof filters>) => {
+    setFilters((prev: typeof filters) => ({ ...prev, ...newFilters, page: 1 })); // Reset to page 1 on filter change
   };
 
   if (error) {
@@ -51,24 +52,34 @@ export default function TransactionsPage() {
     <div className="container mx-auto py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Transactions</h1>
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Transaction
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/admin/database">
+            <Button variant="outline">
+              <Database className="h-4 w-4 mr-2" />
+              Bulk Delete
+            </Button>
+          </Link>
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Transaction
+          </Button>
+        </div>
       </div>
 
       <TransactionFilters filters={filters} onFilterChange={handleFilterChange} />
 
-      <TransactionTable
-        transactions={data?.transactions || []}
-        isLoading={isLoading}
-        total={data?.total || 0}
-        page={filters.page}
-        perPage={filters.perPage}
-        onPageChange={handlePageChange}
-        sortBy={filters.sortBy}
-        onSortChange={(sortBy) => handleFilterChange({ sortBy })}
-      />
+      <div className="mt-6">
+        <TransactionTable
+          transactions={data?.transactions || []}
+          isLoading={isLoading}
+          total={data?.total || 0}
+          page={filters.page}
+          perPage={filters.perPage}
+          onPageChange={handlePageChange}
+          sortBy={filters.sortBy}
+          onSortChange={(sortBy) => handleFilterChange({ sortBy })}
+        />
+      </div>
 
       <CreateTransactionModal
         isOpen={showCreateModal}
