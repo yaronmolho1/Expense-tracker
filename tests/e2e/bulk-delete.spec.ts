@@ -334,7 +334,7 @@ test.describe('Bulk Delete Transactions', () => {
   test.describe('Error Handling', () => {
     test('shows error when API fails', async ({ page }) => {
       // Mock API to return error
-      await page.route('**/api/admin/transactions/bulk-delete', (route) => {
+      await page.route('api/admin/transactions/bulk-delete', (route) => {
         route.fulfill({
           status: 500,
           body: JSON.stringify({ error: 'Database error' }),
