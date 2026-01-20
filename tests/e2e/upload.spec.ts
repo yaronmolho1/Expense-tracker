@@ -20,7 +20,7 @@ async function loginWithCookies(page: Page) {
   // Intercept the login response BEFORE clicking submit
   const responsePromise = page.waitForResponse(
     resp => resp.url().includes('/api/auth/login') && resp.status() === 200,
-    { timeout: 15000 }
+    { timeout: 30000 } // Increased for CI environment (bcrypt is CPU-intensive)
   );
 
   // Click submit button

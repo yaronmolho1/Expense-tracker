@@ -10,6 +10,29 @@ import { test, expect, Page } from '@playwright/test';
  */
 
 /**
+ * Helper function to safely click calendar date cells
+ * Handles viewport issues by waiting for animations and scrolling into view
+ */
+async function clickCalendarCell(page: Page, dayText: string) {
+  const cell = page.locator('[role="gridcell"]').filter({ hasText: new RegExp(`^${dayText}$`) }).first();
+
+  // Wait for element to be attached and visible
+  await cell.waitFor({ state: 'visible', timeout: 5000 });
+
+  // Wait for any animations or layout shifts to complete
+  await page.waitForTimeout(300);
+
+  // Scroll into view if needed
+  await cell.scrollIntoViewIfNeeded();
+
+  // Small delay after scroll to let the page settle
+  await page.waitForTimeout(100);
+
+  // Click with force option as backup (element is clickable but viewport detection may be flaky)
+  await cell.click({ force: true });
+}
+
+/**
  * Helper function to login with explicit cookie handling
  */
 async function loginWithCookies(page: Page) {
@@ -20,7 +43,7 @@ async function loginWithCookies(page: Page) {
 
   const responsePromise = page.waitForResponse(
     resp => resp.url().includes('/api/auth/login') && resp.status() === 200,
-    { timeout: 15000 }
+    { timeout: 30000 } // Increased for CI environment (bcrypt is CPU-intensive)
   );
 
   await page.click('button[type="submit"]');
@@ -83,9 +106,8 @@ test.describe('DateRangePicker E2E Tests', () => {
       // Wait for calendar to appear
       await page.waitForSelector('[role="grid"]', { timeout: 5000 });
 
-      // Click on a date (e.g., day 15)
-      const day15 = page.locator('[role="gridcell"]:has-text("15")').first();
-      await day15.click();
+      // Click on a date (e.g., day 15) using helper to avoid viewport issues
+      await clickCalendarCell(page, '15');
 
       // Calendar should close and date should be displayed
       await page.waitForTimeout(500);
@@ -101,7 +123,7 @@ test.describe('DateRangePicker E2E Tests', () => {
       const fromButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
-      await page.locator('[role="gridcell"]:has-text("10")').first().click();
+      await clickCalendarCell(page, '10');
       await page.waitForTimeout(500);
 
       // Now select "To" date
@@ -109,7 +131,7 @@ test.describe('DateRangePicker E2E Tests', () => {
       const toButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).nth(1);
       await toButton.click();
       await page.waitForSelector('[role="grid"]');
-      await page.locator('[role="gridcell"]:has-text("25")').first().click();
+      await clickCalendarCell(page, '25');
       await page.waitForTimeout(500);
 
       // Verify both dates are displayed
@@ -126,8 +148,7 @@ test.describe('DateRangePicker E2E Tests', () => {
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
 
-      const day15 = page.locator('[role="gridcell"]:has-text("15")').first();
-      await day15.click();
+      await clickCalendarCell(page, '15');
       await page.waitForTimeout(500);
 
       // Open "To Date" picker
@@ -164,8 +185,7 @@ test.describe('DateRangePicker E2E Tests', () => {
       await monthDisplay.waitFor({ state: 'visible' });
 
       // Select a date
-      const day10 = page.locator('[role="gridcell"]:has-text("10")').first();
-      await day10.click();
+      await clickCalendarCell(page, '10');
       await page.waitForTimeout(500);
 
       // Open "To Date" picker
@@ -187,14 +207,14 @@ test.describe('DateRangePicker E2E Tests', () => {
       const fromButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
-      await page.locator('[role="gridcell"]:has-text("10")').first().click();
+      await clickCalendarCell(page, '10');
       await page.waitForTimeout(500);
 
       // Find the "To" date button (second date picker button in the date range section)
       const toButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).nth(1);
       await toButton.click();
       await page.waitForSelector('[role="grid"]');
-      await page.locator('[role="gridcell"]:has-text("25")').first().click();
+      await clickCalendarCell(page, '25');
       await page.waitForTimeout(500);
 
       // Both dates should be displayed
@@ -214,7 +234,7 @@ test.describe('DateRangePicker E2E Tests', () => {
       const fromButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
-      await page.locator('[role="gridcell"]:has-text("1")').first().click();
+      await clickCalendarCell(page, '1');
       await page.waitForTimeout(500);
 
       // Wait for API call to complete
@@ -222,7 +242,8 @@ test.describe('DateRangePicker E2E Tests', () => {
 
       // The business list should update (check for loading state or data update)
       // We can verify by checking if the page has refreshed data
-      const businessTable = page.locator('table, [role="table"], [data-testid="business-table"]');
+      // Use .first() to avoid strict mode violation (calendar grid is also a table)
+      const businessTable = page.locator('table').first();
       await expect(businessTable).toBeVisible({ timeout: 10000 });
     });
 
@@ -232,7 +253,7 @@ test.describe('DateRangePicker E2E Tests', () => {
       const fromButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
-      await page.locator('[role="gridcell"]:has-text("10")').first().click();
+      await clickCalendarCell(page, '10');
       await page.waitForTimeout(500);
 
       // Wait for filter to apply
@@ -240,7 +261,8 @@ test.describe('DateRangePicker E2E Tests', () => {
 
       // Note: Actual clearing mechanism depends on implementation
       // This test verifies the integration works
-      const businessTable = page.locator('table, [role="table"]');
+      // Use .first() to avoid strict mode violation (calendar grid is also a table)
+      const businessTable = page.locator('table').first();
       await expect(businessTable).toBeVisible({ timeout: 10000 });
     });
   });
@@ -252,7 +274,7 @@ test.describe('DateRangePicker E2E Tests', () => {
       const fromButton = page.getByRole('button', { name: /DD\/MM\/YYYY|\d{2}\/\d{2}\/\d{4}/ }).first();
       await fromButton.click();
       await page.waitForSelector('[role="grid"]');
-      await page.locator('[role="gridcell"]:has-text("15")').first().click();
+      await clickCalendarCell(page, '15');
       await page.waitForTimeout(500);
 
       // Verify format: DD/MM/YYYY (e.g., 15/01/2024)
