@@ -64,7 +64,8 @@ export default defineConfig({
     // Setup project - runs first to create auth state
     {
       name: 'setup',
-      testMatch: /.*\.setup\.ts/,
+      testMatch: /.*\.setup\.ts$/,
+      testDir: './tests/setup',
     },
     // Main tests - depend on setup and use stored auth state
     {
