@@ -12,13 +12,17 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Bulk Delete Transactions', () => {
+  // Add beforeEach to ensure page loads properly
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/admin/database', { waitUntil: 'networkidle' });
+    // Wait for page to be fully loaded
+    await page.waitForLoadState('domcontentloaded');
+  });
 
   test.describe('Preview and Cancel Flow', () => {
     test('user can preview deletion and cancel', async ({ page }) => {
-      await page.goto('/admin/database', { waitUntil: 'domcontentloaded' });
-
       // Open bulk delete dialog
-      const deleteButton = page.locator('button:has-text("Delete Transactions Based on Filters")');
+      const deleteButton = page.locator('button:has-text("Delete transactions")');
       await expect(deleteButton).toBeVisible({ timeout: 10000 });
       await deleteButton.click();
 
@@ -53,11 +57,8 @@ test.describe('Bulk Delete Transactions', () => {
 
   test.describe('Delete One-time Transactions Only', () => {
     test('user can delete only one-time transactions', async ({ page }) => {
-      await page.goto('/admin/database');
-      
-
       // Open dialog
-      await page.click('button:has-text("Delete Transactions Based on Filters")');
+      await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
       // Set date range
@@ -101,10 +102,7 @@ test.describe('Bulk Delete Transactions', () => {
 
   test.describe('Installment Strategy Selection', () => {
     test('user can select delete entire payment plans strategy', async ({ page }) => {
-      await page.goto('/admin/database');
-      
-
-      await page.click('button:has-text("Delete Transactions Based on Filters")');
+      await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
       // Set a narrow date range to create partial groups
@@ -138,10 +136,7 @@ test.describe('Bulk Delete Transactions', () => {
     });
 
     test('user can select delete only matching payments strategy', async ({ page }) => {
-      await page.goto('/admin/database');
-      
-
-      await page.click('button:has-text("Delete Transactions Based on Filters")');
+      await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
       const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
@@ -166,10 +161,7 @@ test.describe('Bulk Delete Transactions', () => {
 
   test.describe('Subscription Handling', () => {
     test('user sees warning for affected subscriptions', async ({ page }) => {
-      await page.goto('/admin/database');
-      
-
-      await page.click('button:has-text("Delete Transactions Based on Filters")');
+      await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
       const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
@@ -212,10 +204,7 @@ test.describe('Bulk Delete Transactions', () => {
         });
       });
 
-      await page.goto('/admin/database');
-      
-
-      await page.click('button:has-text("Delete Transactions Based on Filters")');
+      await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
       const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
@@ -232,10 +221,7 @@ test.describe('Bulk Delete Transactions', () => {
 
   test.describe('Delete Button State', () => {
     test('delete button is disabled when all checkboxes unchecked', async ({ page }) => {
-      await page.goto('/admin/database');
-      
-
-      await page.click('button:has-text("Delete Transactions Based on Filters")');
+      await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
       const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
@@ -261,10 +247,7 @@ test.describe('Bulk Delete Transactions', () => {
 
   test.describe('Visual Elements', () => {
     test('displays transaction count correctly', async ({ page }) => {
-      await page.goto('/admin/database');
-      
-
-      await page.click('button:has-text("Delete Transactions Based on Filters")');
+      await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
       const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
@@ -281,10 +264,7 @@ test.describe('Bulk Delete Transactions', () => {
     });
 
     test('displays warning icons for partial groups', async ({ page }) => {
-      await page.goto('/admin/database');
-      
-
-      await page.click('button:has-text("Delete Transactions Based on Filters")');
+      await page.click('button:has-text("Delete transactions")');
       await page.waitForSelector('[role="dialog"]');
 
       const fromDateInput = page.locator('input[name="from-date"], input[placeholder*="From"]').first();
