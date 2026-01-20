@@ -18,14 +18,13 @@ import { Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCards } from '@/hooks/use-cards';
 import { EnhancedDeleteConfirmDialog } from './enhanced-delete-confirm-dialog';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function BulkDeleteTransactionsDialog() {
   const [open, setOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
-  const [selectedFileIds, setSelectedFileIds] = useState<number[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [warnings, setWarnings] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -42,18 +41,6 @@ export function BulkDeleteTransactionsDialog() {
   const { data: cards = [] } = useCards('default-user');
   const queryClient = useQueryClient();
 
-  // Fetch uploaded files
-  const { data: filesData } = useQuery({
-    queryKey: ['uploaded-files'],
-    queryFn: async () => {
-      const response = await fetch('/api/admin/uploaded-files');
-      if (!response.ok) throw new Error('Failed to fetch files');
-      return response.json();
-    },
-  });
-
-  const uploadedFiles = filesData?.files || [];
-
   const handlePreview = async () => {
     setDeleting(true);
 
@@ -65,7 +52,6 @@ export function BulkDeleteTransactionsDialog() {
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
           cardIds: selectedCards.length > 0 ? selectedCards : undefined,
-          fileIds: selectedFileIds.length > 0 ? selectedFileIds : undefined,
           // Don't pass strategies in preview - let API return all data
         }),
       });
@@ -99,7 +85,6 @@ export function BulkDeleteTransactionsDialog() {
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
           cardIds: selectedCards.length > 0 ? selectedCards : undefined,
-          fileIds: selectedFileIds.length > 0 ? selectedFileIds : undefined,
           includeOneTime,
           includeInstallments,
           includeSubscriptions,
@@ -124,7 +109,6 @@ export function BulkDeleteTransactionsDialog() {
         setDateFrom('');
         setDateTo('');
         setSelectedCards([]);
-        setSelectedFileIds([]);
         setIncludeOneTime(true);
         setIncludeInstallments(true);
         setIncludeSubscriptions(true);
@@ -194,20 +178,6 @@ export function BulkDeleteTransactionsDialog() {
               />
             </div>
 
-            {/* File Filter */}
-            <div>
-              <Label>Uploaded Files (Optional)</Label>
-              <MultiSelect
-                options={(uploadedFiles || []).map((file: any) => ({
-                  value: file.id.toString(),
-                  label: file.filename,
-                }))}
-                selected={selectedFileIds.map(String)}
-                onChange={(values) => setSelectedFileIds(values.map(Number))}
-                placeholder="All files"
-              />
-            </div>
-
             {/* Warning */}
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
               <div className="flex items-start gap-2">
@@ -229,7 +199,7 @@ export function BulkDeleteTransactionsDialog() {
             </Button>
             <Button
               onClick={handlePreview}
-              disabled={deleting || (!dateFrom && !dateTo && selectedCards.length === 0 && selectedFileIds.length === 0)}
+              disabled={deleting || (!dateFrom && !dateTo && selectedCards.length === 0)}
             >
               {deleting ? 'Loading...' : 'Preview Deletion'}
             </Button>

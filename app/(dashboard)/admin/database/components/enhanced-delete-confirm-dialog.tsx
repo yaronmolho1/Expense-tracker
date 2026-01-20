@@ -86,18 +86,30 @@ export function EnhancedDeleteConfirmDialog(props: EnhancedDeleteConfirmDialogPr
     if (!includeInstallments || props.installmentStrategy === 'skip_all') return 0;
 
     if (props.installmentStrategy === 'delete_all_matching_groups') {
-      // Count all payments in affected groups
-      return warnings.partialInstallments.reduce((sum, group) => sum + group.total, 0);
+      // Count all payments in affected groups (including both partial and complete groups)
+      // If we have partial installments data, sum their totals
+      // Otherwise, fall back to the installment count in range
+      if (warnings.partialInstallments && warnings.partialInstallments.length > 0) {
+        return warnings.partialInstallments.reduce((sum, group) => sum + group.total, 0);
+      }
+      // For complete groups (all payments in range), use the in-range count
+      return warnings.summary.installmentCount;
     } else if (props.installmentStrategy === 'delete_matching_only') {
       return warnings.summary.installmentCount;
     }
     return 0;
   };
 
+  const calculateSubscriptionCount = () => {
+    if (!includeSubscriptions || props.subscriptionStrategy === 'skip') return 0;
+    // Always use the subscription count from summary when deleting
+    return warnings.summary.subscriptionCount;
+  };
+
   const selectedCount =
     (includeOneTime ? warnings.summary.oneTimeCount : 0) +
     calculateInstallmentCount() +
-    (includeSubscriptions && props.subscriptionStrategy !== 'skip' ? warnings.summary.subscriptionCount : 0);
+    calculateSubscriptionCount();
 
   // Check if any category is actually selected for deletion (not just checked but with a valid strategy)
   const hasValidSelection =

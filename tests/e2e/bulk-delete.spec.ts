@@ -138,6 +138,89 @@ test.describe('Bulk Delete Transactions', () => {
         page.locator('text=/Deleted \\d+ transaction/i, text=/success/i')
       ).toBeVisible({ timeout: 10000 });
     });
+
+    test('user can delete only installments (without one-time)', async ({ page }) => {
+      // Expand the section first
+      await page.click('text=Delete Specific Transactions');
+
+      // Open dialog
+      await page.click('button:has-text("Delete transactions")');
+      await page.waitForSelector('[role="dialog"]');
+
+      // Set date range
+      const fromDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
+      await fromDateButton.click();
+      await clickCalendarCell(page, '1');
+
+      const toDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).last();
+      await toDateButton.click();
+      await clickCalendarCell(page, '31');
+
+      // Click preview
+      await page.click('button:has-text("Preview Deletion")');
+
+      // Wait for confirmation dialog
+      await page.waitForSelector('text=/Delete \\d+ Transaction/i', { timeout: 10000 });
+
+      // Uncheck one-time checkbox
+      const oneTimeCheckbox = page.locator('input[id="include-onetime"]');
+      if (await oneTimeCheckbox.isChecked()) {
+        await oneTimeCheckbox.click();
+      }
+
+      // Verify delete button is enabled and shows correct count
+      const deleteButton = page.locator('button:has-text(/Delete \\d+ Transaction/i)').first();
+      await expect(deleteButton).toBeEnabled();
+
+      // Verify it's NOT showing "Delete 0"
+      const buttonText = await deleteButton.textContent();
+      expect(buttonText).not.toContain('Delete 0');
+    });
+
+    test('user can delete only subscriptions (without one-time)', async ({ page }) => {
+      // Expand the section first
+      await page.click('text=Delete Specific Transactions');
+
+      // Open dialog
+      await page.click('button:has-text("Delete transactions")');
+      await page.waitForSelector('[role="dialog"]');
+
+      // Set date range
+      const fromDateButton = page.locator('button').filter({ hasText: /DD\/MM\/YYYY/ }).first();
+      await fromDateButton.click();
+      await clickCalendarCell(page, '1');
+
+      // Click preview
+      await page.click('button:has-text("Preview Deletion")');
+
+      // Wait for confirmation dialog
+      await page.waitForSelector('text=/Delete \\d+ Transaction/i', { timeout: 10000 });
+
+      // Uncheck one-time and installments
+      const oneTimeCheckbox = page.locator('input[id="include-onetime"]');
+      if (await oneTimeCheckbox.isChecked()) {
+        await oneTimeCheckbox.click();
+      }
+
+      const installmentsCheckbox = page.locator('input[id="include-installments"]');
+      if (await installmentsCheckbox.isChecked()) {
+        await installmentsCheckbox.click();
+      }
+
+      // Change subscription strategy to delete
+      const deleteSubRadio = page.locator('input[value="delete_in_range_and_cancel"]');
+      if (await deleteSubRadio.isVisible()) {
+        await deleteSubRadio.click();
+
+        // Verify delete button is enabled and shows correct count
+        const deleteButton = page.locator('button:has-text(/Delete \\d+ Transaction/i)').first();
+        await expect(deleteButton).toBeEnabled();
+
+        // Verify it's NOT showing "Delete 0"
+        const buttonText = await deleteButton.textContent();
+        expect(buttonText).not.toContain('Delete 0');
+      }
+    });
   });
 
   test.describe('Installment Strategy Selection', () => {
