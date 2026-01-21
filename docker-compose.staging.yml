@@ -1,7 +1,7 @@
 # Docker Compose for Staging Environment
 # 
 # Usage: docker compose -f docker-compose.staging.yml up -d
-
+name: expense-tracker-staging
 services:
   db:
     image: postgres:16-alpine
