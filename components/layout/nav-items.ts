@@ -28,13 +28,6 @@ export const navSections: NavSection[] = [
     ],
   },
   {
-    title: "Reports",
-    items: [
-      { label: "Monthly", href: "/reports/monthly" },
-      { label: "Projected", href: "/reports/projected" },
-    ],
-  },
-  {
     title: "Admin",
     items: [
       { label: "Database", href: "/admin/database" },

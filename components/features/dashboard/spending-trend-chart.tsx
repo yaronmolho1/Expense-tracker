@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   BarChart,
@@ -19,6 +20,11 @@ interface SpendingTrendChartProps {
 }
 
 export function SpendingTrendChart({ data }: SpendingTrendChartProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',
@@ -27,6 +33,21 @@ export function SpendingTrendChart({ data }: SpendingTrendChartProps) {
       maximumFractionDigits: 0,
     }).format(value);
   };
+
+  if (!mounted || !data || data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Spending Trend (Last 6 Months)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+            {!mounted ? 'Loading chart...' : 'No spending data available'}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

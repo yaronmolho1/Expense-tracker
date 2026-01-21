@@ -24,7 +24,13 @@ export default function SubscriptionSuggestionsPage() {
   };
 
   const handleApprove = async (id: number) => {
-    await approveMutation.mutateAsync({ id });
+    await approveMutation.mutateAsync({
+      id,
+      // Optional parameters - use defaults from suggestion
+      adjustedAmount: undefined,
+      startDate: undefined,
+      endDate: undefined,
+    });
   };
 
   const handleReject = async (id: number) => {

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
@@ -27,6 +28,12 @@ const COLORS = [
 ];
 
 export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',
@@ -54,9 +61,9 @@ export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
         <CardTitle>Category Breakdown (This Month)</CardTitle>
       </CardHeader>
       <CardContent>
-        {filteredData.length === 0 ? (
+        {!mounted || filteredData.length === 0 ? (
           <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-            No spending data for this month
+            {!mounted ? 'Loading chart...' : 'No spending data for this month'}
           </div>
         ) : (
           <div className="h-[300px]">
