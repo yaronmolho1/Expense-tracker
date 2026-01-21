@@ -19,7 +19,7 @@ export default function TransactionsPage() {
     childCategoryIds: [] as string[],
     cardIds: [] as string[],
     transactionTypes: [] as string[],
-    statuses: [] as string[],
+    statuses: ['completed'] as string[],
     uncategorized: false,
     page: 1,
     perPage: 50,
