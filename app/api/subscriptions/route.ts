@@ -9,16 +9,16 @@ import logger from '@/lib/logger';
 // Zod validation schema
 const createSubscriptionSchema = z.object({
   name: z.string().optional(),
-  businessId: z.number().int().positive().optional(),
+  businessId: z.number().int().positive().nullable().optional(),
   businessName: z.string().min(1).optional(),
   cardId: z.number().int().positive(),
   amount: z.number().positive(),
   currency: z.enum(['ILS', 'USD', 'EUR']).optional(),
   frequency: z.enum(['monthly', 'annual']),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  primaryCategoryId: z.number().int().positive().optional(),
-  childCategoryId: z.number().int().positive().optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  primaryCategoryId: z.number().int().positive().nullable().optional(),
+  childCategoryId: z.number().int().positive().nullable().optional(),
   notes: z.string().optional(),
   backfillTransactionIds: z.array(z.number().int().positive()).optional(),
 }).refine((data) => data.businessId || data.businessName, {
