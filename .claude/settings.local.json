@@ -8,7 +8,9 @@
       "Bash(npm run test:unit:*)",
       "Bash(npm run type-check:*)",
       "Bash(find:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)"
     ]
   }
 }
