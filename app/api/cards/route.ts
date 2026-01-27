@@ -4,6 +4,7 @@ import { cards } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import logger from '@/lib/logger';
+import { getUserId } from '@/lib/utils/auth';
 
 // Validation schemas
 // Support both last4Digits (preferred) and last4 (legacy) for backward compatibility
@@ -46,26 +47,29 @@ function getDefaultBankName(issuer: string): string {
 /**
  * GET /api/cards
  * Get all active cards for a user
- * Query params: owner (required)
+ * Query params: owner (optional, for backward compatibility - automatically uses authenticated user)
  */
 export async function GET(request: Request) {
   try {
+    // Get owner from auth (with fallback to query param for backward compatibility)
     const { searchParams } = new URL(request.url);
-    const owner = searchParams.get('owner');
+    const queryOwner = searchParams.get('owner');
+    const authOwner = await getUserId(request);
+    const owner = authOwner || queryOwner;
 
-    console.log('[CARDS API] GET request received, owner:', owner);
+    logger.debug({ owner }, 'Cards API GET request received');
 
     if (!owner) {
-      console.log('[CARDS API] ERROR: No owner parameter');
-      return NextResponse.json({ error: 'Owner parameter required' }, { status: 400 });
+      logger.warn('Cards API: No owner determined');
+      return NextResponse.json({ error: 'Owner could not be determined' }, { status: 400 });
     }
 
-    console.log('[CARDS API] Fetching cards from database...');
+    logger.debug({ owner }, 'Fetching cards from database');
     const allCards = await db.select().from(cards)
       .where(eq(cards.owner, owner))
       .orderBy(desc(cards.createdAt));
-    
-    console.log('[CARDS API] Found', allCards.length, 'cards');
+
+    logger.debug({ cardCount: allCards.length, owner }, 'Cards fetched successfully');
 
     return NextResponse.json({
       cards: allCards.map((card) => ({
@@ -83,7 +87,6 @@ export async function GET(request: Request) {
       })),
     });
   } catch (error) {
-    console.error('[CARDS API] ERROR:', error);
     logger.error(error, 'Failed to fetch cards');
     return NextResponse.json({ 
       error: 'Failed to fetch cards',

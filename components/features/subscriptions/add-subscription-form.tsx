@@ -101,9 +101,9 @@ export function AddSubscriptionForm({ onSubmit, onCancel, isSubmitting, initialD
 
   // Fetch cards
   const { data: cardsData, isLoading: cardsLoading, error: cardsError } = useQuery({
-    queryKey: ['cards', 'default-user'], // TODO: Get actual user from auth
+    queryKey: ['cards'],
     queryFn: async () => {
-      const response = await fetch('/api/cards?owner=default-user');
+      const response = await fetch('/api/cards');
       if (!response.ok) throw new Error('Failed to fetch cards');
       const data = await response.json();
       return data.cards as Card[];

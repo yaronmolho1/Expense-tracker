@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { 
+import {
   generateInstallmentGroupId,
-  generateInstallmentTransactionHash 
+  generateInstallmentTransactionHash
 } from '@/lib/utils/hash';
+import { createHash, randomUUID } from 'node:crypto';
 
 /**
  * Unit Tests: Installment Service
@@ -253,8 +254,6 @@ describe('Installment Service', () => {
       
       // Second backfill detects collision and re-hashes
       // In real code: SHA256(baseGroupId + UUID)
-      const { createHash } = require('node:crypto');
-      const { randomUUID } = require('node:crypto');
       const uniqueId = randomUUID();
       const secondGroupId = createHash('sha256')
         .update(baseGroupId + uniqueId)
@@ -460,16 +459,13 @@ describe('Installment Service', () => {
      * Formula: SHA256(baseGroupId + UUID) = guaranteed 64 chars
      */
     it('should generate 64-character hash from baseGroupId + UUID', () => {
-      const { createHash } = require('node:crypto');
-      const { randomUUID } = require('node:crypto');
-      
       const baseGroupId = generateInstallmentGroupId({
         businessNormalizedName: 'test business',
         totalPaymentSum: 3099,
         installmentTotal: 24,
         dealDate: '2024-01-15',
       });
-      
+
       const uniqueId = randomUUID();
       const rehashedId = createHash('sha256')
         .update(baseGroupId + uniqueId)
@@ -481,9 +477,6 @@ describe('Installment Service', () => {
     });
 
     it('should generate different hashes for same baseGroupId with different UUIDs', () => {
-      const { createHash } = require('node:crypto');
-      const { randomUUID } = require('node:crypto');
-      
       const baseGroupId = generateInstallmentGroupId({
         businessNormalizedName: 'test business',
         totalPaymentSum: 3099,
@@ -508,12 +501,9 @@ describe('Installment Service', () => {
     });
 
     it('should ensure re-hashed ID fits varchar(64) constraint', () => {
-      const { createHash } = require('node:crypto');
-      const { randomUUID } = require('node:crypto');
-      
       const baseGroupId = 'a'.repeat(64); // Max length baseGroupId
       const uniqueId = randomUUID();
-      
+
       const rehashedId = createHash('sha256')
         .update(baseGroupId + uniqueId)
         .digest('hex');

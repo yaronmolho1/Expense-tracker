@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, integer, boolean, timestamp, decimal, date, text, bigserial, pgEnum, check } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, integer, boolean, timestamp, decimal, date, text, bigserial, pgEnum, check, type PgTableWithColumns } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // ============================================
@@ -20,10 +20,11 @@ export const logLevelEnum = pgEnum('log_level', ['info', 'warning', 'error']);
 // TABLE 1: CATEGORIES
 // ============================================
 
-export const categories = pgTable('categories', {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const categories: any = pgTable('categories', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }).notNull(),
-  parentId: integer('parent_id').references((): any => categories.id),
+  parentId: integer('parent_id').references(() => categories.id),
   level: integer('level').notNull(),
   displayOrder: integer('display_order').notNull(),
   budgetAmount: decimal('budget_amount', { precision: 12, scale: 2 }), // Current budget (denormalized)
@@ -51,7 +52,7 @@ export const cards = pgTable('cards', {
 // TABLE 3: BUSINESSES
 // ============================================
 
-export const businesses: any = pgTable('businesses', {
+export const businesses = pgTable('businesses', {
   id: serial('id').primaryKey(),
   normalizedName: varchar('normalized_name', { length: 255 }).notNull().unique(),
   displayName: varchar('display_name', { length: 255 }).notNull(),
@@ -148,7 +149,8 @@ export const exchangeRates = pgTable('exchange_rates', {
 // TABLE 8: TRANSACTIONS (The Big One)
 // ============================================
 
-export const transactions = pgTable('transactions', {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const transactions: any = pgTable('transactions', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   transactionHash: varchar('transaction_hash', { length: 64 }).notNull().unique(),
   transactionType: transactionTypeEnum('transaction_type').notNull(),
@@ -187,7 +189,7 @@ export const transactions = pgTable('transactions', {
   
   // Refunds
   isRefund: boolean('is_refund').default(false).notNull(),
-  parentTransactionId: integer('parent_transaction_id').references((): any => transactions.id),
+  parentTransactionId: integer('parent_transaction_id').references(() => transactions.id),
   
   // Audit
   sourceFile: varchar('source_file', { length: 255 }).notNull(),

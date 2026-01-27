@@ -11,6 +11,10 @@ import { BaseParser, ParsedTransaction, ParserResult, ParserMetadata, ParseError
 // TYPES
 // ============================================
 
+// Type for Excel worksheet data - array of rows, where each row is an array of cell values
+type ExcelRow = (string | number | boolean | Date | null | undefined)[];
+type ExcelData = ExcelRow[];
+
 interface MaxRawTransaction {
   dealDate: string;
   businessName: string;
@@ -263,7 +267,7 @@ export class MaxParser extends BaseParser {
   // PRIVATE METHODS
   // ============================================
 
-  private isValidMaxHeader(header: any[] | undefined): boolean {
+  private isValidMaxHeader(header: ExcelRow | undefined): boolean {
     if (!header) return false;
 
     const requiredColumns = [

@@ -60,7 +60,7 @@ export async function getAllCategories(): Promise<CategoryWithBudget[]> {
   return await db
     .select()
     .from(categories)
-    .orderBy(categories.level, categories.displayOrder);
+    .orderBy(categories.level, categories.displayOrder) as CategoryWithBudget[];
 }
 
 /**
@@ -86,7 +86,7 @@ export async function getCategoryById(id: number): Promise<CategoryWithBudget | 
     .select()
     .from(categories)
     .where(eq(categories.id, id))
-    .limit(1);
+    .limit(1) as CategoryWithBudget[];
 
   return result[0] || null;
 }
@@ -105,7 +105,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
       level,
       displayOrder: input.displayOrder,
     })
-    .returning();
+    .returning() as CategoryWithBudget[];
 
   return result[0];
 }
@@ -129,7 +129,7 @@ export async function updateCategory(id: number, input: UpdateCategoryInput): Pr
     .update(categories)
     .set(updates)
     .where(eq(categories.id, id))
-    .returning();
+    .returning() as CategoryWithBudget[];
 
   return result[0];
 }
@@ -324,7 +324,7 @@ export async function getBudgetHistory(categoryId: number): Promise<BudgetHistor
     .select()
     .from(categoryBudgetHistory)
     .where(eq(categoryBudgetHistory.categoryId, categoryId))
-    .orderBy(desc(categoryBudgetHistory.effectiveFrom));
+    .orderBy(desc(categoryBudgetHistory.effectiveFrom)) as BudgetHistoryRecord[];
 }
 
 /**
@@ -347,7 +347,7 @@ export async function getBudgetForDate(categoryId: number, date: Date): Promise<
       )
     )
     .orderBy(desc(categoryBudgetHistory.effectiveFrom))
-    .limit(1);
+    .limit(1) as BudgetHistoryRecord[];
 
   return result[0] || null;
 }

@@ -1,6 +1,7 @@
 import { db } from '../db';
-import { transactions, subscriptionSuggestions } from '../db/schema';
+import { transactions, subscriptionSuggestions, businesses, subscriptions } from '../db/schema';
 import { sql, eq, and, isNull } from 'drizzle-orm';
+import logger from '../logger';
 
 /**
  * Subscription Detection Service
@@ -48,7 +49,7 @@ export class SubscriptionDetectionService {
     suggestionsCreated: number;
     patternsAnalyzed: number;
   }> {
-    console.log('🔍 Starting subscription detection...');
+    logger.info('Starting subscription detection');
 
     // Query for potential subscription patterns
     // Group by business + card + amount, find recurring charges
@@ -81,7 +82,7 @@ export class SubscriptionDetectionService {
     `);
 
     const rows = candidates || [];
-    console.log(`Found ${rows.length} potential subscription patterns`);
+    logger.info({ patternCount: rows.length }, 'Found potential subscription patterns');
 
     let suggestionsCreated = 0;
 
@@ -184,15 +185,16 @@ export class SubscriptionDetectionService {
         const isInFreezePeriod = rejectedSuggestion?.rejectedUntil &&
           new Date(rejectedSuggestion.rejectedUntil) > now;
 
-        console.log(`🔍 Checking freeze for "${candidate.business_name}":`, {
+        logger.debug({
+          businessName: candidate.business_name,
           hasRejected: !!rejectedSuggestion,
           rejectedUntil: rejectedSuggestion?.rejectedUntil,
           isInFreeze: isInFreezePeriod,
           now: now.toISOString(),
-        });
+        }, 'Checking freeze status for business');
 
         if (isInFreezePeriod) {
-          console.log(`⏸️  Skipping "${candidate.business_name}" - in freeze until ${rejectedSuggestion.rejectedUntil}`);
+          logger.debug({ businessName: candidate.business_name, freezeUntil: rejectedSuggestion.rejectedUntil }, 'Skipping business in freeze period');
           continue;
         }
 
@@ -221,16 +223,19 @@ export class SubscriptionDetectionService {
           `);
 
           suggestionsCreated++;
-          console.log(
-            `✨ Subscription detected: "${candidate.business_name}" - ${frequency} - ${candidate.occurrence_count} occurrences`
-          );
+          logger.info({
+            businessName: candidate.business_name,
+            frequency,
+            occurrenceCount: candidate.occurrence_count,
+          }, 'Subscription detected');
         }
       }
     }
 
-    console.log(`✅ Subscription detection complete`);
-    console.log(`   - Patterns analyzed: ${rows.length}`);
-    console.log(`   - Suggestions created: ${suggestionsCreated}`);
+    logger.info({
+      patternsAnalyzed: rows.length,
+      suggestionsCreated,
+    }, 'Subscription detection complete');
 
     return {
       suggestionsCreated,
@@ -259,15 +264,56 @@ export class SubscriptionDetectionService {
   async approveSuggestion(suggestionId: number): Promise<{ subscriptionId: number }> {
     const suggestion = await db.query.subscriptionSuggestions.findFirst({
       where: eq(subscriptionSuggestions.id, suggestionId),
+      with: {
+        card: true,
+      },
     });
 
     if (!suggestion) {
       throw new Error(`Subscription suggestion ${suggestionId} not found`);
     }
 
-    // TODO: Create actual subscription record in subscriptions table
-    // For now, just mark as approved
+    // Find or create business for this subscription
+    const normalizedName = suggestion.businessName.toLowerCase().trim();
+    let businessId: number;
 
+    const existingBusinessResults = await db
+      .select()
+      .from(businesses)
+      .where(eq(businesses.normalizedName, normalizedName))
+      .limit(1);
+
+    if (existingBusinessResults.length > 0) {
+      businessId = existingBusinessResults[0].id;
+    } else {
+      // Create new business
+      const [newBusiness] = await db
+        .insert(businesses)
+        .values({
+          normalizedName,
+          displayName: suggestion.businessName,
+          approved: false,
+        })
+        .returning();
+      businessId = newBusiness.id;
+    }
+
+    // Create subscription
+    const [newSubscription] = await db
+      .insert(subscriptions)
+      .values({
+        businessId,
+        cardId: suggestion.cardId,
+        amount: suggestion.detectedAmount,
+        frequency: suggestion.frequency,
+        startDate: suggestion.firstOccurrence,
+        endDate: null, // Open-ended
+        status: 'active',
+        createdFromSuggestion: true,
+      })
+      .returning();
+
+    // Mark suggestion as approved
     await db
       .update(subscriptionSuggestions)
       .set({
@@ -276,9 +322,9 @@ export class SubscriptionDetectionService {
       })
       .where(eq(subscriptionSuggestions.id, suggestionId));
 
-    console.log(`✅ Subscription suggestion ${suggestionId} approved`);
+    logger.info({ suggestionId, subscriptionId: newSubscription.id }, 'Subscription suggestion approved');
 
-    return { subscriptionId: 0 }; // TODO: Return actual subscription ID
+    return { subscriptionId: newSubscription.id };
   }
 
   /**
@@ -298,7 +344,7 @@ export class SubscriptionDetectionService {
       })
       .where(eq(subscriptionSuggestions.id, suggestionId));
 
-    console.log(`❌ Subscription suggestion ${suggestionId} rejected (freeze until ${freezeUntil.toISOString()})`);
+    logger.info({ suggestionId, freezeUntil: freezeUntil.toISOString() }, 'Subscription suggestion rejected');
   }
 }
 

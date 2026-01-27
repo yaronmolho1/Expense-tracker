@@ -17,6 +17,10 @@ import { BaseParser, ParserResult, ParsedTransaction, ParserMetadata, ParseError
 // TYPES
 // ============================================
 
+// Type for Excel worksheet data - array of rows, where each row is an array of cell values
+type ExcelRow = (string | number | boolean | Date | null | undefined)[];
+type ExcelData = ExcelRow[];
+
 interface IsracardMetadata {
   cardLast4: string;
   cardType: string;
@@ -91,7 +95,7 @@ export class IscracardParser extends BaseParser {
    * @param rows - First 10 rows of the Excel sheet
    * @returns {last4: string} or null if not found
    */
-  static extractCardFromHeader(rows: any[][]): { last4: string } | null {
+  static extractCardFromHeader(rows: ExcelData): { last4: string } | null {
     // Card number is in row 5 (index 4), pattern: "ישראכרט אמריקן אקספרס - XXXX"
     const row5 = rows[4]?.[0]?.toString() || '';
     const match = row5.match(/-\s*(\d{4})/);
@@ -259,7 +263,7 @@ export class IscracardParser extends BaseParser {
   // METADATA EXTRACTION
   // ============================================
 
-  private extractMetadata(rows: any[][]): IsracardMetadata {
+  private extractMetadata(rows: ExcelData): IsracardMetadata {
     // Row 2 (index 1): Statement period
     const periodCell = rows[1]?.[2]?.toString() ?? '';
     const statementMonth = periodCell.trim();
@@ -342,7 +346,7 @@ export class IscracardParser extends BaseParser {
   // SECTION DETECTION
   // ============================================
 
-  private detectSectionBounds(rows: any[][]): SectionBounds {
+  private detectSectionBounds(rows: ExcelData): SectionBounds {
     const bounds: SectionBounds = {};
 
     for (let i = 0; i < rows.length; i++) {
@@ -433,7 +437,7 @@ export class IscracardParser extends BaseParser {
   // ============================================
 
   private parseSection(
-    rows: any[][],
+    rows: ExcelData,
     startRow: number,
     endRow: number,
     sectionType: 'regular' | 'foreign',
@@ -469,7 +473,7 @@ export class IscracardParser extends BaseParser {
   // ============================================
 
   private parseTransactionRow(
-    row: any[],
+    row: ExcelRow,
     rowNumber: number,
     sectionType: 'regular' | 'foreign',
     metadata: IsracardMetadata
@@ -503,7 +507,7 @@ export class IscracardParser extends BaseParser {
     // Section 2 specific: bank charge date
     let bankChargeDate: Date | undefined;
     if (sectionType === 'foreign' && row[COL.BANK_CHARGE_DATE]) {
-      bankChargeDate = this.parseDate(row[COL.BANK_CHARGE_DATE].toString(), metadata.statementYear) ?? undefined;
+      bankChargeDate = this.parseDate(row[COL.BANK_CHARGE_DATE]?.toString() ?? '', metadata.statementYear) ?? undefined;
     }
 
     // Parse additional details

@@ -4,6 +4,7 @@
  */
 
 import * as XLSX from 'xlsx';
+import { readFileSync } from 'fs';
 import { Issuer } from './filename-patterns';
 
 export interface HeaderValidationResult {
@@ -21,11 +22,15 @@ export interface HeaderValidationResult {
 // HEADER EXTRACTION FUNCTIONS
 // ============================================
 
+// Type for Excel worksheet data - array of rows, where each row is an array of cell values
+type ExcelRow = (string | number | boolean | Date | null | undefined)[];
+type ExcelData = ExcelRow[];
+
 /**
  * Validate Isracard file header
  * Expected pattern in row 5: "ישראכרט אמריקן אקספרס - 8582" or "ישראכרט - 7547"
  */
-function validateIsracardHeader(rows: any[][]): HeaderValidationResult | null {
+function validateIsracardHeader(rows: ExcelData): HeaderValidationResult | null {
   // Check rows 3-6 for Isracard pattern (usually row 5, but can vary)
   for (let i = 3; i < Math.min(7, rows.length); i++) {
     const rowText = rows[i]?.[0]?.toString() || '';
@@ -76,7 +81,7 @@ function validateIsracardHeader(rows: any[][]): HeaderValidationResult | null {
  * Validate VISA/CAL file header
  * Expected pattern in row 0: "המסתיים ב-2446"
  */
-function validateVisaCalHeader(rows: any[][]): HeaderValidationResult | null {
+function validateVisaCalHeader(rows: ExcelData): HeaderValidationResult | null {
   // Check first 3 rows for the pattern (might not always be row 0)
   for (let i = 0; i < Math.min(3, rows.length); i++) {
     const rowText = rows[i]?.[0]?.toString() || '';
@@ -108,7 +113,7 @@ function validateVisaCalHeader(rows: any[][]): HeaderValidationResult | null {
  * Validate MAX file header
  * Expected: Column header "4 ספרות אחרונות של כרטיס האשראי" with last 4 digits in data row
  */
-function validateMaxHeader(rows: any[][]): HeaderValidationResult | null {
+function validateMaxHeader(rows: ExcelData): HeaderValidationResult | null {
   // MAX files have Hebrew headers
   // Look for "4 ספרות אחרונות של כרטיס האשראי" column in first 6 rows
   for (let i = 0; i < Math.min(6, rows.length); i++) {
@@ -116,7 +121,7 @@ function validateMaxHeader(rows: any[][]): HeaderValidationResult | null {
     if (!row) continue;
 
     // Find column index for "4 ספרות אחרונות של כרטיס האשראי"
-    const colIndex = row.findIndex((cell: any) =>
+    const colIndex = row.findIndex((cell) =>
       cell?.toString().includes('4 ספרות אחרונות') ||
       cell?.toString().includes('ספרות אחרונות של כרטיס')
     );
@@ -161,8 +166,7 @@ export async function validateFileHeader(
 ): Promise<HeaderValidationResult | null> {
   try {
     // Read file as buffer first (XLSX.readFile may have issues in Docker)
-    const fs = require('fs');
-    const buffer = fs.readFileSync(filePath);
+    const buffer = readFileSync(filePath);
 
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
