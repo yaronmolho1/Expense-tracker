@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useBusinesses, useUpdateBusiness, type BusinessFilters } from '@/hooks/use-businesses';
+import { useBusinesses, useUpdateBusiness, useDeleteBusiness, type BusinessFilters } from '@/hooks/use-businesses';
 import {
   Table,
   TableBody,
@@ -14,10 +14,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { InlineCategoryEditor } from '@/components/features/transactions/inline-category-editor';
 import { ManualMergeDialog } from '@/components/features/manage/manual-merge-dialog';
+import { DeleteBusinessDialog } from '@/components/features/manage/delete-business-dialog';
 import { BusinessFilters as BusinessFiltersComponent } from '@/components/features/manage/business-filters';
 import { BulkActionsToolbar } from '@/components/features/manage/bulk-actions-toolbar';
 import { BulkCategoryDialog } from '@/components/features/manage/bulk-category-dialog';
-import { GitMerge, Pencil, Check, X, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { GitMerge, Pencil, Check, X, ArrowUp, ArrowDown, ArrowUpDown, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -52,6 +53,10 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
   // Display name editing state
   const [editingBusinessId, setEditingBusinessId] = useState<number | null>(null);
   const [editingDisplayName, setEditingDisplayName] = useState('');
+
+  // Delete business state
+  const [deleteBusinessId, setDeleteBusinessId] = useState<number | null>(null);
+  const [deleteBusinessName, setDeleteBusinessName] = useState('');
 
   // NEW: Multi-select state
   const [selectedBusinessIds, setSelectedBusinessIds] = useState<Set<number>>(new Set());
@@ -105,6 +110,7 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
 
   const { data, isLoading } = useBusinesses(apiFilters);
   const updateBusiness = useUpdateBusiness();
+  const deleteBusiness = useDeleteBusiness();
 
   // Check if all visible businesses are selected (must be after data is defined)
   const allSelected = data?.businesses && data.businesses.length > 0 &&
@@ -172,6 +178,29 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
     setSelectedBusinessIds(new Set());
   };
 
+  // Delete handlers
+  const handleDeleteClick = (businessId: number, businessName: string) => {
+    setDeleteBusinessId(businessId);
+    setDeleteBusinessName(businessName);
+  };
+
+  const handleDeleteConfirm = async (businessId: number, deleteMerged: boolean) => {
+    try {
+      await deleteBusiness.mutateAsync({ businessId, deleteMerged });
+      toast.success('Business deleted successfully');
+      setDeleteBusinessId(null);
+      setDeleteBusinessName('');
+    } catch (error) {
+      console.error('Failed to delete business:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete business');
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteBusinessId(null);
+    setDeleteBusinessName('');
+  };
+
   // Handle column header click for sorting
   const handleSort = (field: SortField) => {
     if (filters.sortField === field) {
@@ -230,18 +259,19 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
               <SortableHeader field="total_spent" className="w-[140px] text-right">Total Spent</SortableHeader>
               <SortableHeader field="last_used_date" className="w-[120px] ml-6">Last Used</SortableHeader>
               <TableHead className="w-[100px] text-center">Approved</TableHead>
+              <TableHead className="w-[80px] text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   Loading businesses...
                 </TableCell>
               </TableRow>
             ) : !data || data.businesses.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No businesses found.
                 </TableCell>
               </TableRow>
@@ -336,6 +366,19 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
                       disabled={updateBusiness.isPending}
                     />
                   </TableCell>
+                  <TableCell className="text-center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteClick(business.id, business.display_name);
+                      }}
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -379,6 +422,15 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
         onBulkMerge={handleBulkMerge}
         onBulkSetCategory={handleBulkSetCategory}
         onClear={handleClearSelection}
+      />
+
+      {/* Delete Business Dialog */}
+      <DeleteBusinessDialog
+        businessId={deleteBusinessId}
+        businessName={deleteBusinessName}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        isDeleting={deleteBusiness.isPending}
       />
     </div>
   );

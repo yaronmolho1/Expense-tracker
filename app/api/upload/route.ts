@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
+import { statSync, readFileSync } from 'fs';
 import { join, basename } from 'path';
 import { db } from '@/lib/db';
 import { uploadBatches, uploadedFiles } from '@/lib/db/schema';
@@ -286,12 +287,11 @@ export async function POST(request: NextRequest) {
 
       // Verify file exists and is readable before validation
       try {
-        const fs = require('fs');
-        const stat = fs.statSync(filePath);
+        const stat = statSync(filePath);
         logger.debug({ filename: originalName, fileSize: stat.size }, 'File written and verified');
 
         // Try reading the file to verify it's complete
-        fs.readFileSync(filePath);
+        readFileSync(filePath);
       } catch (err) {
         logger.error(err, 'File verification error');
         throw new Error(`File verification failed for ${originalName}`);

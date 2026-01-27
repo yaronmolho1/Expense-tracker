@@ -219,3 +219,76 @@ export function useBulkUpdateCategories() {
     },
   });
 }
+
+// Delete business
+export function useDeleteBusiness() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      businessId,
+      deleteMerged = false,
+    }: {
+      businessId: number;
+      deleteMerged?: boolean;
+    }) => {
+      const params = new URLSearchParams();
+      if (deleteMerged) {
+        params.set('delete_merged', 'true');
+      }
+
+      const response = await fetch(`/api/businesses/${businessId}?${params.toString()}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete business');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['businesses'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['merged-businesses'] });
+    },
+  });
+}
+
+// Create new business
+export function useCreateBusiness() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      name,
+      primaryCategoryId,
+      childCategoryId,
+    }: {
+      name: string;
+      primaryCategoryId: number;
+      childCategoryId?: number;
+    }) => {
+      const response = await fetch('/api/businesses/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          primary_category_id: primaryCategoryId,
+          child_category_id: childCategoryId,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create business');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['businesses'] });
+    },
+  });
+}

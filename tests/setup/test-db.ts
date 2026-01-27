@@ -12,7 +12,9 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import * as schema from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
-import { execSync } from 'child_process';
+import { execSync, spawn } from 'child_process';
+import { readdirSync, readFileSync } from 'fs';
+import { join } from 'path';
 
 // Test database configuration
 const TEST_DB_NAME = 'expense_tracker_test';
@@ -98,19 +100,17 @@ export async function dropAllTables(): Promise<void> {
  */
 export async function runMigrations(): Promise<void> {
   console.log('Running migrations on test database...');
-  
-  const fs = require('fs');
-  const path = require('path');
-  const migrationsDir = path.join(__dirname, '../../lib/db/migrations');
-  const migrationFiles = fs.readdirSync(migrationsDir)
+
+  const migrationsDir = join(__dirname, '../../lib/db/migrations');
+  const migrationFiles = readdirSync(migrationsDir)
     .filter((f: string) => f.endsWith('.sql'))
     .sort();
-  
+
   const { user, password } = parseDbUrl(MAIN_DB_URL);
-  
+
   for (const file of migrationFiles) {
-    const migrationPath = path.join(migrationsDir, file);
-    
+    const migrationPath = join(migrationsDir, file);
+
     try {
       if (IS_CI) {
         // CI: Use direct psql with file input
@@ -120,9 +120,8 @@ export async function runMigrations(): Promise<void> {
         );
       } else {
         // Local: Use docker compose with piped stdin
-        const migrationSql = fs.readFileSync(migrationPath, 'utf-8');
-        const process = require('child_process');
-        const psqlProc = process.spawn('docker', [
+        const migrationSql = readFileSync(migrationPath, 'utf-8');
+        const psqlProc = spawn('docker', [
           'compose', 'exec', '-T', 'postgres',
           'psql', '-U', user, '-d', TEST_DB_NAME
         ], {

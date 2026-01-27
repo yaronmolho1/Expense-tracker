@@ -62,13 +62,13 @@ export interface ParserResult {
 export interface ParseError {
   row: number;
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 export interface ParseWarning {
   row: number;
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 /**
