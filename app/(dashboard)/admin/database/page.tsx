@@ -24,6 +24,7 @@ import { Trash2, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { BulkDeleteTransactionsDialog } from "./components/bulk-delete-transactions-dialog";
 import { UploadBatchesSection } from "./components/upload-batches-section";
+import { PageHeader } from "@/components/ui/page-header";
 
 interface TableInfo {
   name: string;
@@ -95,13 +96,11 @@ export default function DatabaseAdminPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Database Management</h1>
-        <p className="text-muted-foreground">
-          Clear database tables individually and manage bulk deletions.
-        </p>
-      </div>
+    <div className="container mx-auto py-6 max-w-4xl">
+      <PageHeader
+        title="Database Management"
+        description="Clear database tables individually and manage bulk deletions."
+      />
 
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex items-start gap-3">
         <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />

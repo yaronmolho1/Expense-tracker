@@ -156,29 +156,29 @@ export function CardUploadsSection({ cardId }: CardUploadsSectionProps) {
         {uploads.map(upload => (
           <div
             key={upload.fileId}
-            className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50"
+            className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 border rounded-lg hover:bg-muted/50 min-w-0"
           >
             <Checkbox
               checked={selectedFiles.has(upload.fileId)}
               onCheckedChange={(checked) => handleFileSelect(upload.fileId, !!checked)}
-              className="border-2"
+              className="border-2 flex-shrink-0"
             />
-            <div className="flex-1">
-              <div className="text-sm font-medium">{upload.filename}</div>
-              <div className="text-xs text-muted-foreground">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate">{upload.filename}</div>
+              <div className="text-xs text-muted-foreground truncate">
                 {formatDate(upload.batchUploadedAt)} • {upload.transactionsFound || 0} transactions
               </div>
             </div>
-            <Badge variant={upload.status === 'completed' ? 'default' : 'secondary'}>
+            <Badge variant={upload.status === 'completed' ? 'default' : 'secondary'} className="flex-shrink-0 hidden sm:inline-flex">
               {upload.status}
             </Badge>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => handleDeleteSingle(upload.fileId)}
-              className="h-8 w-8"
+              className="h-8 w-8 flex-shrink-0"
             >
-              <Trash2 className="h-4 w-4 text-destructive" />
+              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
             </Button>
           </div>
         ))}

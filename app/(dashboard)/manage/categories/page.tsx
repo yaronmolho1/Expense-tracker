@@ -15,6 +15,8 @@ import { toast } from 'sonner';
 import { Edit, Trash2, Wallet, Plus, History, ChevronRight, ChevronDown, GripVertical } from 'lucide-react';
 import type { Category, SetBudgetInput } from '@/hooks/use-categories';
 import { DatePicker } from '@/components/ui/date-picker';
+import { PageHeader } from '@/components/ui/page-header';
+import { CategoryActionsSheet } from '@/components/features/manage/category-actions-sheet';
 import {
   DndContext,
   closestCenter,
@@ -175,25 +177,21 @@ export default function CategoriesPage() {
   const activeItem = getActiveItem();
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Category Management</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your expense categories and set budgets. Drag to reorder.
-          </p>
-        </div>
-        <CreateCategoryDialog />
-      </div>
+    <div className="container mx-auto py-4 sm:py-6 px-4 sm:px-6 space-y-4 sm:space-y-6">
+      <PageHeader
+        title="Category Management"
+        description="Manage your expense categories and set budgets. Drag to reorder."
+        actions={<CreateCategoryDialog />}
+      />
 
       <Card>
-        <CardHeader>
+        <CardHeader className="px-4 sm:px-6">
           <CardTitle>Categories</CardTitle>
           <CardDescription>
             Drag categories to reorder. Click to expand and manage sub-categories.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 sm:px-6">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -325,6 +323,10 @@ interface CategoryRowProps {
 function CategoryRow({ category, isExpanded, onToggle, dragHandleProps }: CategoryRowProps) {
   const hasChildren = category.children && category.children.length > 0;
   const { data: history } = useBudgetHistory(category.level === 1 ? category.id : 0);
+  const [showBudgetDialog, setShowBudgetDialog] = useState(false);
+  const [showBudgetHistoryDialog, setShowBudgetHistoryDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Check if budget is only previous (no active budget)
   const hasOnlyPreviousBudget = history && history.length > 0 && !history.some(h => !h.effectiveTo);
@@ -332,18 +334,18 @@ function CategoryRow({ category, isExpanded, onToggle, dragHandleProps }: Catego
   return (
     <div>
       {/* Parent Category */}
-      <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 border">
+      <div className="flex items-center justify-between p-2 sm:p-3 rounded-lg hover:bg-muted/50 border">
         {dragHandleProps && (
-          <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded">
+          <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded flex-shrink-0">
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>
         )}
         <div
-          className="flex items-center gap-3 flex-1 cursor-pointer"
+          className="flex items-center gap-2 sm:gap-3 flex-1 cursor-pointer min-w-0"
           onClick={hasChildren ? onToggle : undefined}
         >
           {hasChildren && (
-            <div className="p-1">
+            <div className="p-1 flex-shrink-0">
               {isExpanded ? (
                 <ChevronDown className="h-4 w-4" />
               ) : (
@@ -351,18 +353,18 @@ function CategoryRow({ category, isExpanded, onToggle, dragHandleProps }: Catego
               )}
             </div>
           )}
-          {!hasChildren && <div className="w-6" />}
+          {!hasChildren && <div className="w-6 flex-shrink-0" />}
 
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="font-medium">{category.name}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium truncate">{category.name}</span>
               {category.level === 0 && (
-                <Badge variant="outline" className="text-xs">Parent</Badge>
+                <Badge variant="outline" className="text-xs flex-shrink-0">Parent</Badge>
               )}
               {category.budgetAmount && (
                 <Badge
                   variant="secondary"
-                  className={`text-xs cursor-help ${hasOnlyPreviousBudget ? 'text-red-600' : ''}`}
+                  className={`text-xs cursor-help flex-shrink-0 ${hasOnlyPreviousBudget ? 'text-red-600' : ''}`}
                   title={hasOnlyPreviousBudget ? "No active budget - showing latest previous budget" : undefined}
                 >
                   {formatCurrency(parseFloat(category.budgetAmount))} / {category.budgetPeriod}
@@ -373,15 +375,27 @@ function CategoryRow({ category, isExpanded, onToggle, dragHandleProps }: Catego
           </div>
         </div>
 
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          {category.level === 1 && (
-            <>
-              <SetBudgetDialog category={category} />
-              {category.budgetAmount && <BudgetHistoryDialog categoryId={category.id} />}
-            </>
-          )}
-          <EditCategoryDialog category={category} />
-          <DeleteCategoryButton categoryId={category.id} categoryName={category.name} />
+        <div className="flex items-center gap-2 flex-shrink-0 min-w-[40px] justify-end" onClick={(e) => e.stopPropagation()}>
+          {/* Desktop: Show inline buttons */}
+          <div className="hidden md:flex items-center gap-2">
+            {category.level === 1 && (
+              <>
+                <SetBudgetDialog category={category} open={showBudgetDialog} onOpenChange={setShowBudgetDialog} />
+                {category.budgetAmount && <BudgetHistoryDialog categoryId={category.id} open={showBudgetHistoryDialog} onOpenChange={setShowBudgetHistoryDialog} />}
+              </>
+            )}
+            <EditCategoryDialog category={category} open={showEditDialog} onOpenChange={setShowEditDialog} />
+            <DeleteCategoryButton categoryId={category.id} categoryName={category.name} open={showDeleteDialog} onOpenChange={setShowDeleteDialog} />
+          </div>
+
+          {/* Mobile: Show sheet trigger */}
+          <CategoryActionsSheet
+            category={category}
+            onSetBudget={() => setShowBudgetDialog(true)}
+            onBudgetHistory={category.budgetAmount ? () => setShowBudgetHistoryDialog(true) : undefined}
+            onEdit={() => setShowEditDialog(true)}
+            onDelete={() => setShowDeleteDialog(true)}
+          />
         </div>
       </div>
 
@@ -408,18 +422,22 @@ interface ChildCategoryRowProps {
 function ChildCategoryRow({ category }: ChildCategoryRowProps) {
   const { data: childHistory } = useBudgetHistory(category.id);
   const childHasOnlyPreviousBudget = childHistory && childHistory.length > 0 && !childHistory.some(h => !h.effectiveTo);
+  const [showBudgetDialog, setShowBudgetDialog] = useState(false);
+  const [showBudgetHistoryDialog, setShowBudgetHistoryDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 border border-dashed">
-      <div className="flex items-center gap-3 flex-1">
-        <div className="w-6" />
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <span>{category.name}</span>
+    <div className="flex items-center justify-between p-2 sm:p-3 rounded-lg hover:bg-muted/50 border border-dashed">
+      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+        <div className="w-6 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="truncate">{category.name}</span>
             {category.budgetAmount && (
               <Badge
                 variant="secondary"
-                className={`text-xs cursor-help ${childHasOnlyPreviousBudget ? 'text-red-600' : ''}`}
+                className={`text-xs cursor-help flex-shrink-0 ${childHasOnlyPreviousBudget ? 'text-red-600' : ''}`}
                 title={childHasOnlyPreviousBudget ? "No active budget - showing latest previous budget" : undefined}
               >
                 {formatCurrency(parseFloat(category.budgetAmount))} / {category.budgetPeriod}
@@ -430,11 +448,23 @@ function ChildCategoryRow({ category }: ChildCategoryRowProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <SetBudgetDialog category={category} />
-        {category.budgetAmount && <BudgetHistoryDialog categoryId={category.id} />}
-        <EditCategoryDialog category={category} />
-        <DeleteCategoryButton categoryId={category.id} categoryName={category.name} />
+      <div className="flex items-center gap-2 flex-shrink-0 min-w-[40px] justify-end">
+        {/* Desktop: Show inline buttons */}
+        <div className="hidden md:flex items-center gap-2">
+          <SetBudgetDialog category={category} open={showBudgetDialog} onOpenChange={setShowBudgetDialog} />
+          {category.budgetAmount && <BudgetHistoryDialog categoryId={category.id} open={showBudgetHistoryDialog} onOpenChange={setShowBudgetHistoryDialog} />}
+          <EditCategoryDialog category={category} open={showEditDialog} onOpenChange={setShowEditDialog} />
+          <DeleteCategoryButton categoryId={category.id} categoryName={category.name} open={showDeleteDialog} onOpenChange={setShowDeleteDialog} />
+        </div>
+
+        {/* Mobile: Show sheet trigger */}
+        <CategoryActionsSheet
+          category={category}
+          onSetBudget={() => setShowBudgetDialog(true)}
+          onBudgetHistory={category.budgetAmount ? () => setShowBudgetHistoryDialog(true) : undefined}
+          onEdit={() => setShowEditDialog(true)}
+          onDelete={() => setShowDeleteDialog(true)}
+        />
       </div>
     </div>
   );
@@ -554,9 +584,12 @@ interface EditCategoryDialogProps {
   category: Category;
 }
 
-function EditCategoryDialog({ category }: EditCategoryDialogProps) {
-  const [open, setOpen] = useState(false);
+function EditCategoryDialog({ category, open: controlledOpen, onOpenChange: controlledOnOpenChange }: EditCategoryDialogProps & { open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [name, setName] = useState(category.name);
+
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
 
   const updateMutation = useUpdateCategory();
 
@@ -623,12 +656,15 @@ interface DeleteCategoryButtonProps {
   categoryName: string;
 }
 
-function DeleteCategoryButton({ categoryId, categoryName }: DeleteCategoryButtonProps) {
+function DeleteCategoryButton({ categoryId, categoryName, open: controlledOpen, onOpenChange: controlledOnOpenChange }: DeleteCategoryButtonProps & { open?: boolean; onOpenChange?: (open: boolean) => void }) {
   const deleteMutation = useDeleteCategory();
   const { data: businessCount, isLoading: countLoading, refetch: refetchBusinessCount } = useBusinessCount(categoryId);
   const { data: categories } = useCategories('tree');
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [targetCategoryId, setTargetCategoryId] = useState<string>('uncategorize');
+
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
 
   const handleOpenDialog = async () => {
     await refetchBusinessCount(); // Refetch business count when dialog opens
@@ -728,12 +764,15 @@ interface SetBudgetDialogProps {
   category: Category;
 }
 
-function SetBudgetDialog({ category }: SetBudgetDialogProps) {
-  const [open, setOpen] = useState(false);
+function SetBudgetDialog({ category, open: controlledOpen, onOpenChange: controlledOnOpenChange }: SetBudgetDialogProps & { open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [budgetAmount, setBudgetAmount] = useState(category.budgetAmount || '');
   const [budgetPeriod, setBudgetPeriod] = useState<'monthly' | 'annual'>(category.budgetPeriod || 'monthly');
   const [effectiveDate, setEffectiveDate] = useState('');
+
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
   const [notes, setNotes] = useState('');
   const [backfill, setBackfill] = useState(false);
 
@@ -1001,8 +1040,11 @@ interface BudgetHistoryDialogProps {
   categoryId: number;
 }
 
-function BudgetHistoryDialog({ categoryId }: BudgetHistoryDialogProps) {
-  const [open, setOpen] = useState(false);
+function BudgetHistoryDialog({ categoryId, open: controlledOpen, onOpenChange: controlledOnOpenChange }: BudgetHistoryDialogProps & { open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

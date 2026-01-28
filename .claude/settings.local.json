@@ -10,7 +10,11 @@
       "Bash(find:*)",
       "Bash(npx tsc:*)",
       "Bash(git checkout:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(docker run:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)"
     ]
   }
 }

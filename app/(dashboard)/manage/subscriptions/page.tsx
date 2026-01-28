@@ -22,6 +22,7 @@ import { Bell, Plus, Pencil, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { AddSubscriptionForm, type SubscriptionFormData } from '@/components/features/subscriptions/add-subscription-form';
 import { toast } from 'sonner';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface CompletedTransaction {
   id: number;
@@ -362,27 +363,25 @@ export default function ManageSubscriptionsPage() {
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Manage Subscriptions</h1>
-          <p className="text-muted-foreground mt-1">
-            Track and manage your recurring payments
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {statusFilter === 'suggestions' && (
-            <Button variant="outline" onClick={handleDetectSubscriptions} disabled={isDetecting}>
-              <Bell className="h-4 w-4 mr-2" />
-              {isDetecting ? 'Detecting...' : 'Detect Subscriptions'}
+    <div className="container mx-auto py-6">
+      <PageHeader
+        title="Manage Subscriptions"
+        description="Track and manage your recurring payments"
+        actions={
+          <>
+            {statusFilter === 'suggestions' && (
+              <Button variant="outline" onClick={handleDetectSubscriptions} disabled={isDetecting}>
+                <Bell className="h-4 w-4 mr-2" />
+                {isDetecting ? 'Detecting...' : 'Detect Subscriptions'}
+              </Button>
+            )}
+            <Button onClick={() => setShowAddDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Subscription
             </Button>
-          )}
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Subscription
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Status Filter */}
       <div className="flex gap-2 mb-4">

@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { InlineCategoryEditor } from '@/components/features/transactions/inline-category-editor';
 import { ManualMergeDialog } from '@/components/features/manage/manual-merge-dialog';
 import { DeleteBusinessDialog } from '@/components/features/manage/delete-business-dialog';
+import { BusinessDetailModal } from '@/components/features/manage/business-detail-modal';
 import { BusinessFilters as BusinessFiltersComponent } from '@/components/features/manage/business-filters';
 import { BulkActionsToolbar } from '@/components/features/manage/bulk-actions-toolbar';
 import { BulkCategoryDialog } from '@/components/features/manage/bulk-category-dialog';
@@ -60,6 +61,9 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
 
   // NEW: Multi-select state
   const [selectedBusinessIds, setSelectedBusinessIds] = useState<Set<number>>(new Set());
+
+  // Mobile detail modal state
+  const [selectedBusiness, setSelectedBusiness] = useState<any | null>(null);
 
   const handleFilterChange = (updates: Partial<typeof filters>) => {
     setFilters(prev => ({ ...prev, ...updates }));
@@ -214,6 +218,14 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
     }
   };
 
+  // Mobile row click handler
+  const handleRowClick = (business: any) => {
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    if (isMobile) {
+      setSelectedBusiness(business);
+    }
+  };
+
   // Sortable header component
   const SortableHeader = ({ field, children, className }: { field: SortField; children: React.ReactNode; className?: string }) => {
     const isActive = filters.sortField === field;
@@ -242,24 +254,25 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
       <BusinessFiltersComponent filters={filters} onFilterChange={handleFilterChange} />
 
       {/* Table (sortable headers removed, sort now in filter dropdown) */}
-      <div className="border rounded-lg mt-6">
+      <div className="border rounded-lg mt-4 sm:mt-6">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50px]">
+              <TableHead className="w-[50px] sm:w-[60px]">
                 <Checkbox
+                  className="h-5 w-5 sm:h-4 sm:w-4"
                   checked={allSelected}
                   onCheckedChange={handleSelectAll}
                   disabled={!data || data.businesses.length === 0}
                 />
               </TableHead>
               <SortableHeader field="name" className="w-[330px]">Business Name</SortableHeader>
-              <SortableHeader field="primary_category" className="w-[140px]">Category</SortableHeader>
-              <SortableHeader field="transaction_count" className="w-[120px] text-center">Transactions</SortableHeader>
+              <SortableHeader field="primary_category" className="w-[140px] hidden md:table-cell">Category</SortableHeader>
+              <SortableHeader field="transaction_count" className="w-[120px] text-center hidden md:table-cell">Transactions</SortableHeader>
               <SortableHeader field="total_spent" className="w-[140px] text-right">Total Spent</SortableHeader>
-              <SortableHeader field="last_used_date" className="w-[120px] ml-6">Last Used</SortableHeader>
-              <TableHead className="w-[100px] text-center">Approved</TableHead>
-              <TableHead className="w-[80px] text-center">Actions</TableHead>
+              <SortableHeader field="last_used_date" className="w-[120px] ml-6 hidden md:table-cell">Last Used</SortableHeader>
+              <TableHead className="w-[100px] text-center hidden md:table-cell">Approved</TableHead>
+              <TableHead className="w-[80px] text-center hidden md:table-cell">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -277,14 +290,20 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
               </TableRow>
             ) : (
               data.businesses.map((business) => (
-                <TableRow key={business.id}>
-                  <TableCell>
+                <TableRow
+                  key={business.id}
+                  className="cursor-pointer hover:bg-gray-50"
+                  onClick={() => handleRowClick(business)}
+                >
+                  <TableCell className="px-3 sm:px-4">
                     <Checkbox
+                      className="h-5 w-5 sm:h-4 sm:w-4"
                       checked={selectedBusinessIds.has(business.id)}
                       onCheckedChange={(checked) => handleSelectBusiness(business.id, checked as boolean)}
+                      onClick={(e) => e.stopPropagation()}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-3 py-2 sm:px-4 sm:py-3">
                     {editingBusinessId === business.id ? (
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <Input
@@ -315,28 +334,41 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
                         </Button>
                       </div>
                     ) : (
-                      <div
-                        className="group relative cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditDisplayName(business.id, business.display_name);
-                        }}
-                      >
-                        <div className="font-medium group-hover:opacity-60 transition-opacity">
-                          {business.display_name}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {business.normalized_name}
-                        </div>
-                        <div className="absolute inset-0 flex items-center justify-end pr-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="bg-white rounded-full p-1 shadow-md">
-                            <Pencil className="h-3 w-3 text-gray-600" />
+                      <>
+                        {/* Mobile: Simple display, no inline editing */}
+                        <div className="md:hidden">
+                          <div className="font-medium">
+                            {business.display_name}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {business.normalized_name}
                           </div>
                         </div>
-                      </div>
+
+                        {/* Desktop: Inline editing on hover */}
+                        <div
+                          className="hidden md:block group relative cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditDisplayName(business.id, business.display_name);
+                          }}
+                        >
+                          <div className="font-medium group-hover:opacity-60 transition-opacity">
+                            {business.display_name}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {business.normalized_name}
+                          </div>
+                          <div className="absolute inset-0 flex items-center justify-end pr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="bg-white rounded-full p-1 shadow-md">
+                              <Pencil className="h-3 w-3 text-gray-600" />
+                            </div>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="px-3 py-2 sm:px-4 sm:py-3 hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
                     <InlineCategoryEditor
                       businessId={business.id}
                       businessName={business.display_name}
@@ -344,13 +376,13 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
                       currentChildCategory={business.child_category?.name || null}
                     />
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="px-3 py-2 sm:px-4 sm:py-3 text-center hidden md:table-cell">
                     {business.transaction_count}
                   </TableCell>
-                  <TableCell className="text-right font-medium">
+                  <TableCell className="px-3 py-2 sm:px-4 sm:py-3 text-right font-medium">
                     <span className="text-xs">₪</span>{business.total_spent.toLocaleString('en-IL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground ml-6">
+                  <TableCell className="px-3 py-2 sm:px-4 sm:py-3 text-sm text-muted-foreground ml-6 hidden md:table-cell">
                     {business.last_used_date
                       ? new Date(business.last_used_date).toLocaleDateString('en-GB', {
                           day: '2-digit',
@@ -359,14 +391,14 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
                         })
                       : '—'}
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="px-3 py-2 sm:px-4 sm:py-3 text-center hidden md:table-cell">
                     <Checkbox
                       checked={business.approved}
                       onCheckedChange={() => handleApprovedToggle(business.id, business.approved)}
                       disabled={updateBusiness.isPending}
                     />
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="px-3 py-2 sm:px-4 sm:py-3 text-center hidden md:table-cell">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -431,6 +463,31 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
         isDeleting={deleteBusiness.isPending}
+      />
+
+      {/* Business Detail Modal (Mobile) */}
+      <BusinessDetailModal
+        isOpen={!!selectedBusiness}
+        onClose={() => setSelectedBusiness(null)}
+        business={selectedBusiness}
+        onEdit={(business) => {
+          handleEditDisplayName(business.id, business.display_name);
+          setSelectedBusiness(null);
+        }}
+        onDelete={(business) => {
+          handleDeleteClick(business.id, business.display_name);
+          setSelectedBusiness(null);
+        }}
+        onSetCategory={() => {
+          // The inline category editor is already in the table
+          // We'll close the modal and let the user use it directly
+          setSelectedBusiness(null);
+          toast.info('Use the category field in the table to set category');
+        }}
+        onApprove={(business) => {
+          handleApprovedToggle(business.id, business.approved);
+          setSelectedBusiness(null);
+        }}
       />
     </div>
   );

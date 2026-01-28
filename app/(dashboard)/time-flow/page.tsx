@@ -5,6 +5,7 @@ import { useTimeFlow } from '@/hooks/use-time-flow';
 import { TimeFlowFilters } from '@/components/features/time-flow/time-flow-filters';
 import { TimeFlowTable } from '@/components/features/time-flow/time-flow-table';
 import { CellDetailModal } from '@/components/features/time-flow/cell-detail-modal';
+import { PageHeader } from '@/components/ui/page-header';
 import { Loader2 } from 'lucide-react';
 
 export default function TimeFlowPage() {
@@ -60,7 +61,7 @@ export default function TimeFlowPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6">Time Flow Analysis</h1>
+      <PageHeader title="Time Flow Analysis" />
 
       <TimeFlowFilters filters={filters} onFilterChange={handleFilterChange} />
 

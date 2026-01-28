@@ -14,6 +14,7 @@ import { ArrowLeft, Scan } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { PageHeader } from '@/components/ui/page-header';
 
 export default function MergeSuggestionsPage() {
   const [isDetecting, setIsDetecting] = useState(false);
@@ -49,26 +50,24 @@ export default function MergeSuggestionsPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/manage/businesses">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
+    <div className="container mx-auto py-6 space-y-6">
+      <PageHeader
+        title="Business Merge Suggestions"
+        description="Review automatically detected duplicate businesses"
+        actions={
+          <>
+            <Link href="/manage/businesses">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Button onClick={handleDetectMerges} disabled={isDetecting}>
+              <Scan className="h-4 w-4 mr-2" />
+              {isDetecting ? 'Detecting...' : 'Detect Merges'}
             </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold">Business Merge Suggestions</h1>
-            <p className="text-muted-foreground mt-2">
-              Review automatically detected duplicate businesses
-            </p>
-          </div>
-        </div>
-        <Button onClick={handleDetectMerges} disabled={isDetecting}>
-          <Scan className="h-4 w-4 mr-2" />
-          {isDetecting ? 'Detecting...' : 'Detect Merges'}
-        </Button>
-      </div>
+          </>
+        }
+      />
 
       <Card>
         <CardHeader>
