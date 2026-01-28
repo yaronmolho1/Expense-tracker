@@ -13,6 +13,8 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Edit, Trash2, Plus, CreditCard, FileText, ChevronUp, ChevronDown } from 'lucide-react';
 import { CardUploadsSection } from './components/card-uploads-section';
+import { PageHeader } from '@/components/ui/page-header';
+import { CardActionsSheet } from '@/components/features/manage/card-actions-sheet';
 
 // Note: OWNER will come from JWT token via API (cards are user-specific)
 const OWNER = 'default-user'; // Backward compatibility - API handles auth
@@ -39,16 +41,14 @@ export default function CardsPage() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Cards</h1>
-          <p className="text-gray-500 mt-1">Manage your credit and debit cards</p>
-        </div>
-        <CreateCardDialog />
-      </div>
+    <div className="container mx-auto py-4 sm:py-6 px-4 sm:px-6">
+      <PageHeader
+        title="Cards"
+        description="Manage your credit and debit cards"
+        actions={<CreateCardDialog />}
+      />
 
-      <div className="grid gap-4">
+      <div className="grid gap-3 sm:gap-4">
         {cards && cards.length > 0 ? (
           cards.map((card) => <CardRow key={card.id} card={card} />)
         ) : (
@@ -70,6 +70,8 @@ export default function CardsPage() {
 
 function CardRow({ card }: { card: Card }) {
   const [showUploads, setShowUploads] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const updateMutation = useUpdateCard();
 
   const handleToggleActive = (isActive: boolean) => {
@@ -90,30 +92,32 @@ function CardRow({ card }: { card: Card }) {
   };
 
   return (
-    <UICard className={!card.isActive ? 'opacity-60' : ''}>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <CreditCard className="h-8 w-8 text-gray-400" />
-            <div>
-              <div className="flex items-center gap-2">
+    <>
+      <UICard className={!card.isActive ? 'opacity-60' : ''}>
+        <CardContent className="p-4 sm:p-6">
+        <div className="flex items-center justify-between gap-3 min-w-0">
+          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+            <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium">****{card.last4}</span>
                 {card.nickname && (
-                  <span className="text-gray-500">({card.nickname})</span>
+                  <span className="text-gray-500 truncate">({card.nickname})</span>
                 )}
-                <Badge variant="outline">{formatIssuer(card.issuer)}</Badge>
+                <Badge variant="outline" className="flex-shrink-0">{formatIssuer(card.issuer)}</Badge>
                 {!card.isActive && (
-                  <Badge variant="secondary">Inactive</Badge>
+                  <Badge variant="secondary" className="flex-shrink-0">Inactive</Badge>
                 )}
               </div>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 mt-1 truncate">
                 {card.bankOrCompany || 'No bank specified'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+            {/* Desktop: Show inline controls */}
+            <div className="hidden md:flex items-center gap-2">
               <Label htmlFor={`active-${card.id}`} className="text-sm text-gray-600">
                 {card.isActive ? 'Active' : 'Inactive'}
               </Label>
@@ -123,10 +127,19 @@ function CardRow({ card }: { card: Card }) {
                 onCheckedChange={handleToggleActive}
               />
             </div>
-            <div className="flex items-center gap-2">
-              <EditCardDialog card={card} />
-              <DeleteCardButton cardId={card.id} cardName={`****${card.last4}`} />
+            <div className="hidden md:flex items-center gap-2">
+              <EditCardDialog card={card} open={showEditDialog} onOpenChange={setShowEditDialog} />
+              <DeleteCardButton cardId={card.id} cardName={`****${card.last4}`} open={showDeleteDialog} onOpenChange={setShowDeleteDialog} />
             </div>
+
+            {/* Mobile: Show sheet trigger */}
+            <CardActionsSheet
+              card={card}
+              onEdit={() => setShowEditDialog(true)}
+              onDelete={() => setShowDeleteDialog(true)}
+              onToggleActive={handleToggleActive}
+              onShowUploads={() => setShowUploads(!showUploads)}
+            />
           </div>
         </div>
 
@@ -147,6 +160,11 @@ function CardRow({ card }: { card: Card }) {
         </div>
       </CardContent>
     </UICard>
+
+      {/* Dialogs (rendered outside card to work with sheet triggers) */}
+      <EditCardDialog card={card} open={showEditDialog} onOpenChange={setShowEditDialog} />
+      <DeleteCardButton cardId={card.id} cardName={`****${card.last4}`} open={showDeleteDialog} onOpenChange={setShowDeleteDialog} />
+    </>
   );
 }
 
@@ -270,12 +288,15 @@ function CreateCardDialog() {
 // EDIT CARD DIALOG
 // ============================================
 
-function EditCardDialog({ card }: { card: Card }) {
-  const [open, setOpen] = useState(false);
+function EditCardDialog({ card, open: controlledOpen, onOpenChange: controlledOnOpenChange }: { card: Card; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [nickname, setNickname] = useState(card.nickname || '');
   const [bankOrCompany, setBankOrCompany] = useState(card.bankOrCompany || '');
 
   const updateMutation = useUpdateCard();
+
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
 
   const handleOpen = (isOpen: boolean) => {
     setOpen(isOpen);
@@ -307,11 +328,13 @@ function EditCardDialog({ card }: { card: Card }) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Edit className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+      {!controlledOnOpenChange && (
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="icon">
+            <Edit className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Card ****{card.last4}</DialogTitle>
@@ -359,10 +382,13 @@ function EditCardDialog({ card }: { card: Card }) {
 // DELETE CARD BUTTON
 // ============================================
 
-function DeleteCardButton({ cardId, cardName }: { cardId: number; cardName: string }) {
-  const [open, setOpen] = useState(false);
+function DeleteCardButton({ cardId, cardName, open: controlledOpen, onOpenChange: controlledOnOpenChange }: { cardId: number; cardName: string; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [transactionCount, setTransactionCount] = useState<number | null>(null);
   const deleteMutation = useDeleteCard();
+
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
 
   const handleInitialDelete = async () => {
     deleteMutation.mutate(
@@ -409,11 +435,13 @@ function DeleteCardButton({ cardId, cardName }: { cardId: number; cardName: stri
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+      {!controlledOnOpenChange && (
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="icon">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete Card</DialogTitle>

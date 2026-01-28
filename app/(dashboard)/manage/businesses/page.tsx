@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { GitMerge, History } from 'lucide-react';
 import Link from 'next/link';
@@ -24,45 +25,43 @@ export default function ManageBusinessesPage() {
 
   return (
     <div className="container mx-auto py-8 space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="max-w-[50%]">
-          <h1 className="text-3xl font-bold">Manage Businesses</h1>
-          <p className="text-muted-foreground mt-2">
-            Filter businesses by category and date range, edit categories, approve categorizations, and use bulk actions to merge duplicates or set categories
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setShowManualMerge(true)} variant="outline">
-            <GitMerge className="h-4 w-4 mr-2" />
-            Manual Merge
-          </Button>
-          <Link href="/manage/businesses/merged">
-            <Button variant="outline">
-              <History className="h-4 w-4 mr-2" />
-              Merged History
-              {mergedCount > 0 && (
-                <span className="ml-2 bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs font-semibold">
-                  {mergedCount}
-                </span>
-              )}
-            </Button>
-          </Link>
-          <Link href="/manage/businesses/suggestions">
-            <Button>
+      <PageHeader
+        title="Manage Businesses"
+        description="Filter businesses by category and date range, edit categories, approve categorizations, and use bulk actions to merge duplicates or set categories"
+        actions={
+          <>
+            <Button onClick={() => setShowManualMerge(true)} variant="outline" size="sm">
               <GitMerge className="h-4 w-4 mr-2" />
-              Merge Suggestions
-              {suggestionCount > 0 && (
-                <span className="ml-2 bg-primary-foreground text-primary rounded-full px-2 py-0.5 text-xs font-semibold">
-                  {suggestionCount}
-                </span>
-              )}
+              Manual Merge
             </Button>
-          </Link>
-        </div>
-      </div>
+            <Link href="/manage/businesses/merged">
+              <Button variant="outline" size="sm">
+                <History className="h-4 w-4 mr-2" />
+                Merged History
+                {mergedCount > 0 && (
+                  <span className="ml-2 bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs font-semibold">
+                    {mergedCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
+            <Link href="/manage/businesses/suggestions">
+              <Button size="sm">
+                <GitMerge className="h-4 w-4 mr-2" />
+                Merge Suggestions
+                {suggestionCount > 0 && (
+                  <span className="ml-2 bg-primary-foreground text-primary rounded-full px-2 py-0.5 text-xs font-semibold">
+                    {suggestionCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 px-4 sm:pt-6 sm:px-6">
           <BusinessCatalogTable
             showManualMerge={showManualMerge}
             onManualMergeClose={() => setShowManualMerge(false)}

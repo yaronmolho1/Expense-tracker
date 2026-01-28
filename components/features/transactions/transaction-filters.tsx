@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { CollapsibleFilter } from '@/components/ui/collapsible-filter';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Badge } from '@/components/ui/badge';
 import { useFilterOptions } from '@/hooks/use-filter-options';
@@ -97,40 +97,50 @@ export function TransactionFilters({ filters, onFilterChange }: TransactionFilte
 
   if (isLoading) {
     return (
-      <Card className={FILTER_STYLES.card.default}>
-        <CardContent className={FILTER_STYLES.content}>
-          <div className="text-sm text-muted-foreground">Loading filters...</div>
-        </CardContent>
-      </Card>
+      <CollapsibleFilter
+        header={
+          <>
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filters</span>
+          </>
+        }
+        defaultOpen={false}
+        sticky={true}
+        className={FILTER_STYLES.card.default}
+      >
+        <div className="text-sm text-muted-foreground">Loading filters...</div>
+      </CollapsibleFilter>
     );
   }
 
   return (
-    <Card className={cn(
-      FILTER_STYLES.card.default,
-      activeFilterCount > 0 && FILTER_STYLES.card.active
-    )}>
-      <CardHeader className={FILTER_STYLES.header}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Filters</span>
-            {activeFilterCount > 0 && (
-              <Badge variant="secondary" className={FILTER_STYLES.badge}>
-                {activeFilterCount}
-              </Badge>
-            )}
+    <CollapsibleFilter
+      header={
+        <>
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Filters</span>
+          {activeFilterCount > 0 && (
+            <Badge variant="secondary" className={FILTER_STYLES.badge}>
+              {activeFilterCount}
+            </Badge>
+          )}
+          <div className="ml-auto">
+            <SortPopover
+              value={filters.sortBy || 'bank_charge_date:desc'}
+              options={sortOptions}
+              onChange={(value) => onFilterChange({ ...filters, sortBy: value })}
+            />
           </div>
-          <SortPopover
-            value={filters.sortBy || 'bank_charge_date:desc'}
-            options={sortOptions}
-            onChange={(value) => onFilterChange({ ...filters, sortBy: value })}
-          />
-        </div>
-      </CardHeader>
-
-      <CardContent className={FILTER_STYLES.content}>
-        <div className={FILTER_STYLES.spacing}>
+        </>
+      }
+      defaultOpen={true}
+      sticky={true}
+      className={cn(
+        FILTER_STYLES.card.default,
+        activeFilterCount > 0 && FILTER_STYLES.card.active
+      )}
+    >
+      <div className={FILTER_STYLES.spacing}>
           {/* Row 1: Business, Main Category */}
           <div className={`grid grid-cols-1 md:grid-cols-2 ${FILTER_STYLES.gridGap}`}>
             <MultiSelect
@@ -247,18 +257,17 @@ export function TransactionFilters({ filters, onFilterChange }: TransactionFilte
               emptyMessage="No statuses found."
             />
           </div>
-        </div>
 
-        {/* Clear All - only when filters active */}
-        {activeFilterCount > 0 && (
-          <div className={`flex justify-end ${FILTER_STYLES.clearButton}`}>
-            <Button variant="ghost" size="sm" onClick={handleClearFilters}>
-              <X className="h-3 w-3 mr-1" />
-              Clear All
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          {/* Clear All - only when filters active */}
+          {activeFilterCount > 0 && (
+            <div className={`flex justify-end ${FILTER_STYLES.clearButton}`}>
+              <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+                <X className="h-3 w-3 mr-1" />
+                Clear All
+              </Button>
+            </div>
+          )}
+        </div>
+    </CollapsibleFilter>
   );
 }

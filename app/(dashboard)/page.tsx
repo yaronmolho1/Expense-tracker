@@ -7,6 +7,7 @@ import { CategoryBreakdownChart } from '@/components/features/dashboard/category
 import { RecentTransactions } from '@/components/features/dashboard/recent-transactions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
 
 export default function DashboardPage() {
   const { data, isLoading, error } = useDashboard();
@@ -42,14 +43,11 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Overview of your spending and financial activity
-        </p>
-      </div>
+    <div className="container mx-auto py-6 space-y-6">
+      <PageHeader
+        title="Dashboard"
+        description="Overview of your spending and financial activity"
+      />
 
       {/* KPI Cards */}
       <KPICards kpis={data.kpis} />

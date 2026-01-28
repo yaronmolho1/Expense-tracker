@@ -51,4 +51,8 @@ services:
 
 volumes:
   postgres_data:
+    external: true
+    name: expense-tracker_postgres_data
   upload_files:
+    external: true
+    name: expense-tracker_upload_files

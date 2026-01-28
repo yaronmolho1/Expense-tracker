@@ -5,6 +5,7 @@ import { useTransactions } from '@/hooks/use-transactions';
 import { TransactionFilters } from '@/components/features/transactions/transaction-filters';
 import { TransactionTable } from '@/components/features/transactions/transaction-table';
 import { CreateTransactionModal } from '@/components/features/transactions/create-transaction-modal';
+import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Plus, Database } from 'lucide-react';
 import Link from 'next/link';
@@ -50,21 +51,23 @@ export default function TransactionsPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Transactions</h1>
-        <div className="flex gap-2">
-          <Link href="/admin/database">
-            <Button variant="outline">
-              <Database className="h-4 w-4 mr-2" />
-              Bulk Delete
+      <PageHeader
+        title="Transactions"
+        actions={
+          <>
+            <Link href="/admin/database">
+              <Button variant="outline">
+                <Database className="h-4 w-4 mr-2" />
+                Bulk Delete
+              </Button>
+            </Link>
+            <Button onClick={() => setShowCreateModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Transaction
             </Button>
-          </Link>
-          <Button onClick={() => setShowCreateModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Transaction
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <TransactionFilters filters={filters} onFilterChange={handleFilterChange} />
 

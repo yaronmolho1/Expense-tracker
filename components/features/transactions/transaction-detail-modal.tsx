@@ -6,21 +6,28 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Transaction } from '@/hooks/use-transactions';
 import { useInstallmentGroup } from '@/hooks/use-installment-group';
 import { InstallmentTimeline } from './installment-timeline';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Edit, Trash2 } from 'lucide-react';
 
 interface TransactionDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   transaction: Transaction | null;
+  onEditCategory?: (transaction: Transaction) => void;
+  onEditStatus?: (transaction: Transaction) => void;
+  onDelete?: (transaction: Transaction) => void;
 }
 
 export function TransactionDetailModal({
   isOpen,
   onClose,
   transaction,
+  onEditCategory,
+  onEditStatus,
+  onDelete,
 }: TransactionDetailModalProps) {
   const { data: installmentData, isLoading } = useInstallmentGroup(
     transaction?.id || null
@@ -48,7 +55,7 @@ export function TransactionDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto w-[95vw] sm:w-auto">
         <DialogHeader>
           <DialogTitle className="text-xl sm:text-2xl">
             Transaction Details
@@ -62,6 +69,47 @@ export function TransactionDetailModal({
             <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Business</div>
             <div className="text-lg sm:text-xl font-semibold">{transaction.business_name}</div>
           </div>
+
+          {/* Mobile-Only Section - Quick Summary */}
+          <div className="md:hidden grid grid-cols-2 gap-3 p-4 bg-muted/30 rounded-lg border">
+            {/* Category */}
+            <div>
+              <div className="text-xs font-medium text-muted-foreground mb-1">Category</div>
+              <div className="text-sm font-medium">
+                {transaction.category.primary || 'Uncategorized'}
+                {transaction.category.child && (
+                  <div className="text-xs text-muted-foreground mt-0.5">{transaction.category.child}</div>
+                )}
+              </div>
+            </div>
+
+            {/* Card */}
+            <div>
+              <div className="text-xs font-medium text-muted-foreground mb-1">Card</div>
+              <div className="text-sm">
+                {transaction.card.nickname || `•••• ${transaction.card.last_4}`}
+              </div>
+            </div>
+
+            {/* Type */}
+            <div>
+              <div className="text-xs font-medium text-muted-foreground mb-1">Type</div>
+              <div className="text-sm">
+                {transaction.installment_info
+                  ? `Installment ${transaction.installment_info.index}/${transaction.installment_info.total}`
+                  : transaction.transaction_type === 'subscription'
+                  ? 'Subscription'
+                  : 'One-time'}
+              </div>
+            </div>
+
+            {/* Status */}
+            <div>
+              <div className="text-xs font-medium text-muted-foreground mb-1">Status</div>
+              <div className="text-sm capitalize">{transaction.status}</div>
+            </div>
+          </div>
+
           {/* Basic Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-4 sm:p-5 bg-muted/40 rounded-lg border">
             <div>
@@ -155,6 +203,51 @@ export function TransactionDetailModal({
           {transaction.is_refund && (
             <div className="p-3 sm:p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 rounded-lg">
               <div className="text-sm sm:text-base text-green-700 dark:text-green-400 font-medium">✓ This is a refund transaction</div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          {(onEditCategory || onEditStatus || onDelete) && (
+            <div className="flex flex-col sm:flex-row gap-2 border-t pt-5 mt-5">
+              {onEditCategory && (
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    onEditCategory(transaction);
+                    onClose();
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Category
+                </Button>
+              )}
+              {onEditStatus && (
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    onEditStatus(transaction);
+                    onClose();
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Status
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => {
+                    onDelete(transaction);
+                    onClose();
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              )}
             </div>
           )}
         </div>

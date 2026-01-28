@@ -109,8 +109,11 @@ export function TransactionTable({
   };
 
   const handleRowClick = (transaction: Transaction) => {
-    // Only open modal for installments and subscriptions
-    if (transaction.installment_info || transaction.transaction_type === 'subscription') {
+    // On mobile: open modal for ALL transactions
+    // On desktop: only open for installments/subscriptions
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+
+    if (isMobile || transaction.installment_info || transaction.transaction_type === 'subscription') {
       setSelectedTransaction(transaction);
     }
   };
@@ -180,12 +183,12 @@ export function TransactionTable({
               <TableHead className="w-[50px] text-center"></TableHead>
               <SortableHeader field="bank_charge_date">Date</SortableHeader>
               <SortableHeader field="business_name">Business</SortableHeader>
-              <TableHead className="text-center">Category</TableHead>
-              <TableHead className="text-center">Card</TableHead>
+              <TableHead className="text-center hidden md:table-cell">Category</TableHead>
+              <TableHead className="text-center hidden md:table-cell">Card</TableHead>
               <SortableHeader field="charged_amount_ils">Amount</SortableHeader>
-              <TableHead className="text-center">Type</TableHead>
-              <TableHead className="text-center">Status</TableHead>
-              <TableHead className="w-[50px] text-center"></TableHead>
+              <TableHead className="text-center hidden md:table-cell">Type</TableHead>
+              <TableHead className="text-center hidden md:table-cell">Status</TableHead>
+              <TableHead className="w-[50px] text-center hidden md:table-cell"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -195,8 +198,9 @@ export function TransactionTable({
               return (
                 <TableRow
                   key={transaction.id}
-                  className={hasDetails ? 'cursor-pointer hover:bg-gray-50' : ''}
-                  onClick={() => hasDetails && handleRowClick(transaction)}
+                  data-transaction-id={transaction.id}
+                  className="cursor-pointer hover:bg-gray-50"
+                  onClick={() => handleRowClick(transaction)}
                 >
                   <TableCell className="text-center">
                     {hasDetails && (
@@ -224,15 +228,17 @@ export function TransactionTable({
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                    <InlineCategoryEditor
-                      businessId={transaction.business_id}
-                      businessName={transaction.business_name}
-                      currentPrimaryCategory={transaction.category.primary}
-                      currentChildCategory={transaction.category.child}
-                    />
+                  <TableCell className="text-center hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
+                    <div data-category-editor>
+                      <InlineCategoryEditor
+                        businessId={transaction.business_id}
+                        businessName={transaction.business_name}
+                        currentPrimaryCategory={transaction.category.primary}
+                        currentChildCategory={transaction.category.child}
+                      />
+                    </div>
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="text-center hidden md:table-cell">
                     <div className="text-sm">
                       {transaction.card.nickname || `•••• ${transaction.card.last_4}`}
                     </div>
@@ -247,7 +253,7 @@ export function TransactionTable({
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="text-center hidden md:table-cell">
                     {transaction.installment_info ? (
                       <Badge variant="secondary">
                         {transaction.installment_info.index}/{transaction.installment_info.total}
@@ -258,13 +264,15 @@ export function TransactionTable({
                       <span className="text-muted-foreground">One-time</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                    <InlineStatusEditor
-                      transactionId={transaction.id}
-                      currentStatus={transaction.status as 'completed' | 'projected' | 'cancelled'}
-                    />
+                  <TableCell className="text-center hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
+                    <div data-status-editor>
+                      <InlineStatusEditor
+                        transactionId={transaction.id}
+                        currentStatus={transaction.status as 'completed' | 'projected' | 'cancelled'}
+                      />
+                    </div>
                   </TableCell>
-                  <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="text-center hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -282,8 +290,8 @@ export function TransactionTable({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-2 py-4">
-        <div className="text-sm text-muted-foreground">
+      <div className="flex flex-col sm:flex-row items-center justify-between px-2 py-4 gap-3">
+        <div className="text-xs sm:text-sm text-muted-foreground">
           Showing {(page - 1) * perPage + 1} to{' '}
           {Math.min(page * perPage, total)} of {total} transactions
         </div>
@@ -293,6 +301,7 @@ export function TransactionTable({
             size="sm"
             onClick={() => onPageChange(page - 1)}
             disabled={page === 1}
+            className="text-xs sm:text-sm"
           >
             Previous
           </Button>
@@ -301,6 +310,7 @@ export function TransactionTable({
             size="sm"
             onClick={() => onPageChange(page + 1)}
             disabled={page >= totalPages}
+            className="text-xs sm:text-sm"
           >
             Next
           </Button>
@@ -312,6 +322,33 @@ export function TransactionTable({
         isOpen={!!selectedTransaction}
         onClose={() => setSelectedTransaction(null)}
         transaction={selectedTransaction}
+        onEditCategory={(transaction) => {
+          // Keep the transaction selected and scroll to the row
+          setSelectedTransaction(null);
+          // Find the row and trigger edit on category cell
+          const row = document.querySelector(`[data-transaction-id="${transaction.id}"]`);
+          if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const categoryCell = row.querySelector('[data-category-editor]');
+            if (categoryCell) {
+              (categoryCell as HTMLElement).click();
+            }
+          }
+        }}
+        onEditStatus={(transaction) => {
+          // Keep the transaction selected and scroll to the row
+          setSelectedTransaction(null);
+          // Find the row and trigger edit on status cell
+          const row = document.querySelector(`[data-transaction-id="${transaction.id}"]`);
+          if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const statusCell = row.querySelector('[data-status-editor]');
+            if (statusCell) {
+              (statusCell as HTMLElement).click();
+            }
+          }
+        }}
+        onDelete={(transaction) => setTransactionToDelete(transaction)}
       />
 
       {/* Delete Confirmation Dialog */}
