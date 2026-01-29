@@ -37,7 +37,7 @@ export interface Transaction {
     nickname: string | null;
   };
   transaction_type: string;
-  status: string;
+  status: 'completed' | 'projected' | 'cancelled';
   installment_info: {
     index: number;
     total: number;

@@ -268,7 +268,7 @@ export function TransactionTable({
                     <div data-status-editor>
                       <InlineStatusEditor
                         transactionId={transaction.id}
-                        currentStatus={transaction.status as 'completed' | 'projected' | 'cancelled'}
+                        currentStatus={transaction.status}
                       />
                     </div>
                   </TableCell>
