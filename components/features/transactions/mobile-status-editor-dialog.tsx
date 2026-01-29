@@ -48,7 +48,7 @@ export function MobileStatusEditorDialog({
   transaction,
 }: MobileStatusEditorDialogProps) {
   const [selectedStatus, setSelectedStatus] = useState<'completed' | 'projected' | 'cancelled'>(
-    transaction?.status || 'completed'
+    (transaction?.status as 'completed' | 'projected' | 'cancelled') || 'completed'
   );
   const updateStatus = useUpdateTransactionStatus();
 
