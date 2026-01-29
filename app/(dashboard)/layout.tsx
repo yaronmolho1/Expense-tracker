@@ -41,7 +41,7 @@ export default function DashboardLayout({
             <SidebarNav />
           </div>
           <h1 className="text-xl font-bold flex-1 text-center">Expense Tracker</h1>
-          <div className="absolute right-4">
+          <div className="absolute right-4 hidden md:block">
             {mounted ? (
               <AlertDialog>
                 <AlertDialogTrigger asChild>

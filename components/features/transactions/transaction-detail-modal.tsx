@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Transaction } from '@/hooks/use-transactions';
 import { useInstallmentGroup } from '@/hooks/use-installment-group';
 import { InstallmentTimeline } from './installment-timeline';
+import { MobileCategoryEditorDialog } from './mobile-category-editor-dialog';
+import { MobileStatusEditorDialog } from './mobile-status-editor-dialog';
 import { Loader2, Edit, Trash2 } from 'lucide-react';
 
 interface TransactionDetailModalProps {
@@ -29,11 +32,17 @@ export function TransactionDetailModal({
   onEditStatus,
   onDelete,
 }: TransactionDetailModalProps) {
+  const [categoryEditorOpen, setCategoryEditorOpen] = useState(false);
+  const [statusEditorOpen, setStatusEditorOpen] = useState(false);
+
   const { data: installmentData, isLoading } = useInstallmentGroup(
     transaction?.id || null
   );
 
   if (!transaction) return null;
+
+  // Detect if mobile
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IL', {
@@ -214,8 +223,14 @@ export function TransactionDetailModal({
                   variant="outline"
                   className="flex-1"
                   onClick={() => {
-                    onEditCategory(transaction);
-                    onClose();
+                    if (isMobile) {
+                      // On mobile: open nested dialog
+                      setCategoryEditorOpen(true);
+                    } else {
+                      // On desktop: use callback (redirect to table inline editor)
+                      onEditCategory(transaction);
+                      onClose();
+                    }
                   }}
                 >
                   <Edit className="h-4 w-4 mr-2" />
@@ -227,8 +242,14 @@ export function TransactionDetailModal({
                   variant="outline"
                   className="flex-1"
                   onClick={() => {
-                    onEditStatus(transaction);
-                    onClose();
+                    if (isMobile) {
+                      // On mobile: open nested dialog
+                      setStatusEditorOpen(true);
+                    } else {
+                      // On desktop: use callback (redirect to table inline editor)
+                      onEditStatus(transaction);
+                      onClose();
+                    }
                   }}
                 >
                   <Edit className="h-4 w-4 mr-2" />
@@ -252,6 +273,18 @@ export function TransactionDetailModal({
           )}
         </div>
       </DialogContent>
+
+      {/* Mobile Editor Dialogs */}
+      <MobileCategoryEditorDialog
+        isOpen={categoryEditorOpen}
+        onClose={() => setCategoryEditorOpen(false)}
+        transaction={transaction}
+      />
+      <MobileStatusEditorDialog
+        isOpen={statusEditorOpen}
+        onClose={() => setStatusEditorOpen(false)}
+        transaction={transaction}
+      />
     </Dialog>
   );
 }

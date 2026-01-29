@@ -62,8 +62,8 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
   // NEW: Multi-select state
   const [selectedBusinessIds, setSelectedBusinessIds] = useState<Set<number>>(new Set());
 
-  // Mobile detail modal state
-  const [selectedBusiness, setSelectedBusiness] = useState<any | null>(null);
+  // Mobile detail modal state - store ID only to always use fresh data
+  const [selectedBusinessId, setSelectedBusinessId] = useState<number | null>(null);
 
   const handleFilterChange = (updates: Partial<typeof filters>) => {
     setFilters(prev => ({ ...prev, ...updates }));
@@ -222,7 +222,7 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
   const handleRowClick = (business: any) => {
     const isMobile = window.matchMedia('(max-width: 767px)').matches;
     if (isMobile) {
-      setSelectedBusiness(business);
+      setSelectedBusinessId(business.id);
     }
   };
 
@@ -467,26 +467,26 @@ export function BusinessCatalogTable({ showManualMerge, onManualMergeClose }: Bu
 
       {/* Business Detail Modal (Mobile) */}
       <BusinessDetailModal
-        isOpen={!!selectedBusiness}
-        onClose={() => setSelectedBusiness(null)}
-        business={selectedBusiness}
+        isOpen={!!selectedBusinessId}
+        onClose={() => setSelectedBusinessId(null)}
+        business={selectedBusinessId ? data?.businesses.find(b => b.id === selectedBusinessId) || null : null}
         onEdit={(business) => {
           handleEditDisplayName(business.id, business.display_name);
-          setSelectedBusiness(null);
+          setSelectedBusinessId(null);
         }}
         onDelete={(business) => {
           handleDeleteClick(business.id, business.display_name);
-          setSelectedBusiness(null);
+          setSelectedBusinessId(null);
         }}
         onSetCategory={() => {
           // The inline category editor is already in the table
           // We'll close the modal and let the user use it directly
-          setSelectedBusiness(null);
+          setSelectedBusinessId(null);
           toast.info('Use the category field in the table to set category');
         }}
         onApprove={(business) => {
           handleApprovedToggle(business.id, business.approved);
-          setSelectedBusiness(null);
+          setSelectedBusinessId(null);
         }}
       />
     </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,7 +8,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Tag, CheckCircle, XCircle } from 'lucide-react';
+import { MobileBusinessNameEditorDialog } from './mobile-business-name-editor-dialog';
+import { MobileBusinessCategoryEditorDialog } from './mobile-business-category-editor-dialog';
+import { Edit, Trash2, Tag, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 interface Category {
   id: number;
@@ -51,7 +56,42 @@ export function BusinessDetailModal({
   onSetCategory,
   onApprove,
 }: BusinessDetailModalProps) {
+  const [nameEditorOpen, setNameEditorOpen] = useState(false);
+  const [categoryEditorOpen, setCategoryEditorOpen] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+
+  const queryClient = useQueryClient();
+
   if (!business) return null;
+
+  // Detect if mobile
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+
+  // Handle approve/unapprove directly on mobile
+  const handleApproveToggle = async () => {
+    setIsApproving(true);
+    try {
+      const response = await fetch(`/api/businesses/${business.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          approved: !business.approved,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to toggle approval');
+
+      // Invalidate queries to refresh data
+      await queryClient.invalidateQueries({ queryKey: ['businesses'] });
+
+      toast.success(business.approved ? 'Business unapproved' : 'Business approved');
+    } catch (error) {
+      console.error('Failed to toggle approval:', error);
+      toast.error('Failed to update approval status');
+    } finally {
+      setIsApproving(false);
+    }
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IL', {
@@ -170,8 +210,14 @@ export function BusinessDetailModal({
                   variant="outline"
                   className="flex-1"
                   onClick={() => {
-                    onEdit(business);
-                    onClose();
+                    if (isMobile) {
+                      // On mobile: open nested dialog
+                      setNameEditorOpen(true);
+                    } else {
+                      // On desktop: use callback (redirect to table inline editor)
+                      onEdit(business);
+                      onClose();
+                    }
                   }}
                 >
                   <Edit className="h-4 w-4 mr-2" />
@@ -183,8 +229,14 @@ export function BusinessDetailModal({
                   variant="outline"
                   className="flex-1"
                   onClick={() => {
-                    onSetCategory(business);
-                    onClose();
+                    if (isMobile) {
+                      // On mobile: open nested dialog
+                      setCategoryEditorOpen(true);
+                    } else {
+                      // On desktop: use callback (redirect to table inline editor)
+                      onSetCategory(business);
+                      onClose();
+                    }
                   }}
                 >
                   <Tag className="h-4 w-4 mr-2" />
@@ -196,11 +248,23 @@ export function BusinessDetailModal({
                   variant="outline"
                   className="flex-1"
                   onClick={() => {
-                    onApprove(business);
-                    onClose();
+                    if (isMobile) {
+                      // On mobile: direct API call
+                      handleApproveToggle();
+                    } else {
+                      // On desktop: use callback
+                      onApprove(business);
+                      onClose();
+                    }
                   }}
+                  disabled={isApproving}
                 >
-                  {business.approved ? (
+                  {isApproving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      {business.approved ? 'Unapproving...' : 'Approving...'}
+                    </>
+                  ) : business.approved ? (
                     <>
                       <XCircle className="h-4 w-4 mr-2" />
                       Unapprove
@@ -230,6 +294,18 @@ export function BusinessDetailModal({
           )}
         </div>
       </DialogContent>
+
+      {/* Mobile Editor Dialogs */}
+      <MobileBusinessNameEditorDialog
+        isOpen={nameEditorOpen}
+        onClose={() => setNameEditorOpen(false)}
+        business={business}
+      />
+      <MobileBusinessCategoryEditorDialog
+        isOpen={categoryEditorOpen}
+        onClose={() => setCategoryEditorOpen(false)}
+        business={business}
+      />
     </Dialog>
   );
 }
