@@ -3,19 +3,19 @@
 import { CollapsibleFilter } from '@/components/ui/collapsible-filter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { MonthYearPicker } from '@/components/ui/month-year-picker';
 import { useFilterOptions } from '@/hooks/use-filter-options';
 import { useMemo } from 'react';
-import { Filter as FilterIcon, X, CreditCard, Calendar } from 'lucide-react';
+import { Filter as FilterIcon, X, CreditCard } from 'lucide-react';
 import { FILTER_STYLES } from '@/lib/constants/filter-styles';
 import { cn } from '@/lib/utils';
 
 interface TimeFlowFiltersProps {
   filters: {
-    monthsBack: number;
-    monthsForward: number;
+    dateFrom: string;
+    dateTo: string;
     cardIds: string[];
     parentCategoryIds: string[];
     childCategoryIds: string[];
@@ -27,10 +27,9 @@ interface TimeFlowFiltersProps {
 export function TimeFlowFilters({ filters, onFilterChange }: TimeFlowFiltersProps) {
   const { data: filterOptions, isLoading } = useFilterOptions();
 
-  // Calculate active filter count
+  // Calculate active filter count (don't count date range as it always has a value)
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    // Don't count monthsBack/monthsForward as they have default values
     if (filters.cardIds?.length) count += filters.cardIds.length;
     if (filters.parentCategoryIds?.length) count += filters.parentCategoryIds.length;
     if (filters.childCategoryIds?.length) count += filters.childCategoryIds.length;
@@ -60,10 +59,18 @@ export function TimeFlowFilters({ filters, onFilterChange }: TimeFlowFiltersProp
     return groups;
   }, [filters.parentCategoryIds, filterOptions]);
 
+  const getDefaultDates = () => {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    const to = new Date(now.getFullYear(), now.getMonth() + 6, 1);
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    return { dateFrom: fmt(from), dateTo: fmt(to) };
+  };
+
   const handleClearFilters = () => {
     onFilterChange({
-      monthsBack: 6,
-      monthsForward: 6,
+      ...getDefaultDates(),
       cardIds: [],
       parentCategoryIds: [],
       childCategoryIds: [],
@@ -110,44 +117,22 @@ export function TimeFlowFilters({ filters, onFilterChange }: TimeFlowFiltersProp
       )}
     >
       <div className={FILTER_STYLES.spacing}>
-          {/* Row 1: Months Back, Months Forward */}
+          {/* Row 1: Date From, Date To */}
           <div className={`grid grid-cols-1 md:grid-cols-2 ${FILTER_STYLES.gridGap}`}>
             <div className="space-y-2">
-              <Label htmlFor="months-back">Months Back</Label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-                <Input
-                  id="months-back"
-                  type="number"
-                  min="1"
-                  max="24"
-                  value={filters.monthsBack}
-                  onChange={(e) =>
-                    onFilterChange({ ...filters, monthsBack: parseInt(e.target.value) || 6 })
-                  }
-                  placeholder="Months back"
-                  className="pl-10"
-                />
-              </div>
+              <Label>From</Label>
+              <MonthYearPicker
+                value={filters.dateFrom}
+                onChange={(date) => onFilterChange({ ...filters, dateFrom: date })}
+              />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="months-forward">Months Forward</Label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-                <Input
-                  id="months-forward"
-                  type="number"
-                  min="0"
-                  max="24"
-                  value={filters.monthsForward}
-                  onChange={(e) =>
-                    onFilterChange({ ...filters, monthsForward: parseInt(e.target.value) || 6 })
-                  }
-                  placeholder="Months forward"
-                  className="pl-10"
-                />
-              </div>
+              <Label>To</Label>
+              <MonthYearPicker
+                value={filters.dateTo}
+                onChange={(date) => onFilterChange({ ...filters, dateTo: date })}
+              />
             </div>
           </div>
 

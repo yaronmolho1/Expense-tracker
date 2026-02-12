@@ -27,7 +27,7 @@ export function CollapsibleFilter({
     <Card
       className={cn(
         'mb-6 transition-all duration-200',
-        sticky && 'sticky top-[72px] z-10 bg-white',
+        sticky && 'sticky top-[72px] z-20 bg-white',
         className
       )}
     >

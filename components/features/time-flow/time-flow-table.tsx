@@ -73,7 +73,7 @@ export function TimeFlowTable({
     <div className="overflow-x-auto border rounded-lg -mx-4 sm:mx-0">
       <div className="min-w-max">
         <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50 sticky top-0 z-10">
+          <thead className="bg-gray-50 sticky top-[72px] z-10">
             <tr>
               <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-20 min-w-[120px] sm:min-w-[200px]">
                 Category

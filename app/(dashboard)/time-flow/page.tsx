@@ -8,10 +8,18 @@ import { CellDetailModal } from '@/components/features/time-flow/cell-detail-mod
 import { PageHeader } from '@/components/ui/page-header';
 import { Loader2 } from 'lucide-react';
 
+function getDefaultDates() {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+  const to = new Date(now.getFullYear(), now.getMonth() + 6, 1);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  return { dateFrom: fmt(from), dateTo: fmt(to) };
+}
+
 export default function TimeFlowPage() {
   const [filters, setFilters] = useState({
-    monthsBack: 6,
-    monthsForward: 6,
+    ...getDefaultDates(),
     cardIds: [] as string[],
     parentCategoryIds: [] as string[],
     childCategoryIds: [] as string[],
