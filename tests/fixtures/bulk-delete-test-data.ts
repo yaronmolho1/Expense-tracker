@@ -14,7 +14,7 @@ import crypto from 'crypto';
 
 export interface SeedResult {
   businesses: Array<{ id: number; normalizedName: string; displayName: string }>;
-  cards: Array<{ id: number; last4Digits: string; nickname: string | null }>;
+  cards: Array<{ id: number; last4Digits: string | null; nickname: string | null }>;
   subscriptions: Array<{ id: number; name?: string | null; businessId: number }>;
   transactions: Array<{ id: number; dealDate: string; transactionType: string }>;
 }
