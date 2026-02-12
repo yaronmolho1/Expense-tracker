@@ -20,7 +20,7 @@ import { CardActionsSheet } from '@/components/features/manage/card-actions-shee
 const OWNER = 'default-user'; // Backward compatibility - API handles auth
 
 // Format issuer for display
-function formatIssuer(issuer: string): string {
+function formatIssuer(issuer: string | null): string {
   switch (issuer) {
     case 'MAX':
       return 'Max';
@@ -29,7 +29,7 @@ function formatIssuer(issuer: string): string {
     case 'ISRACARD':
       return 'Isracard / Amex';
     default:
-      return issuer;
+      return issuer || 'Cash';
   }
 }
 
@@ -100,11 +100,19 @@ function CardRow({ card }: { card: Card }) {
             <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium">****{card.last4}</span>
-                {card.nickname && (
+                {card.last4 ? (
+                  <span className="font-medium">****{card.last4}</span>
+                ) : (
+                  <span className="font-medium text-emerald-600">{card.nickname || 'Cash'}</span>
+                )}
+                {card.last4 && card.nickname && (
                   <span className="text-gray-500 truncate">({card.nickname})</span>
                 )}
-                <Badge variant="outline" className="flex-shrink-0">{formatIssuer(card.issuer)}</Badge>
+                {card.last4 ? (
+                  <Badge variant="outline" className="flex-shrink-0">{formatIssuer(card.issuer)}</Badge>
+                ) : (
+                  <Badge variant="outline" className="flex-shrink-0 text-emerald-600 border-emerald-300">Cash</Badge>
+                )}
                 {!card.isActive && (
                   <Badge variant="secondary" className="flex-shrink-0">Inactive</Badge>
                 )}
@@ -117,20 +125,24 @@ function CardRow({ card }: { card: Card }) {
 
           <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
             {/* Desktop: Show inline controls */}
-            <div className="hidden md:flex items-center gap-2">
-              <Label htmlFor={`active-${card.id}`} className="text-sm text-gray-600">
-                {card.isActive ? 'Active' : 'Inactive'}
-              </Label>
-              <Switch
-                id={`active-${card.id}`}
-                checked={card.isActive}
-                onCheckedChange={handleToggleActive}
-              />
-            </div>
-            <div className="hidden md:flex items-center gap-2">
-              <EditCardDialog card={card} open={showEditDialog} onOpenChange={setShowEditDialog} />
-              <DeleteCardButton cardId={card.id} cardName={`****${card.last4}`} open={showDeleteDialog} onOpenChange={setShowDeleteDialog} />
-            </div>
+            {!card.isSystem && (
+              <div className="hidden md:flex items-center gap-2">
+                <Label htmlFor={`active-${card.id}`} className="text-sm text-gray-600">
+                  {card.isActive ? 'Active' : 'Inactive'}
+                </Label>
+                <Switch
+                  id={`active-${card.id}`}
+                  checked={card.isActive}
+                  onCheckedChange={handleToggleActive}
+                />
+              </div>
+            )}
+            {!card.isSystem && (
+              <div className="hidden md:flex items-center gap-2">
+                <EditCardDialog card={card} open={showEditDialog} onOpenChange={setShowEditDialog} />
+                <DeleteCardButton cardId={card.id} cardName={`****${card.last4}`} open={showDeleteDialog} onOpenChange={setShowDeleteDialog} />
+              </div>
+            )}
 
             {/* Mobile: Show sheet trigger */}
             <CardActionsSheet
@@ -162,8 +174,12 @@ function CardRow({ card }: { card: Card }) {
     </UICard>
 
       {/* Dialogs (rendered outside card to work with sheet triggers) */}
-      <EditCardDialog card={card} open={showEditDialog} onOpenChange={setShowEditDialog} />
-      <DeleteCardButton cardId={card.id} cardName={`****${card.last4}`} open={showDeleteDialog} onOpenChange={setShowDeleteDialog} />
+      {!card.isSystem && (
+        <>
+          <EditCardDialog card={card} open={showEditDialog} onOpenChange={setShowEditDialog} />
+          <DeleteCardButton cardId={card.id} cardName={card.last4 ? `****${card.last4}` : 'Cash'} open={showDeleteDialog} onOpenChange={setShowDeleteDialog} />
+        </>
+      )}
     </>
   );
 }

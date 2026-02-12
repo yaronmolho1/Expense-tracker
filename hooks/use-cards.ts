@@ -6,12 +6,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export interface Card {
   id: number;
-  last4: string;
+  last4: string | null;
   nickname: string | null;
   bankOrCompany: string | null;
-  issuer: string;
-  fileFormatHandler: string;
+  issuer: string | null;
+  fileFormatHandler: string | null;
   isActive: boolean;
+  isSystem: boolean;
+  type: 'credit' | 'debit' | 'cash';
   createdAt: Date;
   updatedAt?: Date;
 }

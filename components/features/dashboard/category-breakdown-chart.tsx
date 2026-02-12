@@ -11,21 +11,28 @@ interface CategoryBreakdownChartProps {
   }>;
 }
 
-// Color palette for categories
+// Color palette for categories (matches category-colors.ts palette)
 const COLORS = [
   'hsl(var(--chart-1))',
   'hsl(var(--chart-2))',
   'hsl(var(--chart-3))',
   'hsl(var(--chart-4))',
   'hsl(var(--chart-5))',
-  '#8884d8',
-  '#82ca9d',
-  '#ffc658',
-  '#ff8042',
-  '#a4de6c',
-  '#d0ed57',
-  '#83a6ed',
+  'hsl(280 55% 60%)',
+  'hsl(160 45% 50%)',
+  'hsl(340 50% 58%)',
+  'hsl(200 55% 52%)',
+  'hsl(25 65% 55%)',
 ];
+
+/** Assign a stable color based on the category name so colors don't shift as data changes. */
+function getCategoryColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  return COLORS[hash % COLORS.length];
+}
 
 export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
   const [mounted, setMounted] = useState(false);
@@ -80,7 +87,7 @@ export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
                   dataKey="spending"
                 >
                   {filteredData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={getCategoryColor(entry.category)} />
                   ))}
                 </Pie>
                 <Tooltip

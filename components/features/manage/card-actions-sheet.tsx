@@ -77,21 +77,23 @@ export function CardActionsSheet({
       </SheetTrigger>
       <SheetContent side="bottom" className="h-auto">
         <SheetHeader>
-          <SheetTitle>****{card.last4}</SheetTitle>
+          <SheetTitle>{card.last4 ? `****${card.last4}` : (card.nickname || 'Cash')}</SheetTitle>
           <SheetDescription>
-            {formatIssuer(card.issuer)} • {card.bankOrCompany || 'No bank specified'}
+            {card.issuer ? formatIssuer(card.issuer) : 'Cash'} • {card.bankOrCompany || 'No bank specified'}
           </SheetDescription>
         </SheetHeader>
         <div className="space-y-2 p-4">
-          {/* Edit Button */}
-          <Button
-            variant="outline"
-            className="w-full justify-start"
-            onClick={handleEdit}
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Edit Card
-          </Button>
+          {/* Edit Button — hidden for system cards */}
+          {!card.isSystem && (
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={handleEdit}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Card
+            </Button>
+          )}
 
           {/* Upload History Button */}
           <Button
@@ -103,32 +105,36 @@ export function CardActionsSheet({
             Upload History
           </Button>
 
-          {/* Active/Inactive Toggle */}
-          <div className="flex items-center justify-between p-3 border rounded">
-            <span className="text-sm font-medium">Active Status</span>
-            <div className="flex items-center gap-2">
-              <Label htmlFor={`sheet-active-${card.id}`} className="text-sm text-muted-foreground">
-                {card.isActive ? 'Active' : 'Inactive'}
-              </Label>
-              <Switch
-                id={`sheet-active-${card.id}`}
-                checked={card.isActive}
-                onCheckedChange={(checked) => {
-                  onToggleActive(checked);
-                }}
-              />
+          {/* Active/Inactive Toggle — hidden for system cards */}
+          {!card.isSystem && (
+            <div className="flex items-center justify-between p-3 border rounded">
+              <span className="text-sm font-medium">Active Status</span>
+              <div className="flex items-center gap-2">
+                <Label htmlFor={`sheet-active-${card.id}`} className="text-sm text-muted-foreground">
+                  {card.isActive ? 'Active' : 'Inactive'}
+                </Label>
+                <Switch
+                  id={`sheet-active-${card.id}`}
+                  checked={card.isActive}
+                  onCheckedChange={(checked) => {
+                    onToggleActive(checked);
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Delete Button */}
-          <Button
-            variant="destructive"
-            className="w-full justify-start"
-            onClick={handleDelete}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete Card
-          </Button>
+          {/* Delete Button — hidden for system cards */}
+          {!card.isSystem && (
+            <Button
+              variant="destructive"
+              className="w-full justify-start"
+              onClick={handleDelete}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Card
+            </Button>
+          )}
         </div>
       </SheetContent>
     </Sheet>

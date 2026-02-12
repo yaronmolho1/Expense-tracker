@@ -16,6 +16,7 @@ export const navSections: NavSection[] = [
       { label: "Upload", href: "/upload" },
       { label: "Transactions", href: "/transactions" },
       { label: "Time Flow", href: "/time-flow" },
+      { label: "Reports", href: "/reports" },
     ],
   },
   {

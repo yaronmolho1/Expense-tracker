@@ -240,7 +240,11 @@ export function TransactionTable({
                   </TableCell>
                   <TableCell className="text-center hidden md:table-cell">
                     <div className="text-sm">
-                      {transaction.card.nickname || `•••• ${transaction.card.last_4}`}
+                      {transaction.card.last_4 ? (
+                        transaction.card.nickname || `•••• ${transaction.card.last_4}`
+                      ) : (
+                        <span className="text-emerald-600 font-medium">{transaction.card.nickname || 'Cash'}</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-center font-mono">

@@ -134,7 +134,11 @@ export function TransactionDetailModal({
             <div>
               <div className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Card</div>
               <div className="text-base sm:text-lg">
-                {transaction.card.nickname || `****${transaction.card.last_4}`}
+                {transaction.card.last_4 ? (
+                  transaction.card.nickname || `****${transaction.card.last_4}`
+                ) : (
+                  <span className="text-emerald-600 font-medium">{transaction.card.nickname || 'Cash'}</span>
+                )}
               </div>
             </div>
             <div>

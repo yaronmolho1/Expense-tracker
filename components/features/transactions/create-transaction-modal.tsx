@@ -132,7 +132,7 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
 
   const cardOptions = cardsData?.cards?.map((c: any) => ({
     value: c.id.toString(),
-    label: `${c.nickname || c.bankOrCompany} •••• ${c.last4}`,
+    label: c.last4 ? `${c.nickname || c.bankOrCompany} •••• ${c.last4}` : (c.nickname || c.bankOrCompany || 'Cash'),
   })) || [];
 
   const parentCategoryOptions = categoriesData?.map((c: any) => ({
@@ -294,9 +294,13 @@ export function CreateTransactionModal({ isOpen, onClose }: CreateTransactionMod
                     <SelectValue placeholder="Select card..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {cardOptions.map((card: { value: string; label: string }) => (
-                      <SelectItem key={card.value} value={card.value}>
-                        {card.label}
+                    {cardsData?.cards?.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id.toString()}>
+                        {c.last4 ? (
+                          `${c.nickname || c.bankOrCompany} •••• ${c.last4}`
+                        ) : (
+                          <span className="text-emerald-600 font-medium">{c.nickname || c.bankOrCompany || 'Cash'}</span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
