@@ -114,7 +114,11 @@ export function CellDetailModal({
                             {transaction.business_name}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {transaction.card.nickname || `****${transaction.card.last_4}`}
+                            {transaction.card.last_4 ? (
+                              transaction.card.nickname || `****${transaction.card.last_4}`
+                            ) : (
+                              <span className="text-emerald-600 font-medium">{transaction.card.nickname || 'Cash'}</span>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
                             {formatCurrency(transaction.charged_amount_ils)}

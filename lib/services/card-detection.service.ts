@@ -47,8 +47,8 @@ export interface CardDetectionResult {
     header?: CardInfo;
     dbCard?: {
       id: number;
-      last4: string;
-      issuer: Issuer;
+      last4?: string;
+      issuer?: Issuer;
       nickname?: string;
     };
   };
@@ -176,7 +176,7 @@ export async function detectCard(params: {
 
     if (dbCard) {
       // Card exists in DB - check if issuer matches
-      const dbIssuer = FILE_FORMAT_TO_ISSUER[dbCard.fileFormatHandler];
+      const dbIssuer = dbCard.fileFormatHandler ? FILE_FORMAT_TO_ISSUER[dbCard.fileFormatHandler] : undefined;
 
       if (dbIssuer === userProvidedCard.issuer) {
         // Perfect match - VERIFIED
@@ -198,7 +198,7 @@ export async function detectCard(params: {
             userProvided: userProvidedCard,
             dbCard: {
               id: dbCard.id,
-              last4: dbCard.last4Digits,
+              last4: dbCard.last4Digits ?? undefined,
               issuer: dbIssuer,
               nickname: dbCard.nickname || undefined,
             },
@@ -235,7 +235,7 @@ export async function detectCard(params: {
         const dbCard = await findCardInDb(filenameCard.last4, owner);
 
         if (dbCard) {
-          const dbIssuer = FILE_FORMAT_TO_ISSUER[dbCard.fileFormatHandler];
+          const dbIssuer = dbCard.fileFormatHandler ? FILE_FORMAT_TO_ISSUER[dbCard.fileFormatHandler] : undefined;
 
           if (dbIssuer === filenameCard.issuer) {
             // VERIFIED
@@ -258,7 +258,7 @@ export async function detectCard(params: {
                 header: headerCard,
                 dbCard: {
                   id: dbCard.id,
-                  last4: dbCard.last4Digits,
+                  last4: dbCard.last4Digits ?? undefined,
                   issuer: dbIssuer,
                   nickname: dbCard.nickname || undefined,
                 },
@@ -296,7 +296,7 @@ export async function detectCard(params: {
       const dbCard = await findCardInDb(filenameCard.last4, owner);
 
       if (dbCard) {
-        const dbIssuer = FILE_FORMAT_TO_ISSUER[dbCard.fileFormatHandler];
+        const dbIssuer = dbCard.fileFormatHandler ? FILE_FORMAT_TO_ISSUER[dbCard.fileFormatHandler] : undefined;
 
         if (dbIssuer === filenameCard.issuer) {
           // VERIFIED (with lower confidence)
@@ -324,7 +324,7 @@ export async function detectCard(params: {
     const dbCard = await findCardInDb(headerCard.last4, owner);
 
     if (dbCard) {
-      const dbIssuer = FILE_FORMAT_TO_ISSUER[dbCard.fileFormatHandler];
+      const dbIssuer = dbCard.fileFormatHandler ? FILE_FORMAT_TO_ISSUER[dbCard.fileFormatHandler] : undefined;
 
       if (dbIssuer === headerCard.issuer) {
         // VERIFIED
@@ -346,7 +346,7 @@ export async function detectCard(params: {
             header: headerCard,
             dbCard: {
               id: dbCard.id,
-              last4: dbCard.last4Digits,
+              last4: dbCard.last4Digits ?? undefined,
               issuer: dbIssuer,
               nickname: dbCard.nickname || undefined,
             },

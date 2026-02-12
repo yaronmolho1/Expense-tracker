@@ -454,8 +454,12 @@ export default function ManageSubscriptionsPage() {
                           {suggestion.frequency === 'monthly' ? 'Monthly' : 'Annual'}
                         </Badge>
                         <span className="text-sm text-muted-foreground">
-                          Card: ****{suggestion.cardLast4}
-                          {suggestion.cardNickname && ` (${suggestion.cardNickname})`}
+                          Card:{' '}
+                          {suggestion.cardLast4 ? (
+                            <>****{suggestion.cardLast4}{suggestion.cardNickname && ` (${suggestion.cardNickname})`}</>
+                          ) : (
+                            <span className="text-emerald-600 font-medium">{suggestion.cardNickname || 'Cash'}</span>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -567,8 +571,12 @@ export default function ManageSubscriptionsPage() {
                     <TableCell className="font-medium">{sub.businessName}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="text-sm">****{sub.cardLast4}</span>
-                        {sub.cardNickname && (
+                        {sub.cardLast4 ? (
+                          <span className="text-sm">****{sub.cardLast4}</span>
+                        ) : (
+                          <span className="text-sm text-emerald-600 font-medium">{sub.cardNickname || 'Cash'}</span>
+                        )}
+                        {sub.cardLast4 && sub.cardNickname && (
                           <span className="text-xs text-muted-foreground">
                             {sub.cardNickname}
                           </span>

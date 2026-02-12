@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,7 @@ interface Business {
 
 interface Card {
   id: number;
-  last4: string;
+  last4: string | null;
   nickname: string | null;
   bankOrCompany: string | null;
 }
@@ -283,7 +283,11 @@ export function AddSubscriptionForm({ onSubmit, onCancel, isSubmitting, initialD
             <SelectContent className="max-h-[200px] z-[100]">
               {cardsData.map((card) => (
                 <SelectItem key={card.id} value={card.id.toString()}>
-                  {card.nickname || card.bankOrCompany || 'Card'} ****{card.last4}
+                  {card.last4 ? (
+                    `${card.nickname || card.bankOrCompany || 'Card'} ****${card.last4}`
+                  ) : (
+                    <span className="text-emerald-600 font-medium">{card.nickname || card.bankOrCompany || 'Cash'}</span>
+                  )}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { cards } from '@/lib/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, or } from 'drizzle-orm';
 import { z } from 'zod';
 import logger from '@/lib/logger';
 import { getUserId } from '@/lib/utils/auth';
@@ -66,8 +66,8 @@ export async function GET(request: Request) {
 
     logger.debug({ owner }, 'Fetching cards from database');
     const allCards = await db.select().from(cards)
-      .where(eq(cards.owner, owner))
-      .orderBy(desc(cards.createdAt));
+      .where(or(eq(cards.owner, owner), eq(cards.isSystem, true)))
+      .orderBy(desc(cards.isSystem), desc(cards.createdAt));
 
     logger.debug({ cardCount: allCards.length, owner }, 'Cards fetched successfully');
 
@@ -78,11 +78,15 @@ export async function GET(request: Request) {
         nickname: card.nickname,
         bankOrCompany: card.bankOrCompany,
         issuer:
-          Object.keys(ISSUER_TO_FILE_FORMAT).find(
-            (key) => ISSUER_TO_FILE_FORMAT[key] === card.fileFormatHandler
-          ) || card.fileFormatHandler,
+          card.fileFormatHandler
+            ? Object.keys(ISSUER_TO_FILE_FORMAT).find(
+                (key) => ISSUER_TO_FILE_FORMAT[key] === card.fileFormatHandler
+              ) || card.fileFormatHandler
+            : null,
         fileFormatHandler: card.fileFormatHandler,
         isActive: card.isActive,
+        isSystem: card.isSystem,
+        type: card.type,
         createdAt: card.createdAt,
       })),
     });

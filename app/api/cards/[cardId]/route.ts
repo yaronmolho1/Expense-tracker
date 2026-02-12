@@ -91,6 +91,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ ca
       return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 });
     }
 
+    if (existingCard.isSystem) {
+      return NextResponse.json({ error: 'System cards cannot be modified' }, { status: 403 });
+    }
+
     // Update card
     const updateData: any = {
       updatedAt: new Date(),
@@ -157,12 +161,20 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ c
       return NextResponse.json({ error: 'Owner parameter required' }, { status: 400 });
     }
 
-    // Verify ownership
+    // Verify card exists first, then check ownership
     const existingCard = await db.query.cards.findFirst({
-      where: and(eq(cards.id, cardId), eq(cards.owner, owner)),
+      where: eq(cards.id, cardId),
     });
 
     if (!existingCard) {
+      return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 });
+    }
+
+    if (existingCard.isSystem) {
+      return NextResponse.json({ error: 'System cards cannot be deleted' }, { status: 403 });
+    }
+
+    if (existingCard.owner !== owner) {
       return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 });
     }
 

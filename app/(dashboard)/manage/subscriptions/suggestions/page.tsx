@@ -78,8 +78,12 @@ export default function SubscriptionSuggestionsPage() {
                         {suggestion.frequency === 'monthly' ? 'Monthly' : 'Annual'}
                       </Badge>
                       <span className="text-sm text-muted-foreground">
-                        Card: ****{suggestion.cardLast4}
-                        {suggestion.cardNickname && ` (${suggestion.cardNickname})`}
+                        Card:{' '}
+                        {suggestion.cardLast4 ? (
+                          <>****{suggestion.cardLast4}{suggestion.cardNickname && ` (${suggestion.cardNickname})`}</>
+                        ) : (
+                          <span className="text-emerald-600 font-medium">{suggestion.cardNickname || 'Cash'}</span>
+                        )}
                       </span>
                     </div>
                   </div>

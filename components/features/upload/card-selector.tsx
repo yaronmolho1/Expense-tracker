@@ -14,11 +14,11 @@ import { AddCardDialog } from './add-card-dialog';
 
 interface Card {
   id: number;
-  last4: string;
+  last4: string | null;
   nickname: string | null;
-  bankOrCompany: string;
-  issuer: string;
-  fileFormatHandler: string;
+  bankOrCompany: string | null;
+  issuer: string | null;
+  fileFormatHandler: string | null;
 }
 
 interface CardSelectorProps {
@@ -36,7 +36,8 @@ export function CardSelector({ value, onChange, owner }: CardSelectorProps) {
     try {
       const response = await fetch(`/api/cards?owner=${encodeURIComponent(owner)}`);
       const data = await response.json();
-      setCards(data.cards || []);
+      // Only show cards that have a fileFormatHandler (exclude cash and other system cards)
+      setCards((data.cards || []).filter((c: Card) => c.fileFormatHandler));
       setLoading(false);
     } catch (error) {
       console.error('Failed to load cards:', error);
@@ -67,7 +68,7 @@ export function CardSelector({ value, onChange, owner }: CardSelectorProps) {
         <SelectContent>
           {cards.map((card) => (
             <SelectItem key={card.id} value={card.id.toString()}>
-              {card.nickname || card.bankOrCompany} (•••• {card.last4})
+              {card.nickname || card.bankOrCompany}{card.last4 ? ` (•••• ${card.last4})` : ''}
             </SelectItem>
           ))}
         </SelectContent>

@@ -527,7 +527,7 @@ export async function processBatchJob(jobData: ProcessBatchJobData) {
               normalizedBusinessName: business.normalizedName,
               dealDate: dealDateStr,
               chargedAmountIls: finalAmountIls,
-              cardLast4: card.last4Digits,
+              cardLast4: card.last4Digits ?? '',
               installmentIndex: parsedTx.installmentIndex || 0,
               paymentType: parsedTx.paymentType === 'one_time' ? 'regular' : parsedTx.paymentType,
               isRefund: parsedTx.isRefund,

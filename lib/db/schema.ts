@@ -6,6 +6,7 @@ import { relations } from 'drizzle-orm';
 // ============================================
 
 export const categorizationSourceEnum = pgEnum('categorization_source', ['user', 'llm', 'imported', 'suggested']);
+export const cardTypeEnum = pgEnum('card_type', ['credit', 'debit', 'cash']);
 export const transactionTypeEnum = pgEnum('transaction_type', ['one_time', 'installment', 'subscription']);
 export const paymentTypeEnum = pgEnum('payment_type', ['one_time', 'installments']);
 export const transactionStatusEnum = pgEnum('transaction_status', ['completed', 'projected', 'cancelled']);
@@ -38,12 +39,14 @@ export const categories: any = pgTable('categories', {
 
 export const cards = pgTable('cards', {
   id: serial('id').primaryKey(),
-  last4Digits: varchar('last_4_digits', { length: 4 }).notNull(),
+  last4Digits: varchar('last_4_digits', { length: 4 }),
   nickname: varchar('nickname', { length: 100 }),
   bankOrCompany: varchar('bank_or_company', { length: 100 }),
-  fileFormatHandler: varchar('file_format_handler', { length: 50 }).notNull(),
+  fileFormatHandler: varchar('file_format_handler', { length: 50 }),
   isActive: boolean('is_active').default(true).notNull(),
   owner: varchar('owner', { length: 50 }).notNull(),
+  type: cardTypeEnum('type').default('credit').notNull(),
+  isSystem: boolean('is_system').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
