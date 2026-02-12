@@ -2,11 +2,11 @@ import type { CategoryMeta } from '@/lib/services/reports-service';
 
 // Use the existing CSS chart variables first, then extend with additional hues
 const CHART_VARS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
 ];
 
 const EXTENDED_PALETTE = [
