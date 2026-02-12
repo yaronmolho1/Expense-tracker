@@ -115,15 +115,15 @@ export async function detectCard(input: CardDetectionInput): Promise<CardDetecti
       };
     }
 
-    detectedLast4 = card.last4Digits;
-    formatHandler = card.fileFormatHandler;
+    detectedLast4 = card.last4Digits ?? undefined;
+    formatHandler = card.fileFormatHandler ?? undefined;
 
     // Infer issuer from format handler
-    if (formatHandler.includes('isracard')) {
+    if (formatHandler?.includes('isracard')) {
       detectedIssuer = 'isracard';
-    } else if (formatHandler.includes('visa') || formatHandler.includes('cal')) {
+    } else if (formatHandler?.includes('visa') || formatHandler?.includes('cal')) {
       detectedIssuer = 'visa-cal';
-    } else if (formatHandler.includes('max')) {
+    } else if (formatHandler?.includes('max')) {
       detectedIssuer = 'max';
     }
   }
