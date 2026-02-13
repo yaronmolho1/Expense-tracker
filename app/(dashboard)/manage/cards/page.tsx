@@ -139,12 +139,8 @@ function CardRow({ card }: { card: Card }) {
             )}
             {!card.isSystem && (
               <div className="hidden md:flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => setShowEditDialog(true)}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => setShowDeleteDialog(true)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <EditCardDialog card={card} open={showEditDialog} onOpenChange={setShowEditDialog} />
+                <DeleteCardButton cardId={card.id} cardName={`****${card.last4}`} open={showDeleteDialog} onOpenChange={setShowDeleteDialog} />
               </div>
             )}
 
