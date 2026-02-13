@@ -62,9 +62,6 @@ test.describe('Duplicate File Upload Prevention', () => {
     // Verify that the error display component exists and can show messages
     // The error should appear in a red alert box
 
-    // Wait for page to be fully loaded
-    await page.waitForLoadState('networkidle');
-
     // The error message format should be:
     // "File 'filename.xlsx' has already been uploaded in this batch"
     // This is verified by the API response structure
@@ -163,7 +160,6 @@ test.describe('Duplicate File Upload - UI Feedback', () => {
     // Should be clearly visible to user
 
     // The error element has class: bg-red-50 border border-red-200
-    await page.waitForLoadState('networkidle');
   });
 
   test('should persist error until user takes action', async ({ page }) => {

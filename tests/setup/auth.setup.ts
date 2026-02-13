@@ -11,7 +11,7 @@ const authFile = 'playwright/.auth/user.json';
 
 setup('authenticate', async ({ page }) => {
   // Navigate to login page
-  await page.goto('/login', { waitUntil: 'networkidle' });
+  await page.goto('/login');
   
   // Fill in credentials
   await page.waitForSelector('input[name="username"]', { timeout: 10000 });

@@ -1,20 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
+import type { MonthlyTrendRow, TransactionTypeSplitRow, TopBusinessRow } from '@/lib/services/reports-service';
+
+export type DashboardMode = 'this_month' | 'last_month' | 'this_year' | 'last_year';
+
+export interface DashboardKPIs {
+  thisMonth: { gross: number; refunds: number; net: number };
+  lastMonth: { gross: number; refunds: number; net: number };
+  avgNet: number;
+  changeFromPrev: number;
+}
 
 export interface DashboardData {
-  kpis: {
-    thisMonth: number;
-    lastMonth: number;
-    sixMonthAverage: number;
-    changeFromLastMonth: number;
-  };
-  monthlyTrend: Array<{
-    month: string;
-    spending: number;
-  }>;
+  kpis: DashboardKPIs;
+  monthlyTrend: MonthlyTrendRow[];
   categoryBreakdown: Array<{
     category: string;
     spending: number;
   }>;
+  transactionTypeSplit: TransactionTypeSplitRow[];
+  topMerchants: TopBusinessRow[];
   recentTransactions: Array<{
     id: number;
     businessName: string;
@@ -24,17 +28,17 @@ export interface DashboardData {
   }>;
 }
 
-export function useDashboard() {
+export function useDashboard(mode: DashboardMode = 'this_month') {
   return useQuery<DashboardData>({
-    queryKey: ['dashboard'],
+    queryKey: ['dashboard', mode],
     queryFn: async () => {
-      const response = await fetch('/api/dashboard');
+      const response = await fetch(`/api/dashboard?mode=${mode}`);
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard data');
       }
       return response.json();
     },
-    refetchInterval: 60000, // Refetch every minute
-    staleTime: 30000, // Consider data stale after 30 seconds
+    refetchInterval: 60000,
+    staleTime: 30000,
   });
 }

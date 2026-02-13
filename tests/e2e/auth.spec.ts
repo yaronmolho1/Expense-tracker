@@ -18,8 +18,8 @@ test.describe('Authentication', () => {
 
   test('should redirect unauthenticated users to login', async ({ page }) => {
     // Try to access dashboard without auth
-    await page.goto('/', { waitUntil: 'networkidle' });
-    
+    await page.goto('/');
+
     // Should redirect to login page (may have query params like ?from=%2F)
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
     // Better check - verify login form is present
@@ -27,8 +27,8 @@ test.describe('Authentication', () => {
   });
 
   test('should show error on invalid credentials', async ({ page }) => {
-    await page.goto('/login', { waitUntil: 'networkidle' });
-    
+    await page.goto('/login');
+
     // Wait for form to be ready
     await page.waitForSelector('input[name="username"]', { timeout: 10000 });
     
@@ -53,7 +53,7 @@ test.describe('Authentication', () => {
     await loginViaUI(page);
     
     // Refresh the page
-    await page.reload({ waitUntil: 'networkidle' });
+    await page.reload();
     
     // Should still be on dashboard (not redirected to login)
     await expect(page).toHaveURL('/', { timeout: 10000 });
@@ -64,9 +64,6 @@ test.describe('Authentication', () => {
   test('should logout successfully', async ({ page }) => {
     // Login first
     await loginViaUI(page);
-    
-    // Wait for page to be fully loaded
-    await page.waitForLoadState('networkidle');
     
     // Find logout button (it's in the header on desktop or nav menu on mobile)
     // Try header button first (desktop), then nav menu (mobile)
@@ -83,8 +80,8 @@ test.describe('Authentication', () => {
     await expect(page).toHaveURL('/login', { timeout: 10000 });
     
     // Try to access dashboard again
-    await page.goto('/', { waitUntil: 'networkidle' });
-    
+    await page.goto('/');
+
     // Should be redirected back to login
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
   });

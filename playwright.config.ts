@@ -25,8 +25,8 @@ export default defineConfig({
   // Fail the build on CI if you accidentally left test.only in the source code
   forbidOnly: !!process.env.CI,
   
-  // Retry on CI only
-  retries: process.env.CI ? 2 : 0,
+  // No retries - fix the root cause instead of masking failures
+  retries: 0,
   
   // Opt out of parallel tests on CI
   workers: process.env.CI ? 1 : undefined,
@@ -43,8 +43,8 @@ export default defineConfig({
     // Set consistent viewport size for local and CI environments
     viewport: { width: 1280, height: 720 },
 
-    // Collect trace when retrying the failed test
-    trace: 'on-first-retry',
+    // Collect trace on every failure (retries=0, so on-first-retry would never fire)
+    trace: 'on-failure',
 
     // Screenshot on failure
     screenshot: 'only-on-failure',
@@ -81,7 +81,7 @@ export default defineConfig({
 
   // Run your local dev server before starting the tests
   webServer: {
-    command: 'npm run dev',
+    command: 'pnpm run dev',
     // Use IPv4 explicitly (127.0.0.1) to avoid IPv6 connection issues
     // Use /login page as health check - it's simple, doesn't require DB, and is public
     url: 'http://127.0.0.1:3000/login',

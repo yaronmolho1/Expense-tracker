@@ -40,7 +40,6 @@ async function clickCalendarCell(page: Page, dayText: string) {
 test.describe('DateRangePicker E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/manage/businesses');
-    await page.waitForLoadState('networkidle');
 
     // Wait for the page to finish loading - ensure "Loading..." text is gone
     await page.waitForFunction(

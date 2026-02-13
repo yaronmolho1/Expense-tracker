@@ -27,7 +27,7 @@ test.describe('Transactions', () => {
   });
 
   test('should display transaction table or list', async ({ page }) => {
-    await page.goto('/transactions', { waitUntil: 'networkidle' });
+    await page.goto('/transactions', { waitUntil: 'domcontentloaded' });
 
     // Wait for either table content or empty state (removed hard wait)
     await Promise.race([
@@ -61,9 +61,12 @@ test.describe('Transactions', () => {
   test('should show transaction details on click', async ({ page }) => {
     await page.goto('/transactions');
     
-    // Wait a bit for data to load
-    await page.waitForTimeout(1000);
-    
+    // Wait for data to load or empty state
+    await page.waitForSelector(
+      'tr[data-transaction-id], [data-testid="transaction-row"], text=/no transactions/i',
+      { timeout: 5000 }
+    ).catch(() => {});
+
     // Try to find a transaction row
     const transactionRow = page.locator('tr[data-transaction-id], [data-testid="transaction-row"]').first();
     
@@ -80,7 +83,7 @@ test.describe('Transactions', () => {
 
 test.describe('Transaction Filters', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/transactions', { waitUntil: 'networkidle' });
+    await page.goto('/transactions', { waitUntil: 'domcontentloaded' });
   });
 
   test('should filter by status', async ({ page }) => {

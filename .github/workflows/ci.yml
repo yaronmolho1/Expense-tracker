@@ -55,9 +55,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       
-      - name: Install wait-on globally
-        run: pnpm add -g wait-on
-      
       - name: TypeScript type check
         run: pnpm run type-check
       
@@ -108,6 +105,8 @@ jobs:
           PGPASSWORD: testpass
           JWT_SECRET: test-secret-key-for-ci
           AUTH_USERNAME: gili
+          # IMPORTANT: must be the bcrypt cost-4 hash for password 'y1a3r5o7n'
+          # If unset, playwright.config.ts falls back to the hardcoded cost-4 hash
           AUTH_PASSWORD_HASH_BASE64: ${{ secrets.AUTH_PASSWORD_HASH_BASE64 }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       
