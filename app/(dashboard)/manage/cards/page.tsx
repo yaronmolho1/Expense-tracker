@@ -50,7 +50,7 @@ export default function CardsPage() {
 
       <div className="grid gap-3 sm:gap-4">
         {cards && cards.length > 0 ? (
-          cards.map((card) => <CardRow key={card.id} card={card} />)
+          cards.filter((card) => card.last4).map((card) => <CardRow key={card.id} card={card} />)
         ) : (
           <UICard>
             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -139,8 +139,12 @@ function CardRow({ card }: { card: Card }) {
             )}
             {!card.isSystem && (
               <div className="hidden md:flex items-center gap-2">
-                <EditCardDialog card={card} open={showEditDialog} onOpenChange={setShowEditDialog} />
-                <DeleteCardButton cardId={card.id} cardName={`****${card.last4}`} open={showDeleteDialog} onOpenChange={setShowDeleteDialog} />
+                <Button variant="ghost" size="icon" onClick={() => setShowEditDialog(true)}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setShowDeleteDialog(true)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             )}
 

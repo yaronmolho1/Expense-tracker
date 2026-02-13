@@ -1,5 +1,6 @@
 {
     "recommendations": [
-        "vitest.explorer"
+        "vitest.explorer",
+        "anthropic.claude-code"
     ]
 }
