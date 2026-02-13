@@ -44,7 +44,7 @@ export default defineConfig({
     viewport: { width: 1280, height: 720 },
 
     // Collect trace on every failure (retries=0, so on-first-retry would never fire)
-    trace: 'on-failure',
+    trace: 'retain-on-failure',
 
     // Screenshot on failure
     screenshot: 'only-on-failure',
