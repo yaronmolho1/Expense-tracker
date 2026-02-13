@@ -50,7 +50,7 @@ export default function CardsPage() {
 
       <div className="grid gap-3 sm:gap-4">
         {cards && cards.length > 0 ? (
-          cards.map((card) => <CardRow key={card.id} card={card} />)
+          cards.filter((card) => card.last4).map((card) => <CardRow key={card.id} card={card} />)
         ) : (
           <UICard>
             <CardContent className="flex flex-col items-center justify-center py-12">
