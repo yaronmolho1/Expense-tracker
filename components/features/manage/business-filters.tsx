@@ -107,6 +107,7 @@ export function BusinessFilters({ filters, onFilterChange }: BusinessFiltersProp
   if (isLoading) {
     return (
       <CollapsibleFilter
+        key="loading"
         header={
           <>
             <FilterIcon className="h-4 w-4 text-muted-foreground" />
@@ -124,6 +125,7 @@ export function BusinessFilters({ filters, onFilterChange }: BusinessFiltersProp
 
   return (
     <CollapsibleFilter
+      key="loaded"
       header={
         <>
           <FilterIcon className="h-4 w-4 text-muted-foreground" />
