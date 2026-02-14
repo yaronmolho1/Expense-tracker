@@ -26,7 +26,9 @@ async function clickCalendarCell(page: Page, dayText: string) {
   await page.locator('[role="grid"]').waitFor({ state: 'visible', timeout: 3000 });
 
   await dayButton.scrollIntoViewIfNeeded();
-  await dayButton.click({ timeout: 5000 });
+  // Use force:true because the Radix modal popover portal can intercept Playwright's
+  // actionability hit-test even though the button itself is visible and enabled.
+  await dayButton.click({ timeout: 5000, force: true });
 
   // Wait for calendar to close after click
   await page.locator('[role="grid"]').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
