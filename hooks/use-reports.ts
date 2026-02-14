@@ -23,12 +23,13 @@ async function fetchReports(filters: ReportsFilters): Promise<ReportsResponse> {
   return response.json();
 }
 
-export function useReports(filters: ReportsFilters) {
+export function useReports(filters: ReportsFilters, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['reports', filters],
     queryFn: () => fetchReports(filters),
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: false,
+    enabled: options?.enabled !== false,
   });
 }

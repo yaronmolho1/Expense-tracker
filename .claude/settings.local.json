@@ -14,7 +14,8 @@
       "Bash(docker run:*)",
       "Bash(docker exec:*)",
       "Bash(docker stop:*)",
-      "Bash(docker rm:*)"
+      "Bash(docker rm:*)",
+      "Bash(npx shadcn@latest add chart:*)"
     ]
   }
 }

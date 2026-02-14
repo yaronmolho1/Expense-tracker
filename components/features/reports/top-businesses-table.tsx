@@ -19,7 +19,7 @@ const formatCurrency = (amount: number) =>
     maximumFractionDigits: 0,
   }).format(amount);
 
-type SortKey = 'net' | 'gross' | 'transactionCount';
+type SortKey = 'net' | 'transactionCount';
 
 export function TopBusinessesTable({ data }: TopBusinessesTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('net');
@@ -64,8 +64,6 @@ export function TopBusinessesTable({ data }: TopBusinessesTableProps) {
                     Txns<SortIcon k="transactionCount" />
                   </Button>
                 </th>
-                <th className="text-right pb-2 font-medium hidden md:table-cell">Gross</th>
-                <th className="text-right pb-2 font-medium hidden md:table-cell text-green-600">Refunds</th>
                 <th className="text-right pb-2 font-medium">
                   <Button variant="ghost" size="sm" className="h-auto p-0 font-medium text-muted-foreground" onClick={() => handleSort('net')}>
                     Net<SortIcon k="net" />
@@ -82,11 +80,7 @@ export function TopBusinessesTable({ data }: TopBusinessesTableProps) {
                     <Badge variant="secondary" className="text-xs font-normal">{row.categoryName}</Badge>
                   </td>
                   <td className="py-2 text-right text-muted-foreground">{row.transactionCount}</td>
-                  <td className="py-2 text-right hidden md:table-cell">{formatCurrency(row.gross)}</td>
-                  <td className="py-2 text-right text-green-600 hidden md:table-cell">
-                    {row.refunds > 0 ? formatCurrency(row.refunds) : '—'}
-                  </td>
-                  <td className="py-2 text-right font-semibold">{formatCurrency(row.net)}</td>
+                  <td className="py-2 text-right font-semibold tabular-nums">{formatCurrency(row.net)}</td>
                 </tr>
               ))}
             </tbody>

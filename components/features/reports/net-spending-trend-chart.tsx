@@ -2,23 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  ComposedChart,
-  Bar,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import type { MonthlyTrendRow } from '@/lib/services/reports-service';
 
 interface NetSpendingTrendChartProps {
   data: MonthlyTrendRow[];
+  /** Optional second dataset for comparison mode */
+  comparisonData?: MonthlyTrendRow[];
+  primaryLabel?: string;
+  comparisonLabel?: string;
 }
+
+const chartConfig = {
+  net: { label: 'Net Spending', color: 'var(--chart-1)' },
+  comparison: { label: 'Comparison', color: 'var(--chart-3)' },
+} satisfies ChartConfig;
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('he-IL', {
@@ -34,28 +33,83 @@ const formatMonthLabel = (month: string) => {
   return date.toLocaleString('en-US', { month: 'short', year: '2-digit' });
 };
 
-export function NetSpendingTrendChart({ data }: NetSpendingTrendChartProps) {
+function TrendTooltip({
+  active,
+  payload,
+  label,
+  primaryLabel,
+  comparisonLabel,
+}: {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+  primaryLabel?: string;
+  comparisonLabel?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border bg-background p-3 shadow-md text-sm min-w-[160px]">
+      <p className="font-medium text-muted-foreground mb-2">{label}</p>
+      {payload.map((entry: any) => {
+        const isComparison = entry.dataKey === 'comparison';
+        const periodLabel = isComparison ? (comparisonLabel ?? 'Previous') : (primaryLabel ?? 'Current');
+        const row = entry.payload;
+        return (
+          <div key={entry.dataKey} className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
+                style={{ backgroundColor: entry.fill }}
+              />
+              <span className="text-muted-foreground">{periodLabel}</span>
+            </div>
+            <p className="text-foreground font-semibold text-base pl-4">
+              {formatCurrency(entry.value)}
+            </p>
+            {!isComparison && row.refunds > 0 && (
+              <p className="text-xs text-muted-foreground pl-4">
+                Saved {formatCurrency(row.refunds)} in refunds
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function NetSpendingTrendChart({
+  data,
+  comparisonData,
+  primaryLabel,
+  comparisonLabel,
+}: NetSpendingTrendChartProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  // Transform data: refunds as negative values for below-axis display
-  const chartData = data.map((d) => ({
-    month: d.month,
+  const hasComparison = !!comparisonData?.length;
+
+  // Merge primary and comparison into aligned rows by position
+  const chartData = data.map((d, i) => ({
     label: formatMonthLabel(d.month),
-    gross: d.gross,
-    refunds: -d.refunds, // negative → renders below x-axis
     net: d.net,
+    refunds: d.refunds,
+    ...(hasComparison && comparisonData![i]
+      ? { comparison: comparisonData![i].net }
+      : hasComparison
+      ? { comparison: 0 }
+      : {}),
   }));
 
   if (!mounted || !data || data.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Spending Trend</CardTitle>
+          <CardTitle>Net Spending Trend</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-[320px] text-muted-foreground">
-            {!mounted ? 'Loading chart...' : 'No data available'}
+          <div className="flex items-center justify-center h-[380px] text-muted-foreground text-sm">
+            {!mounted ? 'Loading...' : 'No data available'}
           </div>
         </CardContent>
       </Card>
@@ -64,61 +118,67 @@ export function NetSpendingTrendChart({ data }: NetSpendingTrendChartProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Spending Trend</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle>Net Spending Trend</CardTitle>
+        {hasComparison && (
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: 'var(--chart-1)' }} />
+              {primaryLabel ?? 'Current'}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: 'var(--chart-3)' }} />
+              {comparisonLabel ?? 'Previous'}
+            </span>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
-        <div className="h-[320px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <ReferenceLine y={0} stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11 }}
-                tickMargin={6}
+        <ChartContainer config={chartConfig} className="h-[380px] w-full">
+          <BarChart
+            data={chartData}
+            margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+            barCategoryGap={hasComparison ? '15%' : '30%'}
+            barGap={3}
+          >
+            <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+            />
+            <YAxis
+              tick={{ fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(v) => `₪${(v / 1000).toFixed(0)}K`}
+            />
+            <ChartTooltip
+              cursor={{ fill: 'hsl(var(--muted))', radius: 4 }}
+              content={
+                <TrendTooltip
+                  primaryLabel={primaryLabel}
+                  comparisonLabel={comparisonLabel}
+                />
+              }
+            />
+            {hasComparison && (
+              <Bar
+                dataKey="comparison"
+                fill="var(--chart-3)"
+                radius={[4, 4, 0, 0]}
+                opacity={0.7}
               />
-              <YAxis
-                tick={{ fontSize: 11 }}
-                tickFormatter={(v) => `₪${(Math.abs(v) / 1000).toFixed(0)}K`}
-              />
-              <Tooltip
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                formatter={(value: any, name: any) => {
-                  const absVal = formatCurrency(Math.abs(value));
-                  const labels: Record<string, string> = {
-                    gross: 'Gross',
-                    refunds: 'Refunds',
-                    net: 'Net',
-                  };
-                  return [absVal, labels[name] ?? name];
-                }}
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--background))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                }}
-              />
-              <Legend
-                formatter={(value) => {
-                  const labels: Record<string, string> = { gross: 'Gross', refunds: 'Refunds', net: 'Net' };
-                  return labels[value] ?? value;
-                }}
-              />
-              <Bar dataKey="gross" fill="hsl(var(--chart-1))" radius={[3, 3, 0, 0]} name="gross" />
-              <Bar dataKey="refunds" fill="hsl(var(--destructive) / 0.7)" radius={[0, 0, 3, 3]} name="refunds" />
-              <Line
-                type="monotone"
-                dataKey="net"
-                stroke="hsl(var(--chart-3))"
-                strokeWidth={2}
-                dot={{ r: 3 }}
-                name="net"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+            )}
+            <Bar
+              dataKey="net"
+              fill="var(--chart-1)"
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );

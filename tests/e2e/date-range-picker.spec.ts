@@ -39,20 +39,25 @@ async function clickCalendarCell(page: Page, dayText: string) {
 
 test.describe('DateRangePicker E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
+    // Set up BEFORE goto so we don't miss the response.
+    // /api/filter-options controls isLoading in BusinessFilters, which gates
+    // whether CollapsibleFilter renders its children (it uses {isOpen && children}).
+    const filterOptionsReady = page.waitForResponse(
+      resp => resp.url().includes('/api/filter-options') && resp.status() === 200,
+      { timeout: 15000 }
+    );
+
     await page.goto('/manage/businesses');
 
-    // Wait for the page to finish loading - ensure "Loading..." text is gone
-    await page.waitForFunction(
-      () => !document.body.textContent?.includes('Loading filters...'),
-      { timeout: 10000 }
-    );
+    // Wait for filter-options → isLoading=false → date pickers are now in the DOM
+    await filterOptionsReady;
   });
 
   test.describe('Basic Rendering', () => {
     test('should display date range pickers in business filters', async ({ page }) => {
-      // Look for the date range picker labels
-      const fromLabel = page.getByText('Has Transactions From');
-      const toLabel = page.getByText('To');
+      // Look for the date range picker labels (labels are "From" and "To")
+      const fromLabel = page.getByText('From').first();
+      const toLabel = page.getByText('To').first();
 
       await expect(fromLabel).toBeVisible();
       await expect(toLabel).toBeVisible();

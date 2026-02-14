@@ -15,6 +15,16 @@ import { TransactionTypeSplit } from '@/components/features/reports/transaction-
 
 import type { ReportsFilterState } from '@/components/features/reports/reports-filters';
 
+function formatPeriodLabel(dateFrom: string, dateTo: string) {
+  const fmtLabel = (d: string) => {
+    const [y, m] = d.split('-');
+    return new Date(parseInt(y), parseInt(m) - 1, 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
+  };
+  const from = fmtLabel(dateFrom);
+  const to = fmtLabel(dateTo);
+  return from === to ? from : `${from} – ${to}`;
+}
+
 export default function ReportsPage() {
   const [filters, setFilters] = useState<ReportsFilterState>(getDefaultReportsFilters());
 
@@ -25,12 +35,32 @@ export default function ReportsPage() {
     parentCategoryIds: filters.parentCategoryIds.length ? filters.parentCategoryIds : undefined,
   }), [filters]);
 
+  const comparisonQueryFilters = useMemo(() => {
+    if (!filters.comparisonDateFrom) return null;
+    return {
+      dateFrom: filters.comparisonDateFrom,
+      dateTo: filters.comparisonDateTo!,
+      cardIds: filters.cardIds.length ? filters.cardIds : undefined,
+      parentCategoryIds: filters.parentCategoryIds.length ? filters.parentCategoryIds : undefined,
+    };
+  }, [filters]);
+
   const { data, isLoading, error } = useReports(queryFilters);
+  const { data: comparisonData, isLoading: isComparisonLoading } = useReports(
+    comparisonQueryFilters ?? queryFilters,
+    { enabled: !!comparisonQueryFilters }
+  );
 
   const colorMap = useMemo(
     () => buildCategoryColorMap(data?.categoryMeta ?? []),
     [data?.categoryMeta]
   );
+
+  const hasComparison = !!comparisonQueryFilters && !!comparisonData;
+  const primaryLabel = hasComparison ? formatPeriodLabel(filters.dateFrom, filters.dateTo) : undefined;
+  const comparisonLabel = hasComparison && filters.comparisonDateFrom
+    ? formatPeriodLabel(filters.comparisonDateFrom, filters.comparisonDateTo!)
+    : undefined;
 
   if (error) {
     return (
@@ -45,26 +75,25 @@ export default function ReportsPage() {
     );
   }
 
+  const isAnyLoading = isLoading || !data || (!!comparisonQueryFilters && isComparisonLoading);
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <PageHeader
         title="Reports"
-        description="Analyse spending patterns, trends and refunds across all categories"
+        description="Analyse spending patterns, trends and categories across any period"
       />
 
       <ReportsFilters filters={filters} onFilterChange={setFilters} />
 
-      {isLoading || !data ? (
+      {isAnyLoading ? (
         <div className="space-y-6">
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-28" />)}
           </div>
-          <Skeleton className="h-[350px]" />
-          <div className="grid gap-6 md:grid-cols-2">
-            <Skeleton className="h-[380px]" />
-            <Skeleton className="h-[380px]" />
-          </div>
-          <Skeleton className="h-[350px]" />
+          <Skeleton className="h-[420px]" />
+          <Skeleton className="h-[360px]" />
+          <Skeleton className="h-[420px]" />
           <div className="grid gap-6 md:grid-cols-2">
             <Skeleton className="h-[320px]" />
             <Skeleton className="h-[180px]" />
@@ -73,22 +102,32 @@ export default function ReportsPage() {
       ) : (
         <div className="space-y-6">
           {/* A: Summary KPIs */}
-          <ReportsSummaryKPIs summary={data.summary} />
+          <ReportsSummaryKPIs
+            summary={data.summary}
+            comparisonSummary={hasComparison ? comparisonData!.summary : undefined}
+            primaryLabel={primaryLabel}
+            comparisonLabel={comparisonLabel}
+          />
 
-          {/* B: Net Spending Trend */}
-          <NetSpendingTrendChart data={data.monthlyTrend} />
+          {/* B: Net Spending Trend — full width */}
+          <NetSpendingTrendChart
+            data={data.monthlyTrend}
+            comparisonData={hasComparison ? comparisonData!.monthlyTrend : undefined}
+            primaryLabel={primaryLabel}
+            comparisonLabel={comparisonLabel}
+          />
 
-          {/* C + D: Category Breakdown + Trends */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <CategoryBreakdownPanel data={data.categoryBreakdown} colorMap={colorMap} />
-            <CategoryTrendsChart
-              data={data.categoryTrends}
-              categoryMeta={data.categoryMeta}
-              colorMap={colorMap}
-            />
-          </div>
+          {/* C: Category Breakdown — full width */}
+          <CategoryBreakdownPanel data={data.categoryBreakdown} colorMap={colorMap} />
 
-          {/* E + F: Top Businesses + Type Split */}
+          {/* D: Category Trends — full width (many lines need the space) */}
+          <CategoryTrendsChart
+            data={data.categoryTrends}
+            categoryMeta={data.categoryMeta}
+            colorMap={colorMap}
+          />
+
+          {/* E + F: Top Merchants + Transaction Type Split */}
           <div className="grid gap-6 md:grid-cols-2">
             <TopBusinessesTable data={data.topBusinesses} />
             <TransactionTypeSplit data={data.byTransactionType} />

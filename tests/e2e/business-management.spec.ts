@@ -38,25 +38,21 @@ async function clickCalendarCell(page: Page, dayText: string) {
 
 test.describe('Business Management - Combined Filters E2E', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/manage/businesses', { waitUntil: 'domcontentloaded' });
-
-    // Wait for the page to finish loading - ensure "Loading..." text is gone
-    await page.waitForFunction(
-      () => !document.body.textContent?.includes('Loading filters...'),
-      { timeout: 10000 }
+    // Set up BEFORE goto so we don't miss the response.
+    // /api/filter-options controls isLoading in BusinessFilters, which gates
+    // whether CollapsibleFilter renders its children (it uses {isOpen && children}).
+    const filterOptionsReady = page.waitForResponse(
+      resp => resp.url().includes('/api/filter-options') && resp.status() === 200,
+      { timeout: 15000 }
     );
 
-    // Wait for initial API call to complete and data to load
-    await page.waitForResponse(
-      resp => resp.url().includes('/api/businesses') && resp.status() === 200,
-      { timeout: 10000 }
-    ).catch(() => {});
+    await page.goto('/manage/businesses');
 
-    // Wait for table to render (ensures data is loaded)
-    await page.locator('table, [role="table"]').first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
+    // Wait for filter-options to come back → isLoading=false → CollapsibleFilter opens
+    await filterOptionsReady;
 
-    // Wait for filter controls to be enabled (not disabled during loading)
-    await page.waitForSelector('input[placeholder*="Search"], input[type="search"]', { timeout: 10000 });
+    // Search input is now in the DOM
+    await page.waitForSelector('input[placeholder="Search businesses..."]', { timeout: 5000 });
   });
 
   test.describe('Filter UI Presence', () => {
