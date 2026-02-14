@@ -42,6 +42,8 @@ export function DateRangePicker({
   const [toDate, setToDate] = React.useState<Date | undefined>(
     toValue ? new Date(toValue) : undefined
   )
+  const [fromOpen, setFromOpen] = React.useState(false)
+  const [toOpen, setToOpen] = React.useState(false)
 
   // Sync internal state when props change
   React.useEffect(() => {
@@ -54,6 +56,7 @@ export function DateRangePicker({
 
   const handleFromSelect = (selectedDate: Date | undefined) => {
     setFromDate(selectedDate)
+    setFromOpen(false)
     if (selectedDate) {
       const year = selectedDate.getFullYear()
       const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
@@ -72,6 +75,7 @@ export function DateRangePicker({
 
   const handleToSelect = (selectedDate: Date | undefined) => {
     setToDate(selectedDate)
+    setToOpen(false)
     if (selectedDate) {
       const year = selectedDate.getFullYear()
       const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
@@ -92,7 +96,7 @@ export function DateRangePicker({
       {/* From Date */}
       <div>
         <label className="text-xs font-medium mb-1.5 block text-muted-foreground">{fromLabel}</label>
-        <Popover modal={true}>
+        <Popover modal={true} open={fromOpen} onOpenChange={setFromOpen}>
           <PopoverTrigger asChild>
             <Button
               variant={"outline"}
@@ -129,7 +133,7 @@ export function DateRangePicker({
       {/* To Date */}
       <div>
         <label className="text-xs font-medium mb-1.5 block text-muted-foreground">{toLabel}</label>
-        <Popover modal={true}>
+        <Popover modal={true} open={toOpen} onOpenChange={setToOpen}>
           <PopoverTrigger asChild>
             <Button
               variant={"outline"}

@@ -56,8 +56,8 @@ test.describe('DateRangePicker E2E Tests', () => {
   test.describe('Basic Rendering', () => {
     test('should display date range pickers in business filters', async ({ page }) => {
       // Look for the date range picker labels (labels are "From" and "To")
-      const fromLabel = page.getByText('From').first();
-      const toLabel = page.getByText('To').first();
+      const fromLabel = page.getByText('From', { exact: true }).first();
+      const toLabel = page.getByText('To', { exact: true }).first();
 
       await expect(fromLabel).toBeVisible();
       await expect(toLabel).toBeVisible();
