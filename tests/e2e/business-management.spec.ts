@@ -15,22 +15,18 @@ import { test, expect, Page } from '@playwright/test';
  * Handles viewport issues by using dispatchEvent as fallback
  */
 async function clickCalendarCell(page: Page, dayText: string) {
-  const cell = page.locator('[role="gridcell"]').filter({ hasText: new RegExp(`^${dayText}$`) }).first();
+  // Target the day button directly inside the calendar grid (not the td wrapper)
+  // Clicking the <td> via dispatchEvent doesn't trigger the React handler on the inner <button>
+  const dayButton = page.locator('[role="grid"] button').filter({ hasText: new RegExp(`^${dayText}$`) }).first();
 
   // Wait for element to be attached and visible
-  await cell.waitFor({ state: 'visible', timeout: 5000 });
+  await dayButton.waitFor({ state: 'visible', timeout: 5000 });
 
-  // Wait for calendar to settle (removed hard wait, added state check)
+  // Wait for calendar to settle
   await page.locator('[role="grid"]').waitFor({ state: 'visible', timeout: 3000 });
 
-  try {
-    // First attempt: scroll into view and click
-    await cell.scrollIntoViewIfNeeded();
-    await cell.click({ timeout: 2000 });
-  } catch (error) {
-    // Fallback: Use dispatchEvent to bypass viewport checks
-    await cell.dispatchEvent('click');
-  }
+  await dayButton.scrollIntoViewIfNeeded();
+  await dayButton.click({ timeout: 5000 });
 
   // Wait for calendar to close after click
   await page.locator('[role="grid"]').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
@@ -62,7 +58,7 @@ test.describe('Business Management - Combined Filters E2E', () => {
       await expect(searchInput).toBeVisible({ timeout: 10000 });
 
       // Check for category filter (MultiSelect with placeholder "All categories")
-      const categoryFilter = page.locator('button:has-text("All categories"):has-text("Main Category")').first();
+      const categoryFilter = page.locator('button:has-text("All categories")').first();
       await expect(categoryFilter).toBeVisible();
 
       // Check for approval status filter (Select component)

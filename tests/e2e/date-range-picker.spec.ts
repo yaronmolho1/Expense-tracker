@@ -15,23 +15,18 @@ import { test, expect, Page } from '@playwright/test';
  * Handles viewport issues by using dispatchEvent as fallback
  */
 async function clickCalendarCell(page: Page, dayText: string) {
-  const cell = page.locator('[role="gridcell"]').filter({ hasText: new RegExp(`^${dayText}$`) }).first();
+  // Target the day button directly inside the calendar grid (not the td wrapper)
+  // Clicking the <td> via dispatchEvent doesn't trigger the React handler on the inner <button>
+  const dayButton = page.locator('[role="grid"] button').filter({ hasText: new RegExp(`^${dayText}$`) }).first();
 
   // Wait for element to be attached and visible
-  await cell.waitFor({ state: 'visible', timeout: 5000 });
+  await dayButton.waitFor({ state: 'visible', timeout: 5000 });
 
-  // Wait for calendar to be stable (removed hard waits)
+  // Wait for calendar to be stable
   await page.locator('[role="grid"]').waitFor({ state: 'visible', timeout: 3000 });
 
-  try {
-    // First attempt: scroll into view and click
-    await cell.scrollIntoViewIfNeeded();
-    await cell.click({ timeout: 2000 });
-  } catch (error) {
-    // Fallback: Use dispatchEvent to bypass viewport checks
-    // This is acceptable for internal admin tools where strict user simulation is secondary to stability
-    await cell.dispatchEvent('click');
-  }
+  await dayButton.scrollIntoViewIfNeeded();
+  await dayButton.click({ timeout: 5000 });
 
   // Wait for calendar to close after selection
   await page.locator('[role="grid"]').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
