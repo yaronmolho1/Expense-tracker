@@ -15,20 +15,16 @@ import { test, expect, Page } from '@playwright/test';
  * Handles viewport issues by using dispatchEvent as fallback
  */
 async function clickCalendarCell(page: Page, dayText: string) {
-  // Target the day button directly inside the calendar grid (not the td wrapper)
-  // Clicking the <td> via dispatchEvent doesn't trigger the React handler on the inner <button>
+  // Target the day button directly inside the calendar grid
   const dayButton = page.locator('[role="grid"] button').filter({ hasText: new RegExp(`^${dayText}$`) }).first();
 
-  // Wait for element to be attached and visible
-  await dayButton.waitFor({ state: 'visible', timeout: 5000 });
+  // Wait for the button to be in the DOM and attached
+  await dayButton.waitFor({ state: 'attached', timeout: 5000 });
 
-  // Wait for calendar to be stable
-  await page.locator('[role="grid"]').waitFor({ state: 'visible', timeout: 3000 });
-
-  await dayButton.scrollIntoViewIfNeeded();
-  // Use force:true because the Radix modal popover portal can intercept Playwright's
-  // actionability hit-test even though the button itself is visible and enabled.
-  await dayButton.click({ timeout: 5000, force: true });
+  // Use evaluate to fire a native DOM click — this bypasses Playwright's viewport
+  // and hit-test checks, which fail when the Radix portal calendar renders outside
+  // the CI viewport even after scrollIntoViewIfNeeded().
+  await dayButton.evaluate((el: HTMLElement) => el.click());
 
   // Wait for calendar to close after selection
   await page.locator('[role="grid"]').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
