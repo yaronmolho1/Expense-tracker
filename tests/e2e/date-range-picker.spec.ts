@@ -124,15 +124,12 @@ test.describe('DateRangePicker E2E Tests', () => {
       await toButton.click();
       await page.waitForSelector('[role="grid"]');
 
-      // Dates before the 15th should be disabled
-      // Check if day 10 is disabled (has aria-disabled or is not clickable)
-      const day10 = page.locator('[role="gridcell"]:has-text("10")').first();
+      // Dates before the 15th should be disabled.
+      // shadcn calendar sets `disabled` on the <button> inside the gridcell, not on the <td>.
+      const day10Button = page.locator('[role="grid"] button').filter({ hasText: /^10$/ }).first();
 
-      const isDisabled = await day10.evaluate((el) => {
-        return el.hasAttribute('aria-disabled') ||
-               el.hasAttribute('disabled') ||
-               el.classList.contains('rdp-day_disabled') ||
-               el.parentElement?.classList.contains('rdp-day_disabled');
+      const isDisabled = await day10Button.evaluate((el: HTMLButtonElement) => {
+        return el.disabled || el.getAttribute('aria-disabled') === 'true';
       });
 
       expect(isDisabled).toBe(true);
